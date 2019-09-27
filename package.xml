@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<package>
+  <name>reactive_planners</name>
+  <version>1.0.0</version>
+  <description>This packages contains reactive planners</description>
+  <author email="am9789@nyu.edu">Avadesh Meduri</author>
+  <maintainer email="am9789@nyu.edu">Avadesh Meduri</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <export>
+  </export>
+</package>
