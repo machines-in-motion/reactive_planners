@@ -65,14 +65,14 @@ class dcm_vrp_planner:
             B_u = self.t_max
         else:
             B_l = np.max([self.l_min/abs(self.v_des[0]), self.w_min/abs(self.v_des[1]), self.t_min])
-            B_u = np.max([self.l_max/abs(self.v_des[0]), self.w_max/abs(self.v_des[1]), self.t_max])
+            B_u = np.min([self.l_max/abs(self.v_des[0]), self.w_max/abs(self.v_des[1]), self.t_max])
             
         t_nom = (B_l + B_u)/2.0
         l_nom = self.v_des[0] * t_nom
         w_nom = self.v_des[1] * t_nom
                         
         bx_nom = l_nom / (np.power(np.e, self.omega*t_nom) - 1)
-        by_nom = np.power(-1, n) * (self.l_p/(1 + np.power(np.e, self.omega*t_nom))) - \
+        by_nom = (np.power(-1, n) * (self.l_p/(1 + np.power(np.e, self.omega*t_nom)))) - \
                         w_nom / (1 - np.power(np.e, self.omega*t_nom))
         
         return l_nom, w_nom, t_nom, bx_nom, by_nom
@@ -87,7 +87,7 @@ class dcm_vrp_planner:
     
         return (xd/self.omega) + x 
         
-    def compute_adapted_step_locations(self,u, t, n, psi_current):
+    def compute_adapted_step_locations(self,u, t, n, psi_current, W):
         '''
             computes adapted step location after solving QP
             Input:
@@ -95,6 +95,7 @@ class dcm_vrp_planner:
                 t : time elapsed after the previous step has occured
                 n : 1 if left leg and 2 if right le is in contact
                 psi_current : current dcm location [psi_x, psi_y]
+                W : wieght array 5d
         '''    
     
         assert(np.shape(u) == (2,))
@@ -107,12 +108,12 @@ class dcm_vrp_planner:
 
         ## note : add the weight values in the p and q array corectly
         P = np.identity(5) ## quadratic cost matrix
-
-        q = np.array([-2*l_nom,
-                      -2*w_nom,
-                      -2*t_nom,
-                      -2*bx_nom,
-                      -2*by_nom ]) ## quadratic cost vector
+        P[0][0], P[1][1], P[2][2], P[3][3], P[4][4] = W 
+        q = np.array([-2*W[0]*l_nom,
+                      -2*W[1]*w_nom,
+                      -2*W[2]*t_nom,
+                      -2*W[3]*bx_nom,
+                      -2*W[4]*by_nom ]) ## quadratic cost vector
     
         G = np.matrix([ [1, 0, 0, 0, 0],
                         [0, 1, 0, 0, 0],
@@ -144,8 +145,7 @@ class dcm_vrp_planner:
         A = np.matrix([[1, 0, -1*tmp[0], 1, 0],
                         [0, 1, -1*tmp[1], 0, 1]])
         
-        b = np.array([u[0],
-                      u[1]])
+        b = np.array([0, 0])
     
         
         P = P.astype(float)
@@ -156,13 +156,12 @@ class dcm_vrp_planner:
         b = b.astype(float)
         
         x_opt = quadprog_solve_qp(P,q, G, h, A, b)
-        t_end = np.log(x_opt[2] + t_nom)/self.omega
+        t_end = np.log(x_opt[2])/self.omega
+        
+        return (x_opt[0] + u[0], x_opt[1] + u[1], t_end)
 
 
-        return (x_opt[0], x_opt[1], t_end)
-
-
-    def generate_foot_trajectory(self, u_t_end, t_end, t, x_foot, z_max, z_ground, ctrl_timestep = 0.001):
+    def generate_foot_trajectory(self, u_t_end, u, t_end, t, z_max, z_ground, ctrl_timestep = 0.001):
         '''
             This function generates a linear trajectory from the current foot location
             to the desired step location and returns the desired location of the foot 
@@ -170,54 +169,35 @@ class dcm_vrp_planner:
             
             Input :
                 u_t_end : desried step location
+                u : current step location
                 t_end : time duration of the step
                 t : current timestep
-                x_foot : current location of foot
                 z_max : maximum height the foot should reach(will reach at middle of the step time)
                 z_ground : the location of the ground
                 ctrl_timestep : the timestep at which value is recomputed
         '''
         
-        x_foot_des = np.zeros(3)
-        xd_foot_des = np.zeros(3)
+        x_foot_des_air = np.zeros(3)
+        x_foot_des_ground = np.zeros(3)
         
+        ## for impedance the leg length has to be set to zero to move center of mass forward
         
-        if x_foot[2] < z_ground:
-            x_foot[2] = z_ground
+        x_foot_des_air[0] = (u_t_end[0] - u[0])*np.sin((np.pi*t)/(t_end))
+        x_foot_des_air[1] = (u_t_end[1] - u[1])*np.sin((np.pi*t)/(t_end))
         
-        x_foot_des[0] = np.linspace(x_foot[0], u_t_end[0], num= (t_end - t)/ctrl_timestep)[1]
-        x_foot_des[1] = np.linspace(x_foot[1], u_t_end[1], num= (t_end - t)/ctrl_timestep)[1]
+        # print(u_t_end[0])
         
-        if t < t_end/2.0 :
-            lin_space = np.linspace(x_foot[2], z_max, num= ((t_end/2.0) - t)/(ctrl_timestep))
-            if len(lin_space) > 1 :
-                x_foot_des[2] = lin_space[1]
-            else:
-                x_foot_des[2] = x_foot[2]
-            xd_foot_des[0] = (t - t_end/2.0)*(t - t_end/2.0)*self.v_des[0]
-            xd_foot_des[1] = (t - t_end/2.0)*(t - t_end/2.0)*self.v_des[1]
-            xd_foot_des[2] = (t - t_end/2.0)*(t - t_end/2.0)*1.2     
-        elif t == t_end/2.0 :
-            x_foot_des[2] = z_max
-            
+        if t < t_end/2.0:
+            x_foot_des_air[2] = z_ground + z_max*np.sin((np.pi*t)/(2.0*t_end))
         else:
-            lin_space = np.linspace(x_foot[2], z_ground, num= (t_end - t)/(ctrl_timestep))
-            if len(lin_space) > 1 :
-                x_foot_des[2] = lin_space[1]
-            else:
-                x_foot_des[2] = z_ground
-            
-            xd_foot_des[0] = (t - t_end)*(t - t_end)*self.v_des[0]
-            xd_foot_des[1] = (t - t_end)*(t - t_end)*self.v_des[1]
-            xd_foot_des[2] = (t - t_end)*(t - t_end)*1.2     
-
-        if x_foot_des[2] < z_ground:
-            print(t, t_end)
-            print(x_foot[2])
-            assert False
-
-                                               
-        return x_foot_des, xd_foot_des
+            x_foot_des_air[2] = z_ground
+        
+        ## assumption that the center of mass is between the two legs 
+        x_foot_des_ground[0] = -1*(x_foot_des_air[0] - u[0])/2.0
+        x_foot_des_ground[1] = -1*(x_foot_des_air[1] - u[1])/2.0
+        x_foot_des_ground[2] = z_ground
+        
+        return x_foot_des_air, x_foot_des_ground
     
     
     

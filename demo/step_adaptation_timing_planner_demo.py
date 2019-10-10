@@ -16,7 +16,7 @@ from pinocchio.utils import se3ToXYZQUAT
 from robot_properties_solo.config import Solo12Config
 from robot_properties_solo.quadruped12wrapper import Quadruped12Robot
 
-from py_impedance_control.solo_impedance_controller import solo_impedance_controller 
+from py_blmc_controllers.solo_impedance_controller import SoloImpedanceController 
 
 from pinocchio.utils import zero
 from matplotlib import pyplot as plt
@@ -28,14 +28,14 @@ from py_dcm_vrp_planner.planner import dcm_vrp_planner
 
 
 l_min = 0.0
-l_max = 0.2
+l_max = 0.1
 w_min = 0.0
-w_max = 0.2
+w_max = 0.1
 t_min = 0.01
-t_max = 0.6
-v_des = [0.0,0]
+t_max = 0.4
+v_des = [0.0,0.0]
 l_p = 0
-ht = 0.22
+ht = 0.25
 
 
 #######################################################################################
@@ -62,7 +62,7 @@ f = np.zeros(18)
 f = 4*[0.0, 0.0, (2.2*9.8)/4]
 ##################################################################################
 
-solo_leg_ctrl = solo_impedance_controller(robot)
+solo_leg_ctrl = SoloImpedanceController(robot)
 
 # Run the simulator for 100 steps
 t = 0
@@ -73,11 +73,12 @@ u_current_step = [0.0, 0.0]
 x_com = np.array([0.0, 0.0]) 
 xd_com = np.array([0.0, 0.0]) 
 
-x_bias = [0.2, 0.1, 0.0, 0.2, -0.1, 0.0, -0.2, 0.1, 0.0, -0.2, -0.1, 0.0]
+# x_bias = [0.2, 0.1, 0.0, 0.2, -0.1, 0.0, -0.2, 0.1, 0.0, -0.2, -0.1, 0.0]
+x_bias = np.zeros(12)
 
 tmp = []
 
-for i in range(6000):
+for i in range(60000):
     # TODO: Implement a controller here.    
     # Step the simulator.
     p.stepSimulation()
@@ -99,30 +100,23 @@ for i in range(6000):
         if t_end - t > t_gap: 
             ### This if statement prevents adaptation near the end of the step to prevents jumps in desrired location.
             dcm_t = dcm_vrp_planner.compute_dcm_current(x_com,xd_com)
-            x_opt = dcm_vrp_planner.compute_adapted_step_locations(u_current_step, t, n, dcm_t)
+            x_opt = dcm_vrp_planner.compute_adapted_step_locations(u_current_step, t, n, dcm_t, [10, 1, 1, 10, 1])
             t_end = x_opt[2]
+            tmp.append(x_opt[0])
+
             if np.power(-1, n) > 0:
-                x_des_fl_hr,xd_des_fl_hr = dcm_vrp_planner.generate_foot_trajectory(x_opt[0:2], t_end, t, fl_location, -.1, -0.26)
+                x_des_fl_hr, x_des_fr_hl = dcm_vrp_planner.generate_foot_trajectory(x_opt[0:2], u_current_step, t_end, t, 0.13, -0.25)
                 x_des[0:3] = np.reshape(x_des_fl_hr, (3,))
-                x_des[3:5] = u_current_step
-                x_des[6:8] = u_current_step
+                x_des[3:5] = [0, 0, -0.25]
+                x_des[6:8] = [0, 0, -0.25]
                 x_des[9:12] = np.reshape(x_des_fl_hr, (3,))
-                x_des += x_bias
-                tmp.append(x_des[2])
-                # xd_des = 4*[0,0,0] 
-                # xd_des[0:3] = xd_des_fl_hr 
-                # xd_des[6:9] = xd_des_fl_hr
+
             else:
-                x_des_fr_hl, xd_des_fr_hl = dcm_vrp_planner.generate_foot_trajectory(x_opt[0:2], t_end, t, fr_location, -0.1, -0.26)
-                x_des[0:2] = u_current_step 
+                x_des_fr_hl, x_des_fl_hr = dcm_vrp_planner.generate_foot_trajectory(x_opt[0:2], u_current_step, t_end, t, 0.13, -0.25)
+                x_des[0:2] = [0, 0, -0.25]
                 x_des[3:6] = np.reshape(x_des_fr_hl, (3,))
                 x_des[6:9] = np.reshape(x_des_fr_hl, (3,))
-                x_des[9:11] = u_current_step
-                x_des += x_bias
-                
-                # xd_des = 4*[0,0,0] 
-                # xd_des[3:6] = xd_des_fr_hl
-                # xd_des[6:9] = xd_des_fr_hl
+                x_des[9:11] = [0, 0, -0.25]
         t+=0.001
     
     else:
@@ -136,5 +130,5 @@ for i in range(6000):
 
 
 
-# plt.plot(tmp)
-# plt.show()
+plt.plot(tmp)
+plt.show()
