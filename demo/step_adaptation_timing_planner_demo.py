@@ -32,8 +32,8 @@ l_max = 0.1
 w_min = 0.0
 w_max = 0.1
 t_min = 0.01
-t_max = 0.4
-v_des = [0.0,0.0]
+t_max = 0.35
+v_des = [1.0,0.0]
 l_p = 0
 ht = 0.25
 
@@ -44,7 +44,7 @@ ht = 0.25
 dcm_vrp_planner = dcm_vrp_planner(l_min, l_max, w_min, w_max, t_min, t_max, v_des, l_p, ht)
 
 # Create a robot instance. This initializes the simulator as well.
-robot = Quadruped12Robot()
+robot = Quadruped12Robot(ifrecord=False)
 tau = np.zeros(12)
 
 # Reset the robot to some initial state.
@@ -52,7 +52,7 @@ q0 = np.matrix(Solo12Config.initial_configuration).T
 dq0 = np.matrix(Solo12Config.initial_velocity).T
 robot.reset_state(q0, dq0)
 
-###################### impedance controller demo #################################
+#######################################################
 
 x_des = 4*[0.0, 0.0, -0.25]
 xd_des = 4*[0,0,0] 
@@ -78,12 +78,22 @@ x_bias = np.zeros(12)
 
 tmp = []
 
-for i in range(60000):
+for i in range(6000):
     # TODO: Implement a controller here.    
     # Step the simulator.
     p.stepSimulation()
     time.sleep(0.0001) # You can sleep here if you want to slow down the replay
     # Read the final state and forces after the stepping.
+
+    if i > 1000 and i < 1800:
+        force = np.array([0,8,0])
+        p.applyExternalForce(objectUniqueId=robot.robotId, linkIndex=-1, forceObj=force, \
+                        posObj=[0.25,0.,0], flags = p.WORLD_FRAME)
+
+    # if i > 3000 and i < 3500:
+    #     force = np.array([0,10,0])
+    #     p.applyExternalForce(objectUniqueId=robot.robotId, linkIndex=-1, forceObj=force, \
+    #                     posObj=[0.25,0.,0], flags = p.WORLD_FRAME)
 
     q, dq = robot.get_state()
     x_com[0] = float(q[0])
@@ -100,7 +110,7 @@ for i in range(60000):
         if t_end - t > t_gap: 
             ### This if statement prevents adaptation near the end of the step to prevents jumps in desrired location.
             dcm_t = dcm_vrp_planner.compute_dcm_current(x_com,xd_com)
-            x_opt = dcm_vrp_planner.compute_adapted_step_locations(u_current_step, t, n, dcm_t, [10, 1, 1, 10, 1])
+            x_opt = dcm_vrp_planner.compute_adapted_step_locations(u_current_step, t, n, dcm_t, [10, 10, 1, 1000, 1000])
             t_end = x_opt[2]
             tmp.append(x_opt[0])
 
@@ -130,5 +140,5 @@ for i in range(60000):
 
 
 
-plt.plot(tmp)
-plt.show()
+# plt.plot(tmp)
+# plt.show()
