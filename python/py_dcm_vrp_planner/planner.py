@@ -43,11 +43,11 @@ class dcm_vrp_planner:
         self.bx_min = self.l_min / (np.power(np.e, self.omega*self.t_max) - 1)
         self.by_max_out =  (self.l_p/(1 + np.power(np.e, self.omega*t_min))) + \
                         (self.w_max - self.w_min * np.power(np.e, self.omega*self.t_min))/ \
-                             (1 - np.power(np.e, 2*self.omega*self.t_min)) ### should it t_max?
+                             (1 - np.power(np.e, 2*self.omega*self.t_min)) 
    
         self.by_max_in =  (self.l_p/(1 + np.power(np.e, self.omega*t_min))) + \
                         (self.w_min - self.w_max * np.power(np.e, self.omega*self.t_min))/ \
-                             (1 - np.power(np.e, 2*self.omega*self.t_min)) ### should it t_max?
+                             (1 - np.power(np.e, 2*self.omega*self.t_min)) 
                              
                                 
          
@@ -84,7 +84,7 @@ class dcm_vrp_planner:
                 x : center of mass location at current time step
                 xd : center of mass velocity of current time step
         '''    
-    
+
         return (xd/self.omega) + x 
         
     def compute_adapted_step_locations(self,u, t, n, psi_current, W):
@@ -109,11 +109,11 @@ class dcm_vrp_planner:
         ## note : add the weight values in the p and q array corectly
         P = np.identity(5) ## quadratic cost matrix
         P[0][0], P[1][1], P[2][2], P[3][3], P[4][4] = W 
-        q = np.array([-2*W[0]*l_nom,
-                      -2*W[1]*w_nom,
-                      -2*W[2]*t_nom,
-                      -2*W[3]*bx_nom,
-                      -2*W[4]*by_nom ]) ## quadratic cost vector
+        q = np.array([-W[0]*(l_nom),
+                      -W[1]*(w_nom),
+                      -W[2]*t_nom,
+                      -W[3]*bx_nom,
+                      -W[4]*by_nom ]) ## quadratic cost vector
     
         G = np.matrix([ [1, 0, 0, 0, 0],
                         [0, 1, 0, 0, 0],
@@ -122,31 +122,29 @@ class dcm_vrp_planner:
                         [0, 0, 1, 0, 0],
                         [0, 0, -1, 0, 0],
                         [0, 0, 0, 1, 0],
-                        [0, 0, 0, 0, 1],
                         [0, 0, 0, -1, 0],
+                        [0, 0, 0, 0, 1],
                         [0, 0, 0, 0, -1]])
     
         
         h = np.array([self.l_max,
                       self.w_max,
-                     -1*self.l_min,
-                     -1*self.w_min,
+                     -1*(self.l_min),
+                     -1*(self.w_min),
                      np.power(np.e, self.omega*self.t_max),
                      -1*np.power(np.e, self.omega*self.t_min),
                      self.bx_max,
-                     self.by_max_in,
                      -1*self.bx_min,
-                     -1*self.by_max_out]) ## could be a problem if qp doesn't solve correctly
+                     self.by_max_in,
+                     -1*self.by_max_out]) 
         
         tmp = [0.,0.]
         tmp[0] = (psi_current[0] - u[0])*np.power(np.e, -1*self.omega*t)
         tmp[1] = (psi_current[1] - u[1])*np.power(np.e, -1*self.omega*t)
-        
         A = np.matrix([[1, 0, -1*tmp[0], 1, 0],
                         [0, 1, -1*tmp[1], 0, 1]])
         
-        b = np.array([0, 0])
-    
+        b = np.array([0.0, 0.0])
         
         P = P.astype(float)
         q = q.astype(float)
@@ -157,7 +155,7 @@ class dcm_vrp_planner:
         
         x_opt = quadprog_solve_qp(P,q, G, h, A, b)
         t_end = np.log(x_opt[2])/self.omega
-        
+                
         return (x_opt[0] + u[0], x_opt[1] + u[1], t_end)
 
 
