@@ -1,15 +1,12 @@
 ### Author : Avadesh Meduri
-### Date : 27/09/2019
-### This is the implementation of the paper "walking control based on step timing Adaption" by Majid Et al.
-
+### Date : 30/10/2019
+### Extension of DCM VRP planner in 2d but split of DCMs for solo. 
 
 import numpy as np
 from py_dcm_vrp_planner.qp_solver import quadprog_solve_qp
 
 
-
-
-class DcmVrpPlanner:
+class DcmContactPlanner:
     
     def __init__(self, l_min, l_max, w_min, w_max, t_min, t_max, v_des, l_p, ht):
         
@@ -49,9 +46,7 @@ class DcmVrpPlanner:
                         (self.w_min - self.w_max * np.power(np.e, self.omega*self.t_min))/ \
                              (1 - np.power(np.e, 2*self.omega*self.t_min)) 
                              
-                                
-         
-        
+    
     def compute_nominal_step_values(self, n):
         
         '''
@@ -76,7 +71,7 @@ class DcmVrpPlanner:
                         w_nom / (1 - np.power(np.e, self.omega*t_nom))
         
         return l_nom, w_nom, t_nom, bx_nom, by_nom
-        
+    
     def compute_dcm_current(self, x, xd):
         '''
             computes the current location of the dcm
@@ -86,44 +81,63 @@ class DcmVrpPlanner:
         '''    
 
         return (xd/self.omega) + x 
-        
-    def compute_adapted_step_locations(self,u, t, n, psi_current, W):
+    
+    
+    def compute_adapted_step_locations(self, u1, u2, t1, t2, n1, n2, psi_current, W):
         '''
-            computes adapted step location after solving QP
-            Input:
-                u : the location of the previous step (2d vector) [ux, uy]
-                t : time elapsed after the previous step has occured
-                n : 1 if left leg and 2 if right le is in contact
-                psi_current : current dcm location [psi_x, psi_y]
-                W : wieght array 5d
-        '''    
-    
-        assert(np.shape(u) == (2,))
-        assert(np.shape(psi_current) == (2,))
+            computes the next step location for the two VRPs
+            Input :
+                u1 : the location of the previous step of the first dcm (2d vector) [ux, uy]
+                u2 : the location of the previous step of the second dcm (2d vector) [ux, uy]
+                t1 : time elapsed after the previous step of the first dcm
+                t2 : time elapsed after the previous step of the second dcm
+                n1: 1 if left leg and 2 if right leg is in contact for the first dcm
+                n2 :1 if left leg and 2 if right leg is in contact for the second dcm
+                psi_current : current location of the dcm
+                W : wieght array  
+        '''
 
-        l_nom, w_nom, t_nom, bx_nom, by_nom = self.compute_nominal_step_values(n)
+        l_nom1, w_nom1, t_nom1, bx_nom1, by_nom1 = self.compute_nominal_step_values(n1)
+        l_nom2, w_nom2, t_nom2, bx_nom2, by_nom2 = self.compute_nominal_step_values(n2)
         
-        t_nom = np.power(np.e, self.omega*t_nom) ### take exp as T is considered as e^wt in qp
+        t_nom1 = np.power(np.e, self.omega*t_nom1) ### take exp as T is considered as e^wt in qp
+        t_nom2 = np.power(np.e, self.omega*t_nom2) ### take exp as T is considered as e^wt in qp
         
-        P = np.identity(5) ## quadratic cost matrix
-        P[0][0], P[1][1], P[2][2], P[3][3], P[4][4] = W 
-        q = np.array([-W[0]*(l_nom),
-                      -W[1]*(w_nom),
-                      -W[2]*t_nom,
-                      -W[3]*bx_nom,
-                      -W[4]*by_nom ]) ## quadratic cost vector
-    
-        G = np.matrix([ [1, 0, 0, 0, 0],
-                        [0, 1, 0, 0, 0],
-                        [-1, 0, 0, 0, 0],
-                        [0, -1, 0, 0, 0],
-                        [0, 0, 1, 0, 0],
-                        [0, 0, -1, 0, 0],
-                        [0, 0, 0, 1, 0],
-                        [0, 0, 0, -1, 0],
-                        [0, 0, 0, 0, 1],
-                        [0, 0, 0, 0, -1]])
-    
+        P = np.identity(10) ## quadratic cost matrix
+        for k in range(10):
+            P[k][k] = W[k]
+            
+        q = np.array([-W[0]*(l_nom1),
+                      -W[1]*(w_nom1),
+                      -W[2]*t_nom1,
+                      -W[3]*bx_nom1,
+                      -W[4]*by_nom1,
+                      -W[5]*(l_nom2),
+                      -W[6]*(w_nom2),
+                      -W[7]*t_nom2,
+                      -W[8]*bx_nom2,
+                      -W[9]*by_nom2]) ## quadratic cost vector
+         
+        G = np.matrix([ [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [-1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, -1, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, -1, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, -1, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, -1, 0, 0, 0, 0, 0], 
+                        [0, 0, 0, 0, 0, 1, 0, 0, 0, 0], ## this for dcm 2
+                        [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                        [0, 0, 0, 0, 0, -1, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, -1, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, -1, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, -1, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, -1]])
         
         h = np.array([self.l_max,
                       self.w_max,
@@ -134,15 +148,29 @@ class DcmVrpPlanner:
                      self.bx_max,
                      -1*self.bx_min,
                      self.by_max_in,
-                     -1*self.by_max_out]) 
+                     -1*self.by_max_out, 
+                     self.l_max,
+                      self.w_max,
+                     -1*(self.l_min),
+                     -1*(self.w_min),
+                     np.power(np.e, self.omega*self.t_max),
+                     -1*np.power(np.e, self.omega*self.t_min),
+                     self.bx_max,
+                     -1*self.bx_min,
+                     self.by_max_in,
+                     -1*self.by_max_out])   
+         
+        tmp = [0.,0., 0., 0.]
+        tmp[0] = (psi_current[0] - u1[0])*np.power(np.e, -1*self.omega*t1)
+        tmp[1] = (psi_current[1] - u1[1])*np.power(np.e, -1*self.omega*t1)
+        tmp[2] = (psi_current[0] - u2[0])*np.power(np.e, -1*self.omega*t2)
+        tmp[3] = (psi_current[1] - u2[1])*np.power(np.e, -1*self.omega*t2)
+        A = np.matrix([[1, 0, -1*tmp[0], 1, 0, 0, 0, 0, 0, 0],
+                        [0, 1, -1*tmp[1], 0, 1, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 1, 0, -1*tmp[2], 1, 0],
+                        [0, 0, 0, 0, 0, 0, 1, -1*tmp[3], 0, 1]])
         
-        tmp = [0.,0.]
-        tmp[0] = (psi_current[0] - u[0])*np.power(np.e, -1*self.omega*t)
-        tmp[1] = (psi_current[1] - u[1])*np.power(np.e, -1*self.omega*t)
-        A = np.matrix([[1, 0, -1*tmp[0], 1, 0],
-                        [0, 1, -1*tmp[1], 0, 1]])
-        
-        b = np.array([0.0, 0.0])
+        b = np.array([0.0, 0.0, 0.0, 0.0])
         
         P = P.astype(float)
         q = q.astype(float)
@@ -152,11 +180,13 @@ class DcmVrpPlanner:
         b = b.astype(float)
         
         x_opt = quadprog_solve_qp(P,q, G, h, A, b)
-        t_end = np.log(x_opt[2])/self.omega
-                
-        return (x_opt[0] + u[0], x_opt[1] + u[1], t_end)
+        t_end1 = np.log(x_opt[2])/self.omega
+        t_end2 = np.log(x_opt[7])/self.omega
+        
+        print(self.bx_min, x_opt[3], x_opt[8], self.bx_max)    
 
-
+        return (x_opt[0] + u1[0], x_opt[1] + u1[1], t_end1, x_opt[5] + u2[0], x_opt[6] + u2[1], t_end2)
+    
     def generate_foot_trajectory(self, u_t_end, u, t_end, t, z_max, z_ground, ctrl_timestep = 0.001):
         '''
             This function generates a linear trajectory from the current foot location
@@ -189,14 +219,8 @@ class DcmVrpPlanner:
             x_foot_des_air[2] = z_ground
         
         ## assumption that the center of mass is between the two legs 
-        x_foot_des_ground[0] = -1*(x_foot_des_air[0] - u[0])/2.0
-        x_foot_des_ground[1] = -1*(x_foot_des_air[1] - u[1])/2.0
+        x_foot_des_ground[0] = 0.0
+        x_foot_des_ground[1] = 0.0
         x_foot_des_ground[2] = z_ground
         
         return x_foot_des_air, x_foot_des_ground
-    
-    
-    
-    
-
-    

@@ -21,9 +21,7 @@ from py_blmc_controllers.solo_impedance_controller import SoloImpedanceControlle
 from pinocchio.utils import zero
 from matplotlib import pyplot as plt
 
-from py_dcm_vrp_planner.planner import dcm_vrp_planner
-
-
+from py_dcm_vrp_planner.planner import DcmVrpPlanner
 
 
 #######################################################################################
@@ -55,13 +53,13 @@ w_min = -0.05
 w_max = 0.15
 t_min = 0.05
 t_max = 0.3
-v_des = [0.0,1.0]
+v_des = [4.0,0.0]
 l_p = 0
 ht = 0.25
 
-dcm_vrp_planner = dcm_vrp_planner(l_min, l_max, w_min, w_max, t_min, t_max, v_des, l_p, ht)
+dcm_vrp_planner = DcmVrpPlanner(l_min, l_max, w_min, w_max, t_min, t_max, v_des, l_p, ht)
 
-W = [10, 10, 1, 100, 100] # weight on [step length_x , step_length_y, step time, dcm_offeset_x, dcm_offeset_y]
+W = [10, 10, 1, 1000, 1000] # weight on [step length_x , step_length_y, step time, dcm_offeset_x, dcm_offeset_y]
 #######################################################################################
 
 solo_leg_ctrl = SoloImpedanceController(robot)
@@ -79,13 +77,15 @@ xd_com = np.array([0.0, 0.0])
 plt_opt = []
 plt_foot = []
 plt_com = []
-for i in range(6000):
+for i in range(10000):
     p.stepSimulation()
-    time.sleep(0.0001) # You can sleep here if you want to slow down the replay
+    time.sleep(0.0001) 
+    
     # if i > 1000 and i < 2600:
     #     force = np.array([0,10,0])
     #     p.applyExternalForce(objectUniqueId=robot.robotId, linkIndex=-1, forceObj=force, \
     #                     posObj=[0.25,0.,0], flags = p.WORLD_FRAME)
+
 
     q, dq = robot.get_state()
     x_com[0] = float(q[0])
