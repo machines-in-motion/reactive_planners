@@ -86,8 +86,20 @@ class DcmVrpPlanner:
         '''    
 
         return (xd/self.omega) + x 
+    
+    def compute_alpha(self, xd_com, v_des):
+        '''
+            computes the current value of alpha. Alpha takes a value of 1 if v_des and
+            xd_com are zero. When alpha is one t has to be zero to satisfy complementary constraint.
+            Otherwise it takes a value of 0.
+        '''
+                    
+        if max(v_des) == 0 and np.square(max(xd_com)) < 0.001:
+            return 1
+        else:
+            return 0
         
-    def compute_adapted_step_locations(self,u, t, n, psi_current, W):
+    def compute_adapted_step_locations(self,u, t, n, psi_current, alpha, W):
         '''
             computes adapted step location after solving QP
             Input:
@@ -105,24 +117,27 @@ class DcmVrpPlanner:
         
         t_nom = np.power(np.e, self.omega*t_nom) ### take exp as T is considered as e^wt in qp
         
-        P = np.identity(5) ## quadratic cost matrix
-        P[0][0], P[1][1], P[2][2], P[3][3], P[4][4] = W 
+        P = np.identity(6) ## quadratic cost matrix
+        P[0][0], P[1][1], P[2][2], P[3][3], P[4][4], P[5][5] = W 
         q = np.array([-W[0]*(l_nom),
                       -W[1]*(w_nom),
                       -W[2]*t_nom,
                       -W[3]*bx_nom,
-                      -W[4]*by_nom ]) ## quadratic cost vector
+                      -W[4]*by_nom,
+                        0]) ## 
+
     
-        G = np.matrix([ [1, 0, 0, 0, 0],
-                        [0, 1, 0, 0, 0],
-                        [-1, 0, 0, 0, 0],
-                        [0, -1, 0, 0, 0],
-                        [0, 0, 1, 0, 0],
-                        [0, 0, -1, 0, 0],
-                        [0, 0, 0, 1, 0],
-                        [0, 0, 0, -1, 0],
-                        [0, 0, 0, 0, 1],
-                        [0, 0, 0, 0, -1]])
+        G = np.matrix([ [1, 0, 0, 0, 0, 0],
+                        [0, 1, 0, 0, 0, 0],
+                        [-1, 0, 0, 0, 0, 0],
+                        [0, -1, 0, 0, 0, 0],
+                        [0, 0, 1, 0, 0, 0],
+                        [0, 0, -1, 0, 0, 0],
+                        [0, 0, alpha, 0, 0, 1],
+                        [0, 0, 0, 1, 0, 0],
+                        [0, 0, 0, -1, 0, 0],
+                        [0, 0, 0, 0, 1, 0],
+                        [0, 0, 0, 0, -1, 0]])
     
         
         h = np.array([self.l_max,
@@ -131,6 +146,7 @@ class DcmVrpPlanner:
                      -1*(self.w_min),
                      np.power(np.e, self.omega*self.t_max),
                      -1*np.power(np.e, self.omega*self.t_min),
+                     -alpha,
                      self.bx_max,
                      -1*self.bx_min,
                      self.by_max_in,
@@ -139,8 +155,8 @@ class DcmVrpPlanner:
         tmp = [0.,0.]
         tmp[0] = (psi_current[0] - u[0])*np.power(np.e, -1*self.omega*t)
         tmp[1] = (psi_current[1] - u[1])*np.power(np.e, -1*self.omega*t)
-        A = np.matrix([[1, 0, -1*tmp[0], 1, 0],
-                        [0, 1, -1*tmp[1], 0, 1]])
+        A = np.matrix([[1, 0, -1*tmp[0], 1, 0, 0],
+                        [0, 1, -1*tmp[1], 0, 1, 0]])
         
         b = np.array([0.0, 0.0])
         
@@ -151,11 +167,38 @@ class DcmVrpPlanner:
         A = A.astype(float)
         b = b.astype(float)
         
+
         x_opt = quadprog_solve_qp(P,q, G, h, A, b)
         t_end = np.log(x_opt[2])/self.omega
+
                 
         return (x_opt[0] + u[0], x_opt[1] + u[1], t_end)
 
+
+    def compute_which_end_effector(self, v_des, u_current, u_next, t, dcm_t, n_current, W):
+        
+        '''
+            This function decides which end effector leaves the ground next
+        '''
+        if np.power(-1, n_current) > 0:
+            x_opt_same_eff = self.compute_adapted_step_locations(u_current, t, 2, dcm_t, W)
+            x_opt_diff_eff = self.compute_adapted_step_locations(u_next, t, 1, dcm_t, W)
+     
+            if np.linalg.norm(np.subtract(v_des, x_opt_same_eff[0:2])) > np.linalg.norm(np.subtract(v_des, x_opt_diff_eff[0:2])):
+                n = 2
+            else:
+                n = 1
+            
+        elif np.power(-1, n_current) < 0:
+            x_opt_same_eff = self.compute_adapted_step_locations(u_current, t, 1, dcm_t, W)
+            x_opt_diff_eff = self.compute_adapted_step_locations(u_next, t, 2, dcm_t, W)
+            
+            if np.linalg.norm(np.subtract(v_des, x_opt_same_eff[0:2])) > np.linalg.norm(np.subtract(v_des, x_opt_diff_eff[0:2])):
+                n = 1
+            else:
+                n = 2
+
+        return n
 
     def generate_foot_trajectory(self, u_t_end, u, t_end, t, z_max, z_ground, ctrl_timestep = 0.001):
         '''
@@ -177,22 +220,26 @@ class DcmVrpPlanner:
         x_foot_des_ground = np.zeros(3)
         
         ## for impedance the leg length has to be set to zero to move center of mass forward
+        if t_end > 0.001:
+            x_foot_des_air[0] = (u_t_end[0] - u[0])*np.sin((np.pi*t)/(t_end))
+            x_foot_des_air[1] = (u_t_end[1] - u[1])*np.sin((np.pi*t)/(t_end))
+            
+            # print(u_t_end[0])
+            
+            if t < t_end/2.0:
+                x_foot_des_air[2] = z_ground + z_max*np.sin((np.pi*t)/(2.0*t_end))
+            else:
+                x_foot_des_air[2] = z_ground
+            
+            ## assumption that the center of mass is between the two legs 
+            x_foot_des_ground[0] = -1*(x_foot_des_air[0] - u[0])/2.0
+            x_foot_des_ground[1] = -1*(x_foot_des_air[1] - u[1])/2.0
+            x_foot_des_ground[2] = z_ground
         
-        x_foot_des_air[0] = (u_t_end[0] - u[0])*np.sin((np.pi*t)/(t_end))
-        x_foot_des_air[1] = (u_t_end[1] - u[1])*np.sin((np.pi*t)/(t_end))
-        
-        # print(u_t_end[0])
-        
-        if t < t_end/2.0:
-            x_foot_des_air[2] = z_ground + z_max*np.sin((np.pi*t)/(2.0*t_end))
         else:
-            x_foot_des_air[2] = z_ground
-        
-        ## assumption that the center of mass is between the two legs 
-        x_foot_des_ground[0] = -1*(x_foot_des_air[0] - u[0])/2.0
-        x_foot_des_ground[1] = -1*(x_foot_des_air[1] - u[1])/2.0
-        x_foot_des_ground[2] = z_ground
-        
+            x_foot_des_air = [u_t_end[0], u_t_end[1], z_ground]
+            x_foot_des_ground = [u[0], u[1],z_ground]
+            
         return x_foot_des_air, x_foot_des_ground
     
     

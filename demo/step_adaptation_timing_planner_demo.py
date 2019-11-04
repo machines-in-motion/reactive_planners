@@ -51,15 +51,15 @@ l_min = -0.15
 l_max = 0.15
 w_min = -0.05
 w_max = 0.15
-t_min = 0.05
+t_min = 0.00001
 t_max = 0.3
-v_des = [4.0,0.0]
+v_des = [0,0]
 l_p = 0
 ht = 0.25
 
 dcm_vrp_planner = DcmVrpPlanner(l_min, l_max, w_min, w_max, t_min, t_max, v_des, l_p, ht)
 
-W = [10, 10, 1, 1000, 1000] # weight on [step length_x , step_length_y, step time, dcm_offeset_x, dcm_offeset_y]
+W = [10, 10, 1.0, 1000, 1000, 100] # weight on [step length_x , step_length_y, step time, dcm_offeset_x, dcm_offeset_y]
 #######################################################################################
 
 solo_leg_ctrl = SoloImpedanceController(robot)
@@ -79,12 +79,12 @@ plt_foot = []
 plt_com = []
 for i in range(10000):
     p.stepSimulation()
-    time.sleep(0.0001) 
+    time.sleep(0.00001) 
     
-    # if i > 1000 and i < 2600:
-    #     force = np.array([0,10,0])
-    #     p.applyExternalForce(objectUniqueId=robot.robotId, linkIndex=-1, forceObj=force, \
-    #                     posObj=[0.25,0.,0], flags = p.WORLD_FRAME)
+    if i > 1000 and i < 1500:
+        force = np.array([0,5,0])
+        p.applyExternalForce(objectUniqueId=robot.robotId, linkIndex=-1, forceObj=force, \
+                        posObj=[0.25,0.,0], flags = p.WORLD_FRAME)
 
 
     q, dq = robot.get_state()
@@ -98,7 +98,8 @@ for i in range(10000):
         if t_end - t > t_gap: 
             ### This if statement prevents adaptation near the end of the step to prevents jumps in desrired location.
             dcm_t = dcm_vrp_planner.compute_dcm_current(x_com,xd_com)
-            x_opt = dcm_vrp_planner.compute_adapted_step_locations(u_current_step, t, n, dcm_t, W)
+            alpha = dcm_vrp_planner.compute_alpha(xd_com, v_des)
+            x_opt = dcm_vrp_planner.compute_adapted_step_locations(u_current_step, t, n, dcm_t, alpha, W)
             t_end = x_opt[2]
             if np.power(-1, n) > 0:
                 x_des_fl_hr, x_des_fr_hl = dcm_vrp_planner.generate_foot_trajectory(x_opt[0:2], u_current_step, t_end, t, 0.2 , -0.25)
@@ -108,19 +109,20 @@ for i in range(10000):
                 x_des[9:12] = np.reshape(x_des_fl_hr, (3,))
                 
             else:
-                x_des_fr_hl, x_des_fl_hr = dcm_vrp_planner.generate_foot_trajectory(x_opt[0:2], u_current_step, t_end, t, 0.2, -0.25)
+                x_des_fr_hl, x_des_fl_hr = dcm_vrp_planner.generate_foot_trajectory(x_opt[0:2], u_current_step, t_end, t, 0.2, -0.25)                
                 x_des[0:3] = [0, 0, -0.25]
                 x_des[3:6] = np.reshape(x_des_fr_hl, (3,))
                 x_des[6:9] = np.reshape(x_des_fr_hl, (3,))
                 x_des[9:12] = [0, 0, -0.25]
         t+=0.001
-        
-      
+        # print(x_des)  
     
     else:
         t = 0
         u_current_step = [x_opt[0],x_opt[1]]
-        n += 1
+        n+= 1
+        t_end = t_max
+
     plt_opt.append(x_opt)
     plt_foot.append([x_des[0],x_des[1],x_des[2],x_des[3],x_des[4],x_des[5]])
     tau = solo_leg_ctrl.return_joint_torques(q,dq,kp,kd,x_des,xd_des,f)

@@ -45,15 +45,15 @@ l_min = -0.15
 l_max = 0.15
 w_min = -0.05
 w_max = 0.15
-t_min = 0.01
+t_min = 0.000001
 t_max = 0.3
-v_des = [1.0,1.0]
+v_des = [1.0,0.0]
 l_p = 0
 ht = 0.25
 ht_foot = 0.2
 dcm_contact_planner = DcmContactPlanner(l_min, l_max, w_min, w_max, t_min, t_max, v_des, l_p, ht)
 
-W = 2*[10, 10, 1, 1000, 1000] # weight on [step length_x , step_length_y, step time, dcm_offeset_x, dcm_offeset_y]
+W = 2*[100, 100, 10, 1000, 1000, 10] # weight on [step length_x , step_length_y, step time, dcm_offeset_x, dcm_offeset_y]
 
 ########################################################################
 
@@ -78,6 +78,12 @@ for i in range(10000):
     p.stepSimulation()
     time.sleep(0.0001) 
     
+    if i > 1000 and i < 1300:
+        force = np.array([0,7,0])
+        p.applyExternalForce(objectUniqueId=robot.robotId, linkIndex=-1, forceObj=force, \
+                        posObj=[0.25,0.,0], flags = p.WORLD_FRAME)
+
+    
     q, dq = robot.get_state()
     x_com[0] = float(q[0])
     x_com[1] = float(q[1])
@@ -88,10 +94,12 @@ for i in range(10000):
         t1 = 0
         u1_current_step = x_opt[0:2]
         n1 += 1
+        t1_end = t_max
     if t2 > t2_end:
         t2 = 0
         u2_current_step = x_opt[3:5]
         n2 += 1
+        t2_end = t_max
 
     u1_current_step_eff = np.add(u1_current_step, np.subtract(u2_current_step, x_com))
     u2_current_step_eff = np.add(u2_current_step, np.subtract(u1_current_step, x_com))
@@ -99,7 +107,8 @@ for i in range(10000):
     # print(u1_current_step_eff[0], u2_current_step_eff[0])
     ### This if statement prevents adaptation near the end of the step to prevents jumps in desrired location.
     dcm_t = dcm_contact_planner.compute_dcm_current(x_com,xd_com)
-    x_opt = dcm_contact_planner.compute_adapted_step_locations(u1_current_step_eff, u2_current_step_eff, t1, t2, n1, n2, dcm_t, W)
+    alpha = dcm_contact_planner.compute_alpha(xd_com, v_des)
+    x_opt = dcm_contact_planner.compute_adapted_step_locations(u1_current_step_eff, u2_current_step_eff, t1, t2, n1, n2, dcm_t,alpha, W)
     t1_end = x_opt[2]
     t2_end = x_opt[5]
     if np.power(-1, n1) > 0:
