@@ -18,7 +18,7 @@ class DcmVrpPlanner:
                 l_min : minimum step length in the x direction (in the direction of forward motion)
                 l_max : maximum step length in the x direction (in the direction of forward motion)
                 w_min : minimum step length in the y direction (in the lateral direction)
-                w_max : maximum steo lenght in the y direction (in the lateratl direction)
+                w_max : maximum step lenght in the y direction (in the lateratl direction)
                 t_min : minimum step time
                 t_max : maximum step time
                 v_des : desired average velocity in the x and y ([v_x, v_y]) 2d vector
