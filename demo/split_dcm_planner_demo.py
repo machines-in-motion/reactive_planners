@@ -47,7 +47,7 @@ w_min = -0.05
 w_max = 0.15
 t_min = 0.000001
 t_max = 0.3
-v_des = [1.0,0.0]
+v_des = [3.0,0.0]
 l_p = 0
 ht = 0.25
 ht_foot = 0.2
@@ -111,6 +111,11 @@ for i in range(10000):
     x_opt = dcm_contact_planner.compute_adapted_step_locations(u1_current_step_eff, u2_current_step_eff, t1, t2, n1, n2, dcm_t,alpha, W)
     t1_end = x_opt[2]
     t2_end = x_opt[5]
+    ### bringing the effective next step to the inertial frame
+    x_opt = np.array(x_opt)
+    x_opt[0:2] = np.add(x_opt[0:2], np.subtract(x_com, u2_current_step)) 
+    x_opt[3:5] = np.add(x_opt[3:5], np.subtract(x_com, u1_current_step))
+    
     if np.power(-1, n1) > 0:
         x_des_fl, x_des_fr = dcm_contact_planner.generate_foot_trajectory(x_opt[0:2], u1_current_step, t1_end, t1, ht_foot,-ht)
         

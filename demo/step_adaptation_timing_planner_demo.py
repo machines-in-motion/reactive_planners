@@ -53,7 +53,7 @@ w_min = -0.05
 w_max = 0.15
 t_min = 0.00001
 t_max = 0.3
-v_des = [0,0]
+v_des = [1.0,0]
 l_p = 0
 ht = 0.25
 
@@ -119,10 +119,17 @@ for i in range(10000):
     
     else:
         t = 0
-        u_current_step = [x_opt[0],x_opt[1]]
-        n+= 1
+        n_old = n
         t_end = t_max
+        n = dcm_vrp_planner.compute_which_end_effector(x_des, u_current_step, x_opt[0:2], dcm_t, n, alpha, W)
+        if np.power(-1, n_old) == np.power(-1, n):
+            u_current_step = u_current_step
 
+        else:
+            u_current_step = [x_opt[0],x_opt[1]]
+
+        
+        
     plt_opt.append(x_opt)
     plt_foot.append([x_des[0],x_des[1],x_des[2],x_des[3],x_des[4],x_des[5]])
     tau = solo_leg_ctrl.return_joint_torques(q,dq,kp,kd,x_des,xd_des,f)

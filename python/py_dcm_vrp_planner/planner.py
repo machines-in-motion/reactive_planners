@@ -172,32 +172,25 @@ class DcmVrpPlanner:
         t_end = np.log(x_opt[2])/self.omega
 
                 
-        return (x_opt[0] + u[0], x_opt[1] + u[1], t_end)
+        return (x_opt[0] + u[0], x_opt[1] + u[1], t_end, x_opt[3], x_opt[4])
 
 
-    def compute_which_end_effector(self, v_des, u_current, u_next, t, dcm_t, n_current, W):
+    def compute_which_end_effector(self, v_des, u_current, u_next, dcm_t, n_current, alpha, W):
         
         '''
             This function decides which end effector leaves the ground next
         '''
-        if np.power(-1, n_current) > 0:
-            x_opt_same_eff = self.compute_adapted_step_locations(u_current, t, 2, dcm_t, W)
-            x_opt_diff_eff = self.compute_adapted_step_locations(u_next, t, 1, dcm_t, W)
-     
-            if np.linalg.norm(np.subtract(v_des, x_opt_same_eff[0:2])) > np.linalg.norm(np.subtract(v_des, x_opt_diff_eff[0:2])):
-                n = 2
-            else:
-                n = 1
+       
+        x_opt_same_eff = self.compute_adapted_step_locations(u_current, 0, n_current, dcm_t, alpha, W)
+        x_opt_diff_eff = self.compute_adapted_step_locations(u_next, 0, n_current+1, dcm_t, alpha, W)
+    
+        # print(x_opt_same_eff[0:2], x_opt_diff_eff[0:2])
+    
+        if np.linalg.norm(np.subtract(x_opt_same_eff[0:2], u_current)) < np.linalg.norm(np.subtract(x_opt_diff_eff[0:2], u_next)):
+            n = n_current
+        else:
+            n = n_current+1
             
-        elif np.power(-1, n_current) < 0:
-            x_opt_same_eff = self.compute_adapted_step_locations(u_current, t, 1, dcm_t, W)
-            x_opt_diff_eff = self.compute_adapted_step_locations(u_next, t, 2, dcm_t, W)
-            
-            if np.linalg.norm(np.subtract(v_des, x_opt_same_eff[0:2])) > np.linalg.norm(np.subtract(v_des, x_opt_diff_eff[0:2])):
-                n = 1
-            else:
-                n = 2
-
         return n
 
     def generate_foot_trajectory(self, u_t_end, u, t_end, t, z_max, z_ground, ctrl_timestep = 0.001):
