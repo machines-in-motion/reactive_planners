@@ -131,8 +131,8 @@ class DcmContactPlanner:
         t_nom1 = np.power(np.e, self.omega*t_nom1) ### take exp as T is considered as e^wt in qp
         t_nom2 = np.power(np.e, self.omega*t_nom2) ### take exp as T is considered as e^wt in qp
         
-        P = np.identity(16) ## quadratic cost matrix
-        for k in range(16):
+        P = np.identity(18) ## quadratic cost matrix
+        for k in range(18):
             P[k][k] = W[k]
             
         q = np.array([-W[0]*(l_nom1),
@@ -143,32 +143,34 @@ class DcmContactPlanner:
                       -W[5]*by_nom1,
                       -W[6]*bz_nom1,
                       0,
-                      -W[8]*(l_nom2),
-                      -W[9]*(w_nom2),
-                      -W[10]*(h_nom2),
-                      -W[11]*t_nom2,
-                      -W[12]*bx_nom2,
-                      -W[13]*by_nom2,
-                      -W[14]*bz_nom2,
+                      0,
+                      -W[9]*(l_nom2),
+                      -W[10]*(w_nom2),
+                      -W[11]*(h_nom2),
+                      -W[12]*t_nom2,
+                      -W[13]*bx_nom2,
+                      -W[14]*by_nom2,
+                      -W[15]*bz_nom2,
+                      0,
                       0] ) ## quadratic cost vector
         
         ## constaint matrix for one mass
-        G_dcm = np.matrix([[1, 0, 0, 0, 0, 0, 0, 0],
-                          [0, 1, 0, 0, 0, 0, 0, 0],
-                          [0, 0, 1, 0, 0, 0, 0, 0],
-                          [-1, 0, 0, 0, 0, 0, 0, 0],
-                          [0, -1, 0, 0, 0, 0, 0, 0],
-                          [0, 0, -1, 0, 0, 0, 0, 0],
-                          [0, 0, 0, 1, 0, 0, 0, 0],
-                          [0, 0, 0, -1, 0, 0, 0, 0],
-                          [0, 0, 0, alpha, 0, 0, 0, 1],
-                          [0, 0, 0, 0, 1, 0, 0, 0],
-                          [0, 0, 0, 0, 0, 1, 0, 0],
-                          [0, 0, 0, 0, 0, 0, 1, 0],
-                          [0, 0, 0, 0, -1, 0, 0, 0],
-                          [0, 0, 0, 0, 0, -1, 0, 0],
-                          [0, 0, 0, 0, 0, 0, -1, 0],
-                          [0, 0, 1, 0, 0, 0, 0, 0]])
+        G_dcm = np.matrix([[1, 0, 0, 0, 0, 0, 0, 0, 0],
+                          [0, 1, 0, 0, 0, 0, 0, 0, 0],
+                          [0, 0, 1, 0, 0, 0, 0, 0, 0],
+                          [-1, 0, 0, 0, 0, 0, 0, 0, 0],
+                          [0, -1, 0, 0, 0, 0, 0, 0, 0],
+                          [0, 0, -1, 0, 0, 0, 0, 0, 0],
+                          [0, 0, 0, 1, 0, 0, 0, 0, 0],
+                          [0, 0, 0, -1, 0, 0, 0, 0, 0],
+                          [0, 0, 0, alpha, 0, 0, 0, 0, 1],
+                          [0, 0, 0, 0, 1, 0, 0, 0, 0],
+                          [0, 0, 0, 0, 0, 1, 0, 0, 0],
+                          [0, 0, 0, 0, 0, 0, 1, 0, 0],
+                          [0, 0, 0, 0, -1, 0, 0, 0, 0],
+                          [0, 0, 0, 0, 0, -1, 0, 0, 0],
+                          [0, 0, 0, 0, 0, 0, -1, 0, 0],
+                          [0, 0, 1, 0, 0, 0, 0, 1, 0]])
           
         h_dcm = np.array([  self.l_max,
                             self.w_max,
@@ -185,13 +187,13 @@ class DcmContactPlanner:
                             -1*self.bx_min,
                             -1*self.by_max_out,
                             -1*self.bz_min,
-                            0]) 
+                            0]) ## ground constant 
                           
         G = np.block([[G_dcm, np.zeros(np.shape(G_dcm))],
                       [np.zeros(np.shape(G_dcm)), G_dcm]])  
         
         h = np.hstack((h_dcm, h_dcm))
-        
+                
         tmp = [0., 0., 0., 0., 0., 0.]
         tmp[0] = (psi_current[0] - u1[0])*np.power(np.e, -1*self.omega*t1)
         tmp[1] = (psi_current[1] - u1[1])*np.power(np.e, -1*self.omega*t1)
@@ -199,12 +201,12 @@ class DcmContactPlanner:
         tmp[3] = (psi_current[0] - u2[0])*np.power(np.e, -1*self.omega*t2)
         tmp[4] = (psi_current[1] - u2[1])*np.power(np.e, -1*self.omega*t2)
         tmp[5] = (psi_current[2] - u2[2])*np.power(np.e, -1*self.omega*t2)
-        A = np.matrix([[1, 0, 0, -1*tmp[0], 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 1, 0, -1*tmp[1], 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 1, -1*tmp[2], 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1*tmp[3], 1, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, -1*tmp[4], 0, 1, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, -1*tmp[5], 0, 0, 1, 0]])
+        A = np.matrix([ [1, 0, 0, -1*tmp[0], 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 1, 0, -1*tmp[1], 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 1, -1*tmp[2], 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, -1*tmp[3], 1, 0, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, -1*tmp[4], 0, 1, 0, 0, 0],
+                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, -1*tmp[5], 0, 0, 1, 0, 0]])
         
         b = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         
@@ -215,11 +217,13 @@ class DcmContactPlanner:
         A = A.astype(float)
         b = b.astype(float)
         
-        x_opt = quadprog_solve_qp(P,q, G, h, None, None)
+        x_opt = quadprog_solve_qp(P,q, G, h, A, b)
         t_end1 = np.log(x_opt[3])/self.omega
-        t_end2 = np.log(x_opt[11])/self.omega
-                            
-        return (x_opt[0] + u1[0], x_opt[1] + u1[1], x_opt[2] + u1[2], t_end1, x_opt[8] + u2[0], x_opt[9] + u2[1], x_opt[10] + u2[2], t_end2)
+        t_end2 = np.log(x_opt[12])/self.omega
+
+        print(x_opt[2])
+        
+        return (x_opt[0] + u1[0], x_opt[1] + u1[1], x_opt[2] + u1[2], t_end1, x_opt[9] + u2[0], x_opt[10] + u2[1], x_opt[11] + u2[2], t_end2)
     
     def generate_foot_trajectory(self, u_t_end, u, t_end, t, z_max, z_ht, ctrl_timestep = 0.001):
         '''
@@ -240,6 +244,7 @@ class DcmContactPlanner:
         x_foot_des_air = np.zeros(3)
         x_foot_des_ground = np.zeros(3)
         
+        # u_t_end[2] -= z_ht
         ## for impedance the leg length has to be set to zero to move center of mass forward
         if t_end > 0.001:
             x_foot_des_air[0] = (u_t_end[0] - u[0])*np.sin((np.pi*t)/(t_end))
