@@ -220,8 +220,6 @@ class DcmContactPlanner:
         x_opt = quadprog_solve_qp(P,q, G, h, A, b)
         t_end1 = np.log(x_opt[3])/self.omega
         t_end2 = np.log(x_opt[12])/self.omega
-
-        print(x_opt[2])
         
         return (x_opt[0] + u1[0], x_opt[1] + u1[1], x_opt[2] + u1[2], t_end1, x_opt[9] + u2[0], x_opt[10] + u2[1], x_opt[11] + u2[2], t_end2)
     
@@ -244,16 +242,15 @@ class DcmContactPlanner:
         x_foot_des_air = np.zeros(3)
         x_foot_des_ground = np.zeros(3)
         
-        # u_t_end[2] -= z_ht
         ## for impedance the leg length has to be set to zero to move center of mass forward
         if t_end > 0.001:
             x_foot_des_air[0] = (u_t_end[0] - u[0])*np.sin((np.pi*t)/(t_end))
             x_foot_des_air[1] = (u_t_end[1] - u[1])*np.sin((np.pi*t)/(t_end))
             
             if t < t_end/2.0:
-                x_foot_des_air[2] = (z_ht + u_t_end[2]) +  (z_max - (u_t_end[2] - u[2])) *np.sin((np.pi*t)/(2.0*t_end))
+                x_foot_des_air[2] = (z_ht) +  (z_max) *np.sin((np.pi*t)/(0.5*t_end))
             else:
-                x_foot_des_air[2] = z_ht + u_t_end[2]
+                x_foot_des_air[2] = (z_ht)
             
             ## assumption that the center of mass is between the two legs 
             x_foot_des_ground[0] = 0.0
