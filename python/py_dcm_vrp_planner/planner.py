@@ -6,6 +6,7 @@
 import numpy as np
 from py_dcm_vrp_planner.qp_solver import quadprog_solve_qp
 
+from gurobipy import *
 
 
 
@@ -173,7 +174,6 @@ class DcmVrpPlanner:
 
                 
         return (x_opt[0] + u[0], x_opt[1] + u[1], t_end, x_opt[3], x_opt[4])
-
 
     def compute_which_end_effector(self, v_des, u_current, u_next, dcm_t, n_current, alpha, W):
         

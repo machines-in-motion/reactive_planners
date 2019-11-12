@@ -153,7 +153,7 @@ class DcmContactPlanner:
                       -W[15]*bz_nom2,
                       0,
                       0] ) ## quadratic cost vector
-        
+                
         ## constaint matrix for one mass
         G_dcm = np.matrix([[1, 0, 0, 0, 0, 0, 0, 0, 0],
                           [0, 1, 0, 0, 0, 0, 0, 0, 0],
@@ -180,7 +180,7 @@ class DcmContactPlanner:
                             -1*(self.h_min),
                             np.power(np.e, self.omega*self.t_max),
                             -1*np.power(np.e, self.omega*self.t_min),
-                            -alpha,
+                            alpha,
                             self.bx_max,
                             self.by_max_in,
                             self.bz_max,
@@ -216,13 +216,14 @@ class DcmContactPlanner:
         h = h.astype(float)
         A = A.astype(float)
         b = b.astype(float)
-        
-        x_opt = quadprog_solve_qp(P,q, G, h, A, b)
+                
+        x_opt = quadprog_solve_qp(P,q, A = A, b = b, G=G, h=h)
+    
         t_end1 = np.log(x_opt[3])/self.omega
         t_end2 = np.log(x_opt[12])/self.omega
         
         return (x_opt[0] + u1[0], x_opt[1] + u1[1], x_opt[2] + u1[2], t_end1, x_opt[9] + u2[0], x_opt[10] + u2[1], x_opt[11] + u2[2], t_end2)
-    
+     
     def generate_foot_trajectory(self, u_t_end, u, t_end, t, z_max, z_ht, ctrl_timestep = 0.001):
         '''
             This function generates a linear trajectory from the current foot location

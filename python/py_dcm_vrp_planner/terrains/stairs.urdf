@@ -1,6 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <robot name="stairs">
+  <link name="ground_link">
+    <contact>
+      <lateral_friction value="1.0"/>
+      <restitution value="0.0"/>
+    </contact>
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <mass value=".0"/>
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <box size="1.8 1.0 .05"/>      </geometry>
+      <material name="white">
+        <color rgba="1 1 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <box size="1.8 1.0 .05"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="ground_to_first_step" type="fixed">
+      <parent link="ground_link"/>
+      <child link="first_step_link"/>
+   </joint>
+
+
   <link name="first_step_link">
     <contact>
       <lateral_friction value="1.0"/>
