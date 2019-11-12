@@ -81,10 +81,10 @@ for i in range(10000):
     p.stepSimulation()
     time.sleep(0.00001) 
     
-    if i > 1000 and i < 1500:
-        force = np.array([0,5,0])
-        p.applyExternalForce(objectUniqueId=robot.robotId, linkIndex=-1, forceObj=force, \
-                        posObj=[0.25,0.,0], flags = p.WORLD_FRAME)
+    # if i > 1000 and i < 1500:
+    #     force = np.array([0,5,0])
+    #     p.applyExternalForce(objectUniqueId=robot.robotId, linkIndex=-1, forceObj=force, \
+    #                     posObj=[0.25,0.,0], flags = p.WORLD_FRAME)
 
 
     q, dq = robot.get_state()
@@ -100,6 +100,8 @@ for i in range(10000):
             dcm_t = dcm_vrp_planner.compute_dcm_current(x_com,xd_com)
             alpha = dcm_vrp_planner.compute_alpha(xd_com, v_des)
             x_opt = dcm_vrp_planner.compute_adapted_step_locations(u_current_step, t, n, dcm_t, alpha, W)
+            # x_opt = dcm_vrp_planner.compute_adapted_step_locations_gurobi(u_current_step, t, n, dcm_t, alpha, W)
+
             t_end = x_opt[2]
             if np.power(-1, n) > 0:
                 x_des_fl_hr, x_des_fr_hl = dcm_vrp_planner.generate_foot_trajectory(x_opt[0:2], u_current_step, t_end, t, 0.2 , -0.25)
@@ -119,14 +121,17 @@ for i in range(10000):
     
     else:
         t = 0
-        n_old = n
+        # n_old = n
+        n += 1
         t_end = t_max
-        n = dcm_vrp_planner.compute_which_end_effector(x_des, u_current_step, x_opt[0:2], dcm_t, n, alpha, W)
-        if np.power(-1, n_old) == np.power(-1, n):
-            u_current_step = u_current_step
+        u_current_step = [x_opt[0],x_opt[1]]
 
-        else:
-            u_current_step = [x_opt[0],x_opt[1]]
+        # n = dcm_vrp_planner.compute_which_end_effector(x_des, u_current_step, x_opt[0:2], dcm_t, n, alpha, W)
+        # if np.power(-1, n_old) == np.power(-1, n):
+        #     u_current_step = u_current_step
+
+        # else:
+        #     u_current_step = [x_opt[0],x_opt[1]]
 
         
         

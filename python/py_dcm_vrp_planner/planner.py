@@ -175,6 +175,59 @@ class DcmVrpPlanner:
                 
         return (x_opt[0] + u[0], x_opt[1] + u[1], t_end, x_opt[3], x_opt[4])
 
+    def compute_adapted_step_locations_gurobi(self,u, t, n, psi_current, alpha, W):
+        '''
+            computes adapted step location after solving QP
+            Input:
+                u : the location of the previous step (2d vector) [ux, uy]
+                t : time elapsed after the previous step has occured
+                n : 1 if left leg and 2 if right le is in contact
+                psi_current : current dcm location [psi_x, psi_y]
+                W : wieght array 5d
+        '''    
+    
+        assert(np.shape(u) == (2,))
+        assert(np.shape(psi_current) == (2,))
+
+        l_nom, w_nom, t_nom, bx_nom, by_nom = self.compute_nominal_step_values(n)
+        
+        t_nom = np.power(np.e, self.omega*t_nom) ### take exp as T is considered as e^wt in qp
+
+        # creating model
+        
+        m = Model("qp")
+        
+        ## creating variables
+        ut_x = m.addVar(lb=self.l_min, ub=self.l_max, name="ut_x")
+        ut_y = m.addVar(lb=self.w_min, ub=self.w_max, name="ut_y")
+        t_step = m.addVar(lb=np.power(np.e, self.omega*self.t_min), ub=np.power(np.e, self.omega*self.t_max), name="t_step")
+        b_x = m.addVar(lb=self.bx_min, ub=self.bx_max, name="b_x")
+        b_y = m.addVar(lb=self.by_max_out, ub=self.by_max_in, name="b_y")
+        
+        ### Cost 
+        
+        c = (W[0] * (ut_x - l_nom)*(ut_x - l_nom)) + (W[1] * (ut_y - w_nom)*(ut_y - w_nom)) + \
+            (W[2] * (t_step - t_nom)*(t_step - t_nom)) + (W[3] * (b_x - bx_nom)*(b_x - bx_nom)) + (W[4] * (b_y - by_nom)*(b_y - by_nom)) 
+                 
+        m.setObjective(c)
+
+        ## constraints
+        tmp = [0.,0.]
+        tmp[0] = (psi_current[0] - u[0])*np.power(np.e, -1*self.omega*t)
+        tmp[1] = (psi_current[1] - u[1])*np.power(np.e, -1*self.omega*t)
+        
+        m.addConstr(ut_x == (tmp[0]*t_step) - b_x, "dyn_constr_x")
+        m.addConstr(ut_y == (tmp[1]*t_step) - b_y, "dyn_constr_y")
+
+        m.optimize()
+        
+        x_opt = m.getVars()
+        
+        t_end = np.log(x_opt[2].x)/self.omega
+
+                
+        return (x_opt[0].x + u[0], x_opt[1].x + u[1], t_end, x_opt[3].x, x_opt[4].x)        
+
     def compute_which_end_effector(self, v_des, u_current, u_next, dcm_t, n_current, alpha, W):
         
         '''

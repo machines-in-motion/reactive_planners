@@ -8,7 +8,7 @@ import cvxpy as cp
 
 class SplitDcmContactPlanner:
     
-    def __init__(self, l_min, l_max, w_min, w_max, h_min, h_max, t_min, t_max, v_des, l_p, ht, terrain_constraints):
+    def __init__(self, l_min, l_max, w_min, w_max, h_min, h_max, t_min, t_max, v_des, l_p, ht, terrain_constraints = None):
         
         '''
             Input:
@@ -108,179 +108,6 @@ class SplitDcmContactPlanner:
             return 1
         else:
             return 0
-    
-    # def compute_adapted_step_locations(self, u1, u2, t1, t2, n1, n2, psi_current, alpha, W):
-    #     '''
-    #         computes the next step location for the two VRPs
-    #         Input :
-    #             u1 : the location of the previous step of the first dcm (2d vector) [ux, uy]
-    #             u2 : the location of the previous step of the second dcm (2d vector) [ux, uy]
-    #             t1 : time elapsed after the previous step of the first dcm
-    #             t2 : time elapsed after the previous step of the second dcm
-    #             n1: 1 if left leg and 2 if right leg is in contact for the first dcm
-    #             n2 :1 if left leg and 2 if right leg is in contact for the second dcm
-    #             psi_current : current location of the dcm
-    #             W : wieght array  
-    #             alpha : variable that sets step time to zero if robot is not moving and should not move
-    #     '''
-
-    #     l_nom1, w_nom1, h_nom1, t_nom1, bx_nom1, by_nom1, bz_nom1 = self.compute_nominal_step_values(n1)
-    #     l_nom2, w_nom2, h_nom2, t_nom2, bx_nom2, by_nom2, bz_nom2 = self.compute_nominal_step_values(n2)
-        
-    #     t_nom1 = np.power(np.e, self.omega*t_nom1) ### take exp as T is considered as e^wt in qp
-    #     t_nom2 = np.power(np.e, self.omega*t_nom2) ### take exp as T is considered as e^wt in qp
-        
-    #     P = np.identity(18) ## quadratic cost matrix
-    #     for k in range(18):
-    #         P[k][k] = W[k]
-            
-    #     q = np.array([-W[0]*(l_nom1),
-    #                   -W[1]*(w_nom1),
-    #                   -W[2]*(h_nom1), 
-    #                   -W[3]*t_nom1,
-    #                   -W[4]*bx_nom1,
-    #                   -W[5]*by_nom1,
-    #                   -W[6]*bz_nom1,
-    #                   0,
-    #                   0,
-    #                   -W[9]*(l_nom2),
-    #                   -W[10]*(w_nom2),
-    #                   -W[11]*(h_nom2),
-    #                   -W[12]*t_nom2,
-    #                   -W[13]*bx_nom2,
-    #                   -W[14]*by_nom2,
-    #                   -W[15]*bz_nom2,
-    #                   0,
-    #                   0] ) ## quadratic cost vector
-                
-    #     ## constaint matrix for one mass
-    #     G_dcm = np.matrix([[1, 0, 0, 0, 0, 0, 0, 0, 0],
-    #                       [0, 1, 0, 0, 0, 0, 0, 0, 0],
-    #                       [0, 0, 1, 0, 0, 0, 0, 0, 0],
-    #                       [-1, 0, 0, 0, 0, 0, 0, 0, 0],
-    #                       [0, -1, 0, 0, 0, 0, 0, 0, 0],
-    #                       [0, 0, -1, 0, 0, 0, 0, 0, 0],
-    #                       [0, 0, 0, 1, 0, 0, 0, 0, 0],
-    #                       [0, 0, 0, -1, 0, 0, 0, 0, 0],
-    #                       [0, 0, 0, alpha, 0, 0, 0, 0, 1],
-    #                       [0, 0, 0, 0, 1, 0, 0, 0, 0],
-    #                       [0, 0, 0, 0, 0, 1, 0, 0, 0],
-    #                       [0, 0, 0, 0, 0, 0, 1, 0, 0],
-    #                       [0, 0, 0, 0, -1, 0, 0, 0, 0],
-    #                       [0, 0, 0, 0, 0, -1, 0, 0, 0],
-    #                       [0, 0, 0, 0, 0, 0, -1, 0, 0]])
-          
-    #     h_dcm = np.array([  self.l_max,
-    #                         self.w_max,
-    #                         self.h_max,  
-    #                         -1*(self.l_min),
-    #                         -1*(self.w_min),
-    #                         -1*(self.h_min),
-    #                         np.power(np.e, self.omega*self.t_max),
-    #                         -1*np.power(np.e, self.omega*self.t_min),
-    #                         alpha,
-    #                         self.bx_max,
-    #                         self.by_max_in,
-    #                         self.bz_max,
-    #                         -1*self.bx_min,
-    #                         -1*self.by_max_out,
-    #                         -1*self.bz_min]) 
-                   
-        
-    #     if self.ter_constrs != None:       
-    #         G_dcm = np.block([G_dcm, np.zeros((G_dcm.shape[0], (self.ter_constrs[0].shape[1] - 9)))])
-    #         G_dcm = np.concatenate((G_dcm, self.ter_constrs[0]), axis=0)
-    #         h_dcm = np.concatenate((h_dcm, self.ter_constrs[1]), axis=0)
-
-    #     G = np.block([[G_dcm, np.zeros(np.shape(G_dcm))],
-    #                   [np.zeros(np.shape(G_dcm)), G_dcm]])  
-        
-    #     h = np.hstack((h_dcm, h_dcm))
-                
-    #     tmp = [0., 0., 0., 0., 0., 0.]
-    #     tmp[0] = (psi_current[0] - u1[0])*np.power(np.e, -1*self.omega*t1)
-    #     tmp[1] = (psi_current[1] - u1[1])*np.power(np.e, -1*self.omega*t1)
-    #     tmp[2] = (psi_current[2] - u1[2])*np.power(np.e, -1*self.omega*t1)
-    #     tmp[3] = (psi_current[0] - u2[0])*np.power(np.e, -1*self.omega*t2)
-    #     tmp[4] = (psi_current[1] - u2[1])*np.power(np.e, -1*self.omega*t2)
-    #     tmp[5] = (psi_current[2] - u2[2])*np.power(np.e, -1*self.omega*t2)
-        
-    #     A_dcm_1 = np.matrix([[1, 0, 0, -1*tmp[0], 1, 0, 0, 0, 0],
-    #                        [0, 1, 0, -1*tmp[1], 0, 1, 0, 0, 0],
-    #                        [0, 0, 1, -1*tmp[2], 0, 0, 1, 0, 0]])
-        
-    #     A_dcm_2 = np.matrix([[1, 0, 0, -1*tmp[3], 1, 0, 0, 0, 0],
-    #                        [0, 1, 0, -1*tmp[4], 0, 1, 0, 0, 0],
-    #                        [0, 0, 1, -1*tmp[5], 0, 0, 1, 0, 0]])   
-       
-    #     if self.ter_constrs != None:
-    #         A_dcm_1 = np.block([A_dcm_1, np.zeros((A_dcm_1.shape[0],(self.ter_constrs[0].shape[1] - 9)))])
-    #         A_dcm_2 = np.block([A_dcm_2, np.zeros((A_dcm_2.shape[0],(self.ter_constrs[0].shape[1] - 9)))])
-
-    #     A = np.block([[A_dcm_1, np.zeros(np.shape(A_dcm_1))],
-    #                   [np.zeros(np.shape(A_dcm_2)), A_dcm_2]])
-        
-    #     b = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        
-    #     P = P.astype(float)
-    #     q = q.astype(float)
-    #     G = G.astype(float)
-    #     h = h.astype(float)
-    #     A = A.astype(float)
-    #     b = b.astype(float)
-        
-    #     x = cp.Variable(18)
-    #     x_opt = cp.Problem(cp.Minimize(0.5*cp.quad_form(x,P) + q.T@x), [G@x <= h, A@x == b])
-    #     x_opt.solve()
-    #     x_opt = x.value
-
-    #     t_end1 = np.log(x_opt[3])/self.omega
-    #     t_end2 = np.log(x_opt[12])/self.omega
-        
-    #     return (x_opt[0] + u1[0], x_opt[1] + u1[1], x_opt[2] + u1[2], t_end1, x_opt[9] + u2[0], x_opt[10] + u2[1], x_opt[11] + u2[2], t_end2)
-    
-    def generate_foot_trajectory(self, u_t_end, u, t_end, t, z_max, z_ht, ctrl_timestep = 0.001):
-            '''
-                This function generates a linear trajectory from the current foot location
-                to the desired step location and returns the desired location of the foot 
-                at the next step.
-                
-                Input :
-                    u_t_end : desried step location
-                    u : current step location
-                    t_end : time duration of the step
-                    t : current timestep
-                    z_max : maximum height the foot should reach(will reach at middle of the step time)
-                    z_ht : the height the robot must be above the ground
-                    ctrl_timestep : the timestep at which value is recomputed
-            '''
-            
-            x_foot_des_air = np.zeros(3)
-            x_foot_des_ground = np.zeros(3)
-            
-            ## for impedance the leg length has to be set to zero to move center of mass forward
-            if t_end > 0.001:
-                x_foot_des_air[0] = (u_t_end[0] - u[0])*np.sin((np.pi*t)/(t_end))
-                x_foot_des_air[1] = (u_t_end[1] - u[1])*np.sin((np.pi*t)/(t_end))
-                
-                if t < t_end/2.0:
-                    x_foot_des_air[2] = (z_ht) +  (z_max/2.0) *np.sin((np.pi*t)/(0.5*t_end))
-                else:
-                    x_foot_des_air[2] = (z_ht)
-                
-                ## assumption that the center of mass is between the two legs 
-                x_foot_des_ground[0] = 0.0
-                x_foot_des_ground[1] = 0.0
-                x_foot_des_ground[2] = z_ht
-
-            
-            else:
-                x_foot_des_air = [u_t_end[0], u_t_end[1], z_ht]
-                x_foot_des_ground = [u[0], u[1],z_ht]
-            
-            return x_foot_des_air, x_foot_des_ground
-        
-        
         
     def compute_adapted_step_locations(self, u1, u2, t1, t2, n1, n2, psi_current, alpha, W):
         '''
@@ -308,66 +135,35 @@ class SplitDcmContactPlanner:
         ### setting up the optimizer model
         ### move this to the constructor to save computation time
         m = Model("step_planner")
-        variables = m.addVars(x for x in range(2*9)) ## remove hard coded integers here
         
-        #Cost :
-        c = 0
-        for i in range(18):
-            c += W[i] * variables[i] * variables[i]
-        c -= 2*W[0] * variables[0]*l_nom1
-        c -= 2*W[1] * variables[1]*w_nom1
-        c -= 2*W[2] * variables[2]*h_nom1
-        c -= 2*W[3] * variables[3]*t_nom1
-        c -= 2*W[4] * variables[4]*bx_nom1
-        c -= 2*W[5] * variables[5]*by_nom1
-        c -= 2*W[6] * variables[6]*bz_nom1
+        ## creating variables
+        ut_x1 = m.addVar(lb=self.l_min, ub=self.l_max, name="ut_x1")
+        ut_y1 = m.addVar(lb=self.w_min, ub=self.w_max, name="ut_y1")
+        ut_z1 = m.addVar(lb=self.h_min, ub=self.h_max, name="ut_z1")
+        t_step1 = m.addVar(lb=np.power(np.e, self.omega*self.t_min), ub=np.power(np.e, self.omega*self.t_max), name="t_step1")
+        b_x1 = m.addVar(lb=self.bx_min, ub=self.bx_max, name="b_x1")
+        b_y1 = m.addVar(lb=self.by_max_out, ub=self.by_max_in, name="b_y1")
+        b_z1 = m.addVar(lb=self.bz_min, ub=self.bz_max, name="b_z1")
         
-        c -= 2*W[9] * variables[9]*l_nom2
-        c -= 2*W[10] * variables[10]*w_nom2
-        c -= 2*W[11] * variables[11]*h_nom2
-        c -= 2*W[12] * variables[12]*t_nom2
-        c -= 2*W[13] * variables[13]*bx_nom2
-        c -= 2*W[14] * variables[14]*by_nom2
-        c -= 2*W[15] * variables[15]*bz_nom2
-               
-       
-        m.setObjective(c)
-                
-        # ## Check if the equality slows down the solving
-        m.addLConstr(variables[0] <= self.l_max)
-        m.addLConstr(variables[1] <= self.w_max)
-        m.addLConstr(variables[2] <= self.h_max)
-        m.addLConstr(variables[0] >= self.l_min)
-        m.addLConstr(variables[1] >= self.w_min)
-        m.addLConstr(variables[2] >= self.h_min)
-        m.addLConstr(variables[3] <= np.power(np.e, self.omega*self.t_max))
-        m.addLConstr(variables[3] >= np.power(np.e, self.omega*self.t_min))
-        # # m.addConstr(alpha*variables[3] + variables[8]  <= alpha)
-        m.addLConstr(variables[4] <= self.bx_max)
-        m.addLConstr(variables[5] <= self.by_max_in)
-        m.addLConstr(variables[6] <= self.bz_max)
-        m.addLConstr(variables[4] >= self.bx_min)
-        m.addLConstr(variables[5] >= self.by_max_out)
-        m.addLConstr(variables[6] >= self.bz_min)
-        
-        m.addLConstr(variables[9] <= self.l_max)
-        m.addLConstr(variables[10] <= self.w_max)
-        m.addLConstr(variables[11] <= self.h_max)
-        m.addLConstr(variables[9] >= self.l_min)
-        m.addLConstr(variables[10] >= self.w_min)
-        m.addLConstr(variables[11] >= self.h_min)
-        m.addLConstr(variables[12] <= np.power(np.e, self.omega*self.t_max))
-        m.addLConstr(variables[12] >= np.power(np.e, self.omega*self.t_min))
-        # # m.addConstr(alpha*variables[12] + variables[17]  <= alpha)
-        m.addLConstr(variables[13] <= self.bx_max)
-        m.addLConstr(variables[14] <= self.by_max_in)
-        m.addLConstr(variables[15] <= self.bz_max)
-        m.addLConstr(variables[13] >= self.bx_min)
-        m.addLConstr(variables[14] >= self.by_max_out)
-        m.addLConstr(variables[15] >= self.bz_min)
-        
+        ut_x2 = m.addVar(lb=self.l_min, ub=self.l_max, name="ut_x2")
+        ut_y2 = m.addVar(lb=self.w_min, ub=self.w_max, name="ut_y2")
+        ut_z2 = m.addVar(lb=self.h_min, ub=self.h_max, name="ut_z2")
+        t_step2 = m.addVar(lb=np.power(np.e, self.omega*self.t_min), ub=np.power(np.e, self.omega*self.t_max), name="t_step2")
+        b_x2 = m.addVar(lb=self.bx_min, ub=self.bx_max, name="b_x2")
+        b_y2 = m.addVar(lb=self.by_max_out, ub=self.by_max_in, name="b_y2")
+        b_z2 = m.addVar(lb=self.bz_min, ub=self.bz_max, name="b_z2")
 
-        # setting equality constraints
+        ## creating cost   
+        c1 =(W[0] * (ut_x1 - l_nom1)*(ut_x1 - l_nom1)) + (W[1] * (ut_y1 - w_nom1)*(ut_y1 - w_nom1)) + (W[2] * (ut_z1 - h_nom1)*(ut_z1 - h_nom1)) + \
+            (W[3] * (t_step1 - t_nom1)*(t_step1 - t_nom1)) + (W[4] * (b_x1 - bx_nom1)*(b_x1 - bx_nom1)) + (W[5] * (b_y1 - by_nom1)*(b_y1 - by_nom1)) + \
+            (W[6] * (b_z1 - bz_nom1)*(b_z1 - bz_nom1))     
+        c2 =(W[7] * (ut_x2 - l_nom2)*(ut_x2 - l_nom2)) + (W[8] * (ut_y2 - w_nom2)*(ut_y2 - w_nom2)) + (W[9] * (ut_z2 - h_nom2)*(ut_z2 - h_nom2)) + \
+            (W[10] * (t_step2 - t_nom2)*(t_step2 - t_nom2)) + (W[11] * (b_x2 - bx_nom2)*(b_x2 - bx_nom2)) + (W[12] * (b_y2 - by_nom2)*(b_y2 - by_nom2)) +\
+            (W[13] * (b_z2 - bz_nom2)*(b_z2 - bz_nom2)) 
+        
+        m.setObjective(c1+c2)        
+
+        ## creating dyamics constraints
         tmp = [0., 0., 0., 0., 0., 0.]
         tmp[0] = (psi_current[0] - u1[0])*np.power(np.e, -1*self.omega*t1)
         tmp[1] = (psi_current[1] - u1[1])*np.power(np.e, -1*self.omega*t1)
@@ -375,22 +171,62 @@ class SplitDcmContactPlanner:
         tmp[3] = (psi_current[0] - u2[0])*np.power(np.e, -1*self.omega*t2)
         tmp[4] = (psi_current[1] - u2[1])*np.power(np.e, -1*self.omega*t2)
         tmp[5] = (psi_current[2] - u2[2])*np.power(np.e, -1*self.omega*t2)
-        
-        m.addConstr(variables[0] - variables[3]*tmp[0] + variables[4] == 0.0)
-        m.addConstr(variables[1] - variables[3]*tmp[1] + variables[5] == 0.0)
-        m.addConstr(variables[2] - variables[3]*tmp[2] + variables[6] == 0.0)
-        m.addConstr(variables[9] - variables[12]*tmp[3] + variables[13] == 0.0)
-        m.addConstr(variables[10] - variables[12]*tmp[4] + variables[14] == 0.0)
-        m.addConstr(variables[11] - variables[12]*tmp[5] + variables[15] == 0.0)
+         
+        m.addConstr(ut_x1 == (tmp[0]*t_step1) - b_x1, "dyn_constr_x1")
+        m.addConstr(ut_y1 == (tmp[1]*t_step1) - b_y1, "dyn_constr_y1")
+        m.addConstr(ut_z1 == (tmp[2]*t_step1) - b_z1, "dyn_constr_z1")
+
+        m.addConstr(ut_x2 == (tmp[3]*t_step2) - b_x2, "dyn_constr_x2")
+        m.addConstr(ut_y2 == (tmp[4]*t_step2) - b_y2, "dyn_constr_y2")
+        m.addConstr(ut_z2 == (tmp[5]*t_step2) - b_z2, "dyn_constr_z2")
         
         m.optimize()
-    
-        x_opt = m.getVars()
-
-        t_end1 = np.log(x_opt[3].x)/self.omega
-        t_end2 = np.log(x_opt[12].x)/self.omega
-
-        print(x_opt[0].x, t_end1, x_opt[4].x)
         
-        return (x_opt[0].x + u1[0], x_opt[1].x + u1[1], x_opt[2].x + u1[2], t_end1, x_opt[9].x + u2[0], x_opt[10].x + u2[1], x_opt[11].x + u2[2], t_end2)
-           
+        x_opt = m.getVars()
+    
+        t_end1 = np.log(x_opt[3].x)/self.omega
+        t_end2 = np.log(x_opt[10].x)/self.omega
+        
+        return (x_opt[0].x + u1[0], x_opt[1].x + u1[1], x_opt[2].x + u1[2], t_end1, x_opt[7].x + u2[0], x_opt[8].x + u2[1], x_opt[9].x + u2[2], t_end2)
+        
+        
+    def generate_foot_trajectory(self, u_t_end, u, t_end, t, z_max, z_ht, ctrl_timestep = 0.001):
+        '''
+            This function generates a linear trajectory from the current foot location
+            to the desired step location and returns the desired location of the foot 
+            at the next step.
+            
+            Input :
+                u_t_end : desried step location
+                u : current step location
+                t_end : time duration of the step
+                t : current timestep
+                z_max : maximum height the foot should reach(will reach at middle of the step time)
+                z_ht : the height the robot must be above the ground
+                ctrl_timestep : the timestep at which value is recomputed
+        '''
+        
+        x_foot_des_air = np.zeros(3)
+        x_foot_des_ground = np.zeros(3)
+        
+        ## for impedance the leg length has to be set to zero to move center of mass forward
+        if t_end > 0.001:
+            x_foot_des_air[0] = (u_t_end[0] - u[0])*np.sin((np.pi*t)/(t_end))
+            x_foot_des_air[1] = (u_t_end[1] - u[1])*np.sin((np.pi*t)/(t_end))
+            
+            if t < t_end/2.0:
+                x_foot_des_air[2] = (z_ht) +  (z_max) *np.sin((np.pi*t)/(0.5*t_end))
+            else:
+                x_foot_des_air[2] = (z_ht)
+            
+            ## assumption that the center of mass is between the two legs 
+            x_foot_des_ground[0] = 0.0
+            x_foot_des_ground[1] = 0.0
+            x_foot_des_ground[2] = z_ht
+
+        
+        else:
+            x_foot_des_air = [u_t_end[0], u_t_end[1], z_ht]
+            x_foot_des_ground = [u[0], u[1],z_ht]
+        
+        return x_foot_des_air, x_foot_des_ground   

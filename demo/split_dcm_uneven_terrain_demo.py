@@ -1,6 +1,6 @@
 ### Author : Avadesh Meduri
-### Date : 30/10/2019
-### Extension of DCM VRP planner in 2d but split of DCMs for solo. 
+### Date : 11/11/2019
+### Implementation of the Split DCM planner for uneven terrain using MIP
 
 import numpy as np
 
@@ -23,9 +23,6 @@ from matplotlib import pyplot as plt
 from py_dcm_vrp_planner.uneven_terrain_planner import SplitDcmContactPlanner
 
 
-from py_dcm_vrp_planner.utils import create_terrain_constraints
-
-
 # Create a robot instance. This initializes the simulator as well.
 robot = Quadruped12Robot(ifrecord=False)
 tau = np.zeros(12)
@@ -38,10 +35,8 @@ robot.reset_state(q0, dq0)
 
 #####################################################
 
-uneven_terrain = ("/home/ameduri/py_devel/workspace/src/catkin/reactive_planners/python/py_dcm_vrp_planner/terrains/stairs.urdf")
+# uneven_terrain = ("/home/ameduri/py_devel/workspace/src/catkin/reactive_planners/python/py_dcm_vrp_planner/terrains/stairs.urdf")
 # uneven_terrain_id = p.loadURDF(uneven_terrain)
-
-G, b = create_terrain_constraints(uneven_terrain)
 
 #######################################################
 
@@ -64,11 +59,10 @@ t_min = 0.000001
 t_max = 0.3
 v_des = [1.0,0.0, 0.0]
 l_p = 0
+dcm_contact_planner = SplitDcmContactPlanner(l_min, l_max, w_min, w_max, h_min, h_max, t_min, t_max, v_des, l_p, ht)
 
-dcm_contact_planner = SplitDcmContactPlanner(l_min, l_max, w_min, w_max, h_min, h_max, t_min, t_max, v_des, l_p, ht, [G,b])
-
- # weight on [step length_x , step_length_y, step_length_z, step time, dcm_offeset_x, dcm_offeset_y, dcm_offeset_z, ground_slack, apha_slack]
-W = 2*[100, 100, 100, 10, 10000, 10000, 10000, 10000, 100]
+ # weight on [step length_x , step_length_y, step_length_z, step time, dcm_offeset_x, dcm_offeset_y, dcm_offeset_z]
+W = 2*[100, 100, 100, 10, 1000, 1000, 1000]
 ########################################################################
 
 solo_leg_ctrl = SoloImpedanceController(robot)
