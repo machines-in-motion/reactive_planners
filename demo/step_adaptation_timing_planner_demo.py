@@ -41,8 +41,8 @@ robot.reset_state(q0, dq0)
 
 x_des = 4*[0.0, 0.0, -0.25]
 xd_des = 4*[0,0,0] 
-kp = 4 * [200,200,500]
-kd = 4 * [10.0,10.0,10.0]
+kp = 4 * [400,400,400]
+kd = 4 * [15.0,15.0,15.0]
 f = np.zeros(18)
 f = 4*[0.0, 0.0, (2.2*9.8)/4]
 ##################################################################################
@@ -53,7 +53,7 @@ w_min = -0.05
 w_max = 0.15
 t_min = 0.00001
 t_max = 0.3
-v_des = [1.0,0]
+v_des = [1.0,0.0]
 l_p = 0
 ht = 0.25
 
@@ -70,6 +70,7 @@ t_gap = 0.05
 t_end = t_max
 n = 1
 u_current_step = [0.0, 0.0]
+u_old = [0.0, 0.0]
 x_com = np.array([0.0, 0.0]) 
 xd_com = np.array([0.0, 0.0]) 
 
@@ -77,12 +78,12 @@ xd_com = np.array([0.0, 0.0])
 plt_opt = []
 plt_foot = []
 plt_com = []
-for i in range(10000):
+for i in range(5000):
     p.stepSimulation()
     time.sleep(0.00001) 
     
     # if i > 1000 and i < 1500:
-    #     force = np.array([0,5,0])
+    #     force = np.array([0,3,0])
     #     p.applyExternalForce(objectUniqueId=robot.robotId, linkIndex=-1, forceObj=force, \
     #                     posObj=[0.25,0.,0], flags = p.WORLD_FRAME)
 
@@ -101,21 +102,21 @@ for i in range(10000):
             alpha = dcm_vrp_planner.compute_alpha(xd_com, v_des)
             x_opt = dcm_vrp_planner.compute_adapted_step_locations(u_current_step, t, n, dcm_t, alpha, W)
             # x_opt = dcm_vrp_planner.compute_adapted_step_locations_gurobi(u_current_step, t, n, dcm_t, alpha, W)
-
             t_end = x_opt[2]
+
             if np.power(-1, n) > 0:
-                x_des_fl_hr, x_des_fr_hl = dcm_vrp_planner.generate_foot_trajectory(x_opt[0:2], u_current_step, t_end, t, 0.2 , -0.25)
+                x_des_fl_hr, x_des_fr_hl = dcm_vrp_planner.generate_foot_trajectory(x_opt[0:2], u_current_step, u_old, t_end, t, 0.2 , -0.25)
                 x_des[0:3] = np.reshape(x_des_fl_hr, (3,))
-                x_des[3:6] = [0, 0, -0.25]
-                x_des[6:9] = [0, 0, -0.25]
+                x_des[3:6] = np.reshape(x_des_fr_hl, (3,))
+                x_des[6:9] = np.reshape(x_des_fr_hl, (3,))
                 x_des[9:12] = np.reshape(x_des_fl_hr, (3,))
                 
             else:
-                x_des_fr_hl, x_des_fl_hr = dcm_vrp_planner.generate_foot_trajectory(x_opt[0:2], u_current_step, t_end, t, 0.2, -0.25)                
-                x_des[0:3] = [0, 0, -0.25]
+                x_des_fr_hl, x_des_fl_hr = dcm_vrp_planner.generate_foot_trajectory(x_opt[0:2], u_current_step, u_old, t_end, t, 0.2, -0.25)                
+                x_des[0:3] = np.reshape(x_des_fl_hr, (3,))
                 x_des[3:6] = np.reshape(x_des_fr_hl, (3,))
                 x_des[6:9] = np.reshape(x_des_fr_hl, (3,))
-                x_des[9:12] = [0, 0, -0.25]
+                x_des[9:12] = np.reshape(x_des_fl_hr, (3,))
         t+=0.001
         # print(x_des)  
     
@@ -124,16 +125,8 @@ for i in range(10000):
         # n_old = n
         n += 1
         t_end = t_max
-        u_current_step = [x_opt[0],x_opt[1]]
-
-        # n = dcm_vrp_planner.compute_which_end_effector(x_des, u_current_step, x_opt[0:2], dcm_t, n, alpha, W)
-        # if np.power(-1, n_old) == np.power(-1, n):
-        #     u_current_step = u_current_step
-
-        # else:
-        #     u_current_step = [x_opt[0],x_opt[1]]
-
-        
+        u_old = u_current_step
+        u_current_step = [x_opt[0],x_opt[1]]        
         
     plt_opt.append(x_opt)
     plt_foot.append([x_des[0],x_des[1],x_des[2],x_des[3],x_des[4],x_des[5]])
@@ -143,19 +136,22 @@ for i in range(10000):
 
 # #### plotting
 
-# plt_opt = np.array(plt_opt)
-# plt_foot = np.array(plt_foot)
-# plt_com = np.array(plt_com)
-# t = np.arange(0,2, 0.001)
+plt_opt = np.array(plt_opt)
+plt_foot = np.array(plt_foot)
+plt_com = np.array(plt_com)
+t = np.arange(0,5, 0.001)
 
-# fig, (ax1, ax2,ax3) = plt.subplots(3,1)
+fig, (ax1, ax2,ax3) = plt.subplots(3,1)
 
-# ax1.plot(t, plt_opt[:,0])
-# ax1.grid()
-# ax2.plot(t,plt_foot[:,1], label = 'fl')
-# ax2.plot(t,plt_foot[:,4], label = 'fr')
-# ax2.grid()
-# ax3.plot(t,plt_com[:,0])
-# ax3.grid()
-# plt.show()
+ax1.plot(t, plt_opt[:,0], label='ut_x')
+ax1.plot(t,np.add(plt_com[:,0],plt_foot[:,0]), label = 'fl')
+ax1.plot(t,np.add(plt_com[:,0],plt_foot[:,3]), label = 'fr')
+ax1.grid()
+ax1.legend()
+ax2.plot(t,plt_foot[:,0], label = 'fl')
+ax2.plot(t,plt_foot[:,3], label = 'fl')
+ax2.grid()
+ax3.plot(t,plt_foot[:,2])
+ax3.grid()
+plt.show()
 

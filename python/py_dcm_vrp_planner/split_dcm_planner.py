@@ -92,7 +92,7 @@ class DcmContactPlanner:
                 xd : center of mass velocity of current time step
         '''    
         assert np.shape(x) == (3,)
-
+        self.x = x
         return (xd/self.omega) + x 
     
     def compute_alpha(self, xd_com, v_des):
@@ -224,7 +224,8 @@ class DcmContactPlanner:
         
         return (x_opt[0] + u1[0], x_opt[1] + u1[1], x_opt[2] + u1[2], t_end1, x_opt[9] + u2[0], x_opt[10] + u2[1], x_opt[11] + u2[2], t_end2)
      
-    def generate_foot_trajectory(self, u_t_end, u, t_end, t, z_max, z_ht, ctrl_timestep = 0.001):
+
+    def generate_foot_trajectory(self, u_t_end, u, u_old, t_end, t, z_max, z_ht, offset, n, ctrl_timestep = 0.001):
         '''
             This function generates a linear trajectory from the current foot location
             to the desired step location and returns the desired location of the foot 
@@ -233,10 +234,13 @@ class DcmContactPlanner:
             Input :
                 u_t_end : desried step location
                 u : current step location
+                u_old : location of the previous step
                 t_end : time duration of the step
                 t : current timestep
                 z_max : maximum height the foot should reach(will reach at middle of the step time)
                 z_ht : the height the robot must be above the ground
+                offsset : The distance between the leg hip frame and COM
+                n : 1 or 2 depending on which leg is in the air
                 ctrl_timestep : the timestep at which value is recomputed
         '''
         
@@ -245,19 +249,29 @@ class DcmContactPlanner:
         
         ## for impedance the leg length has to be set to zero to move center of mass forward
         if t_end > 0.001:
-            x_foot_des_air[0] = (u_t_end[0] - u[0])*np.sin((np.pi*t)/(t_end))
-            x_foot_des_air[1] = (u_t_end[1] - u[1])*np.sin((np.pi*t)/(t_end))
             
-            if t < t_end/2.0:
-                x_foot_des_air[2] = (z_ht) +  (z_max) *np.sin((np.pi*t)/(0.5*t_end))
+            ## assumption that the center of mass is in the middle of the two legs at the contact phase
+            ## This will be removed when center of mass trajectories are obtained from a trajectory planner 
+            if t < t_end/2.0 :            
+                # x_foot_des_ground[0:2] = np.subtract(0.5*np.add(u[0:2], u_old[0:2]), self.x[0:2])*(-1 + np.sin((np.pi*t)/t_end))
+        
+                x_foot_des_ground[0] = -((0.5*(u_old[0] + u[0])) - offset[0]) + (((0.5*(u_old[0] + u[0])) - offset[0])/(0.5*t_end))*(t)
+                x_foot_des_ground[1] = -((0.5*(u_old[1] + u[1])) - offset[1]) + (((0.5*(u_old[1] + u[1])) - offset[1])/(0.5*t_end))*(t)
+        
+                x_foot_des_air[0] =  u_old[0] - offset[0] - ((u_old[0] - offset[0])/(0.5*t_end))*(t)
+                x_foot_des_air[1] =  u_old[1] - offset[1] - ((u_old[1] - offset[1])/(0.5*t_end))*(t)
+                
             else:
-                x_foot_des_air[2] = (z_ht)
-            
-            ## assumption that the center of mass is between the two legs 
-            x_foot_des_ground[0] = 0.0
-            x_foot_des_ground[1] = 0.0
-            x_foot_des_ground[2] = z_ht
+                x_foot_des_ground[0] = (((0.5*(u_t_end[0] + u[0])) - offset[0])/(0.5*t_end))*(t - (0.5*t_end))
+                x_foot_des_ground[1] = (((0.5*(u_t_end[1] + u[1])) - offset[1])/(0.5*t_end))*(t - (0.5*t_end))
+        
+                x_foot_des_air[0] =  ((u_t_end[0] - offset[0])/(0.5*t_end))*(t - (0.5*t_end))
+                x_foot_des_air[1] =  ((u_t_end[1] - offset[1])/(0.5*t_end))*(t - (0.5*t_end))
 
+                
+            x_foot_des_ground[2] = z_ht
+            x_foot_des_air[2] = (z_ht) +  (z_max) *np.sin((np.pi*t)/(t_end))
+            
         
         else:
             x_foot_des_air = [u_t_end[0], u_t_end[1], z_ht]

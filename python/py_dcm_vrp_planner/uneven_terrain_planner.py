@@ -4,7 +4,6 @@
 
 import numpy as np
 from gurobipy import *
-import cvxpy as cp        
 
 class SplitDcmContactPlanner:
     
@@ -55,7 +54,7 @@ class SplitDcmContactPlanner:
         self.bz_max = self.h_max / (np.power(np.e, self.omega*self.t_min) - 1)
         self.bz_min = self.h_min / (np.power(np.e, self.omega*self.t_max) - 1)
         
-        self.ter_constrs = terrain_constraints 
+        self.ter_cts = terrain_constraints 
                              
                              
     
@@ -109,7 +108,7 @@ class SplitDcmContactPlanner:
         else:
             return 0
         
-    def compute_adapted_step_locations(self, u1, u2, t1, t2, n1, n2, psi_current, alpha, W):
+    def compute_adapted_step_locations(self, u1, u2, t1, t2, n1, n2, psi_current, alpha, W, off_1 = None, off_2 = None):
         '''
             computes the next step location for the two VRPs
             Input :
@@ -122,6 +121,8 @@ class SplitDcmContactPlanner:
                 psi_current : current location of the dcm
                 W : wieght array  
                 alpha : variable that sets step time to zero if robot is not moving and should not move
+                off_1 : offset by which vrp 1 is moved due to external force
+                off_2 : offset by which vrp 2 is moved due to external force
         '''
 
         ##### To improve speed this can be defined at the initialisation so that this is not recomputed 
@@ -135,7 +136,6 @@ class SplitDcmContactPlanner:
         ### setting up the optimizer model
         ### move this to the constructor to save computation time
         m = Model("step_planner")
-        
         ## creating variables
         ut_x1 = m.addVar(lb=self.l_min, ub=self.l_max, name="ut_x1")
         ut_y1 = m.addVar(lb=self.w_min, ub=self.w_max, name="ut_y1")
@@ -162,7 +162,7 @@ class SplitDcmContactPlanner:
             (W[13] * (b_z2 - bz_nom2)*(b_z2 - bz_nom2)) 
         
         m.setObjective(c1+c2)        
-
+        
         ## creating dyamics constraints
         tmp = [0., 0., 0., 0., 0., 0.]
         tmp[0] = (psi_current[0] - u1[0])*np.power(np.e, -1*self.omega*t1)
@@ -178,19 +178,60 @@ class SplitDcmContactPlanner:
 
         m.addConstr(ut_x2 == (tmp[3]*t_step2) - b_x2, "dyn_constr_x2")
         m.addConstr(ut_y2 == (tmp[4]*t_step2) - b_y2, "dyn_constr_y2")
-        m.addConstr(ut_z2 == (tmp[5]*t_step2) - b_z2, "dyn_constr_z2")
+        m.addConstr(ut_z2 == (tmp[5]*t_step2) - b_z2, "dyn_constr_z2")        
         
+        ### kinematic constraints
+        m.addConstr((ut_x1 + u1[0] - off_1[0]) - (ut_x2 + u2[0] - off_2[0]) <= 0.5, "kin_constr_min_dist") ## make them based on L_maxa and L_min
+        m.addConstr((ut_x1 + u1[0] - off_1[0]) - (ut_x2 + u2[0] - off_2[0]) >= 0.3, "kin_constr_min_dist")
+
+        
+        if self.ter_cts !=None:
+            ### adding terrain constraints 
+            M = 999999
+            ter_vars_1 = [] # DCM1
+            ter_vars_2 = [] # DCM2
+            no_terrains = int(len(self.ter_cts)/6)
+            # no_terrains = 1
+            for i in range(no_terrains):
+                name_1 = 'ter1_' + str(i)
+                name_2 = 'ter2_' + str(i)
+                ter_vars_1.append(m.addVar(vtype=GRB.BINARY,name=name_1))
+                ter_vars_2.append(m.addVar(vtype=GRB.BINARY,name=name_2))
+                
+                m.addLConstr(ut_x1 + u1[0] - off_1[0] <= (M*ter_vars_1[-1]) + self.ter_cts[6*i + 0])
+                m.addLConstr(ut_x1 + u1[0] - off_1[0] >= (-M*ter_vars_1[-1]) + self.ter_cts[6*i + 1])
+                # m.addLConstr(ut_y1 + u1[1] - off_1[1] <= (M*ter_vars_1[-1]) + self.ter_cts[6*i + 2])
+                # m.addLConstr(ut_y1 + u1[1] - off_1[2] >= (-M*ter_vars_1[-1]) + self.ter_cts[6*i + 3])
+            #     # m.addLConstr(ut_z1 + u1[2] <= (M*ter_vars_1[-1]) + self.ter_cts[6*i + 4])
+            #     # m.addLConstr(ut_z1 + u1[2] >= (-M*ter_vars_1[-1]) + self.ter_cts[6*i + 5])
+            
+                m.addLConstr(ut_x2 + u2[0] - off_2[0] <= (M*ter_vars_2[-1]) + self.ter_cts[6*i + 0])
+                m.addLConstr(ut_x2 + u2[0] - off_2[0] >= (-M*ter_vars_2[-1]) + self.ter_cts[6*i + 1])
+                # m.addLConstr(ut_y2 + u2[1] - off_2[1] <= (M*ter_vars_2[-1]) + self.ter_cts[6*i + 2])
+                # m.addLConstr(ut_y2 + u2[1] - off_2[1] >= (-M*ter_vars_2[-1]) + self.ter_cts[6*i + 3])
+            #     # m.addLConstr(ut_z2 + u2[2] <= (M*ter_vars_2[-1]) + self.ter_cts[6*i + 4])
+            #     # m.addLConstr(ut_z2 + u2[2] >= (-M*ter_vars_2[-1]) + self.ter_cts[6*i + 5])
+        
+            m.addConstr(sum(ter_vars_1) == (no_terrains - 1), "dcm1_terrain_constraint")
+            m.addConstr(sum(ter_vars_2) == (no_terrains - 1), "dcm2_terrain_constraint")
+    
         m.optimize()
-        
         x_opt = m.getVars()
     
         t_end1 = np.log(x_opt[3].x)/self.omega
         t_end2 = np.log(x_opt[10].x)/self.omega
+        if self.ter_cts !=None:
+            for i in range(no_terrains):
+                name_1 = 'ter1_' + str(i)
+                a = m.getVarByName(name_1).x
+                if a==0:
+                    print("Terrain selected at current timestep ............................. \n")
+                    print(name_1)
+                
+        return (ut_x1.x + u1[0], ut_y1.x + u1[1], ut_z1.x + u1[2], t_end1, ut_x2.x + u2[0], ut_y2.x + u2[1], ut_z2.x + u2[2], t_end2)
         
-        return (x_opt[0].x + u1[0], x_opt[1].x + u1[1], x_opt[2].x + u1[2], t_end1, x_opt[7].x + u2[0], x_opt[8].x + u2[1], x_opt[9].x + u2[2], t_end2)
         
-        
-    def generate_foot_trajectory(self, u_t_end, u, t_end, t, z_max, z_ht, ctrl_timestep = 0.001):
+    def generate_foot_trajectory(self, u_t_end, u, u_old, t_end, t, z_max, z_ht, offset, n, ctrl_timestep = 0.001):
         '''
             This function generates a linear trajectory from the current foot location
             to the desired step location and returns the desired location of the foot 
@@ -199,10 +240,13 @@ class SplitDcmContactPlanner:
             Input :
                 u_t_end : desried step location
                 u : current step location
+                u_old : location of the previous step
                 t_end : time duration of the step
                 t : current timestep
                 z_max : maximum height the foot should reach(will reach at middle of the step time)
                 z_ht : the height the robot must be above the ground
+                offsset : The distance between the leg hip frame and COM
+                n : 1 or 2 depending on which leg is in the air
                 ctrl_timestep : the timestep at which value is recomputed
         '''
         
@@ -211,22 +255,32 @@ class SplitDcmContactPlanner:
         
         ## for impedance the leg length has to be set to zero to move center of mass forward
         if t_end > 0.001:
-            x_foot_des_air[0] = (u_t_end[0] - u[0])*np.sin((np.pi*t)/(t_end))
-            x_foot_des_air[1] = (u_t_end[1] - u[1])*np.sin((np.pi*t)/(t_end))
             
-            if t < t_end/2.0:
-                x_foot_des_air[2] = (z_ht) +  (z_max) *np.sin((np.pi*t)/(0.5*t_end))
+            ## assumption that the center of mass is in the middle of the two legs at the contact phase
+            ## This will be removed when center of mass trajectories are obtained from a trajectory planner 
+            if t < t_end/2.0 :            
+                # x_foot_des_ground[0:2] = np.subtract(0.5*np.add(u[0:2], u_old[0:2]), self.x[0:2])*(-1 + np.sin((np.pi*t)/t_end))
+        
+                x_foot_des_ground[0] = -((0.5*(u_old[0] + u[0])) - offset[0]) + (((0.5*(u_old[0] + u[0])) - offset[0])/(0.5*t_end))*(t)
+                x_foot_des_ground[1] = -((0.5*(u_old[1] + u[1])) - offset[1]) + (((0.5*(u_old[1] + u[1])) - offset[1])/(0.5*t_end))*(t)
+        
+                x_foot_des_air[0] =  u_old[0] - offset[0] - ((u_old[0] - offset[0])/(0.5*t_end))*(t)
+                x_foot_des_air[1] =  u_old[1] - offset[1] - ((u_old[1] - offset[1])/(0.5*t_end))*(t)
+                
             else:
-                x_foot_des_air[2] = (z_ht)
-            
-            ## assumption that the center of mass is between the two legs 
-            x_foot_des_ground[0] = 0.0
-            x_foot_des_ground[1] = 0.0
-            x_foot_des_ground[2] = z_ht
+                x_foot_des_ground[0] = (((0.5*(u_t_end[0] + u[0])) - offset[0])/(0.5*t_end))*(t - (0.5*t_end))
+                x_foot_des_ground[1] = (((0.5*(u_t_end[1] + u[1])) - offset[1])/(0.5*t_end))*(t - (0.5*t_end))
+        
+                x_foot_des_air[0] =  ((u_t_end[0] - offset[0])/(0.5*t_end))*(t - (0.5*t_end))
+                x_foot_des_air[1] =  ((u_t_end[1] - offset[1])/(0.5*t_end))*(t - (0.5*t_end))
 
+                
+            x_foot_des_ground[2] = z_ht
+            x_foot_des_air[2] = (z_ht) +  (z_max) *np.sin((np.pi*t)/(t_end))
+            
         
         else:
             x_foot_des_air = [u_t_end[0], u_t_end[1], z_ht]
             x_foot_des_ground = [u[0], u[1],z_ht]
         
-        return x_foot_des_air, x_foot_des_ground   
+        return x_foot_des_air, x_foot_des_ground
