@@ -1,5 +1,10 @@
 *.txt~
 
+# No big files in the repo please.
+*.mp4
+*.mov
+*.dat
+
 ###
 # Based on:
 ## Core latex/pdflatex auxiliary files: https://github.com/github/gitignore/blob/master/TeX.gitignore
