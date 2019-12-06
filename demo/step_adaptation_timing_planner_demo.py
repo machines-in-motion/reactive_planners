@@ -16,6 +16,7 @@ from pinocchio.utils import se3ToXYZQUAT
 from robot_properties_solo.config import Solo12Config
 from robot_properties_solo.quadruped12wrapper import Quadruped12Robot
 
+from py_blmc_controllers.solo_centroidal_controller import SoloCentroidalController
 from py_blmc_controllers.solo_impedance_controller import SoloImpedanceController 
 
 from pinocchio.utils import zero
@@ -37,15 +38,34 @@ q0 = np.matrix(Solo12Config.initial_configuration).T
 dq0 = np.matrix(Solo12Config.initial_velocity).T
 robot.reset_state(q0, dq0)
 
+arr = lambda a: np.array(a).reshape(-1)
+mat = lambda a: np.matrix(a).reshape((-1, 1))
+total_mass = sum([i.mass for i in robot.pin_robot.model.inertias[1:]])
+
+
 #######################################################
 
 x_des = 4*[0.0, 0.0, -0.25]
 xd_des = 4*[0,0,0] 
 kp = 4 * [400,400,400]
-kd = 4 * [15.0,15.0,15.0]
-f = np.zeros(18)
-f = 4*[0.0, 0.0, (2.2*9.8)/4]
+kd = 4 * [20.0,20.0,20.0]
 ##################################################################################
+
+x_com_cent = [0.0, 0.0, 0.25]
+xd_com_cent = [0.0, 0.0, 0.0]
+
+x_ori = [0., 0., 0., 1.]
+x_angvel = [0., 0., 0.]
+cnt_array = [1, 1, 1, 1]
+
+solo_leg_ctrl = SoloImpedanceController(robot)
+centr_controller = SoloCentroidalController(robot.pin_robot, total_mass,
+        mu=0.6, kc=[0,0,0], dc=[0,0,10], kb=[100,100,100], db=[10.,10.,10.],
+        eff_ids=robot.pinocchio_endeff_ids)
+
+
+
+#################################################################################
 
 l_min = -0.15
 l_max = 0.15
@@ -53,7 +73,7 @@ w_min = -0.05
 w_max = 0.15
 t_min = 0.00001
 t_max = 0.3
-v_des = [1.0,0.0]
+v_des = [0.0,1.0]
 l_p = 0
 ht = 0.25
 
@@ -78,14 +98,15 @@ xd_com = np.array([0.0, 0.0])
 plt_opt = []
 plt_foot = []
 plt_com = []
+plt_force = []
 for i in range(5000):
     p.stepSimulation()
-    time.sleep(0.00001) 
+    time.sleep(0.0001) 
     
-    # if i > 1000 and i < 1500:
-    #     force = np.array([0,3,0])
+    # if i > 1000 and i < 1200:
+    #     force = np.array([0,10,0])
     #     p.applyExternalForce(objectUniqueId=robot.robotId, linkIndex=-1, forceObj=force, \
-    #                     posObj=[0.25,0.,0], flags = p.WORLD_FRAME)
+    #                     posObj=[0.5,0.,0], flags = p.WORLD_FRAME)
 
 
     q, dq = robot.get_state()
@@ -110,13 +131,14 @@ for i in range(5000):
                 x_des[3:6] = np.reshape(x_des_fr_hl, (3,))
                 x_des[6:9] = np.reshape(x_des_fr_hl, (3,))
                 x_des[9:12] = np.reshape(x_des_fl_hr, (3,))
-                
+                cnt_array = [0, 1, 0, 1]
             else:
                 x_des_fr_hl, x_des_fl_hr = dcm_vrp_planner.generate_foot_trajectory(x_opt[0:2], u_current_step, u_old, t_end, t, 0.2, -0.25)                
                 x_des[0:3] = np.reshape(x_des_fl_hr, (3,))
                 x_des[3:6] = np.reshape(x_des_fr_hl, (3,))
                 x_des[6:9] = np.reshape(x_des_fr_hl, (3,))
                 x_des[9:12] = np.reshape(x_des_fl_hr, (3,))
+                cnt_array = [1, 0, 1, 0]
         t+=0.001
         # print(x_des)  
     
@@ -130,7 +152,11 @@ for i in range(5000):
         
     plt_opt.append(x_opt)
     plt_foot.append([x_des[0],x_des[1],x_des[2],x_des[3],x_des[4],x_des[5]])
-    tau = solo_leg_ctrl.return_joint_torques(q,dq,kp,kd,x_des,xd_des,f)
+    w_com = centr_controller.compute_com_wrench(t, q, dq, x_com_cent, xd_com_cent, x_ori, x_angvel)
+    w_com[2] += total_mass * 9.81
+    F = centr_controller.compute_force_qp(i, q, dq, cnt_array, w_com)
+    plt_force.append([F[0], F[1], F[2], F[3], F[4], F[5]])
+    tau = solo_leg_ctrl.return_joint_torques(q,dq,kp,kd,x_des,xd_des,F)
     robot.send_joint_command(tau)
 
 
@@ -139,19 +165,24 @@ for i in range(5000):
 plt_opt = np.array(plt_opt)
 plt_foot = np.array(plt_foot)
 plt_com = np.array(plt_com)
+plt_force = np.array(plt_force)
 t = np.arange(0,5, 0.001)
 
-fig, (ax1, ax2,ax3) = plt.subplots(3,1)
+fig, (ax1, ax2,ax3) = plt.subplots(3,1, sharex=True)
 
 ax1.plot(t, plt_opt[:,0], label='ut_x')
 ax1.plot(t,np.add(plt_com[:,0],plt_foot[:,0]), label = 'fl')
 ax1.plot(t,np.add(plt_com[:,0],plt_foot[:,3]), label = 'fr')
 ax1.grid()
 ax1.legend()
-ax2.plot(t,plt_foot[:,0], label = 'fl')
-ax2.plot(t,plt_foot[:,3], label = 'fl')
+ax2.plot(t,plt_foot[:,2], label = 'fl')
+ax2.plot(t,plt_foot[:,5], label = 'fr')
 ax2.grid()
-ax3.plot(t,plt_foot[:,2])
+ax2.legend()
+ax3.plot(t,plt_foot[:,0], label= 'fl')
+ax3.plot(t,plt_foot[:,3], label= 'fr')
 ax3.grid()
+ax3.legend()
+
 plt.show()
 

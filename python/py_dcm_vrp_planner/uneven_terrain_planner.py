@@ -231,7 +231,7 @@ class SplitDcmContactPlanner:
         return (ut_x1.x + u1[0], ut_y1.x + u1[1], ut_z1.x + u1[2], t_end1, ut_x2.x + u2[0], ut_y2.x + u2[1], ut_z2.x + u2[2], t_end2)
         
         
-    def generate_foot_trajectory(self, u_t_end, u, u_old, t_end, t, z_max, z_ht, offset, n, ctrl_timestep = 0.001):
+    def generate_foot_trajectory(self, u_t_end, u, u_old, t_end, t, z_max, z_ht, u_hip, u_old_hip, n, ctrl_timestep = 0.001):
         '''
             This function generates a linear trajectory from the current foot location
             to the desired step location and returns the desired location of the foot 
@@ -245,35 +245,38 @@ class SplitDcmContactPlanner:
                 t : current timestep
                 z_max : maximum height the foot should reach(will reach at middle of the step time)
                 z_ht : the height the robot must be above the ground
-                offsset : The distance between the leg hip frame and COM
+                u_hip : location of hip of the leg on the ground
+                u_old_hip : location of the hip of the leg that is in the air
                 n : 1 or 2 depending on which leg is in the air
                 ctrl_timestep : the timestep at which value is recomputed
         '''
         
         x_foot_des_air = np.zeros(3)
         x_foot_des_ground = np.zeros(3)
-        
+                
+        u_hip[1] = 0
+        u_old_hip[1] = 0
+                
         ## for impedance the leg length has to be set to zero to move center of mass forward
         if t_end > 0.001:
             
             ## assumption that the center of mass is in the middle of the two legs at the contact phase
             ## This will be removed when center of mass trajectories are obtained from a trajectory planner 
-            if t < t_end/2.0 :            
-                # x_foot_des_ground[0:2] = np.subtract(0.5*np.add(u[0:2], u_old[0:2]), self.x[0:2])*(-1 + np.sin((np.pi*t)/t_end))
-        
-                x_foot_des_ground[0] = -((0.5*(u_old[0] + u[0])) - offset[0]) + (((0.5*(u_old[0] + u[0])) - offset[0])/(0.5*t_end))*(t)
-                x_foot_des_ground[1] = -((0.5*(u_old[1] + u[1])) - offset[1]) + (((0.5*(u_old[1] + u[1])) - offset[1])/(0.5*t_end))*(t)
-        
-                x_foot_des_air[0] =  u_old[0] - offset[0] - ((u_old[0] - offset[0])/(0.5*t_end))*(t)
-                x_foot_des_air[1] =  u_old[1] - offset[1] - ((u_old[1] - offset[1])/(0.5*t_end))*(t)
+            if t < t_end/2.0 :                    
+                x_foot_des_ground[0] = -1*(u[0] - u_hip[0]) + ((u[0] - u_hip[0])/(0.5*t_end))*(t)
+                x_foot_des_ground[1] = -(u[1] - u_hip[1]) + ((u[1] - u_hip[1])/(0.5*t_end))*(t)
+            
+                x_foot_des_air[0] =  (u_old[0] - u_old_hip[0]) - ((u_old[0] - u_old_hip[0])/(0.5*t_end))*(t)
+                x_foot_des_air[1] =  (u_old[1] - u_old_hip[1]) - ((u_old[1] - u_old_hip[1])/(0.5*t_end))*(t)
                 
             else:
-                x_foot_des_ground[0] = (((0.5*(u_t_end[0] + u[0])) - offset[0])/(0.5*t_end))*(t - (0.5*t_end))
-                x_foot_des_ground[1] = (((0.5*(u_t_end[1] + u[1])) - offset[1])/(0.5*t_end))*(t - (0.5*t_end))
-        
-                x_foot_des_air[0] =  ((u_t_end[0] - offset[0])/(0.5*t_end))*(t - (0.5*t_end))
-                x_foot_des_air[1] =  ((u_t_end[1] - offset[1])/(0.5*t_end))*(t - (0.5*t_end))
-
+                t_ = t - 0.5*t_end
+                x_foot_des_ground[0] = (((0.5*(u_t_end[0] + u[0])) - u_hip[0])/(0.5*t_end))*(t_)
+                x_foot_des_ground[1] = (((0.5*(u_t_end[1] + u[1])) - u_hip[1])/(0.5*t_end))*(t - (0.5*t_end))
+                
+                x_foot_des_air[0] =   ((u_t_end[0] - u_old_hip[0])/(0.5*t_end))*(t_)
+                x_foot_des_air[1] =  ((u_t_end[1] - u_old_hip[1])/(0.5*t_end))*(t_)
+                
                 
             x_foot_des_ground[2] = z_ht
             x_foot_des_air[2] = (z_ht) +  (z_max) *np.sin((np.pi*t)/(t_end))
