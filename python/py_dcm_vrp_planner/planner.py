@@ -4,7 +4,7 @@
 
 
 import numpy as np
-from py_dcm_vrp_planner.qp_solver import quadprog_solve_qp
+from py_utils.qp_solver import quadprog_solve_qp
 
 from gurobipy import *
 

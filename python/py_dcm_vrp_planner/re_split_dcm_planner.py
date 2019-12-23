@@ -1,11 +1,10 @@
-## Re implementation of the split dcm planner for debugging
+## Implementation of the dcm planner
 ## Author : Avadesh Meduri
 ## Date : 20/11/ 2019
 
 import numpy as np
 from gurobipy import *
-import pinocchio as pin
-
+from py_utils.qp_solver import quadprog_solve_qp
 
 class DCMStepPlanner:
     
@@ -30,7 +29,6 @@ class DCMStepPlanner:
                         (self.w_min - self.w_max * np.power(np.e, self.omega*self.t_min))/ \
                              (1 - np.power(np.e, 2*self.omega*self.t_min)) 
 
-
     def compute_nominal_values(self, n, v_des):
         
         if v_des[0] == 0 or v_des[1] == 0:
@@ -52,7 +50,64 @@ class DCMStepPlanner:
         
         return l_nom, w_nom, t_nom, bx_nom, by_nom
     
-    def compute_adapted_step_location(self, u1, t1, n1, psi, W, v_des):
+    def compute_adapted_step_location(self, u, t, n, psi, W, v_des):
+        
+        l_nom, w_nom, t_nom, bx_nom, by_nom = self.compute_nominal_values(n, v_des)
+                    
+        P = np.identity(5) ## quadratic cost matrix
+        P[0][0], P[1][1], P[2][2], P[3][3], P[4][4] = W 
+        q = np.array([-W[0]*(l_nom),
+                      -W[1]*(w_nom),
+                      -W[2]*t_nom,
+                      -W[3]*bx_nom,
+                      -W[4]*by_nom]) ## 
+
+    
+        G = np.matrix([ [1, 0, 0, 0, 0],
+                        [0, 1, 0, 0, 0],
+                        [-1, 0, 0, 0, 0],
+                        [0, -1, 0, 0, 0],
+                        [0, 0, 1, 0, 0],
+                        [0, 0, -1, 0, 0],
+                        [0, 0, 0, 1, 0],
+                        [0, 0, 0, -1, 0],
+                        [0, 0, 0, 0, 1],
+                        [0, 0, 0, 0, -1]])
+    
+        
+        h = np.array([self.l_max,
+                      self.w_max,
+                     -1*(self.l_min),
+                     -1*(self.w_min),
+                     np.power(np.e, self.omega*self.t_max),
+                     -1*np.power(np.e, self.omega*self.t_min),
+                     self.bx_max,
+                     -1*self.bx_min,
+                     self.by_max_in,
+                     -1*self.by_max_out]) 
+        
+        tmp = [0.,0.]
+        tmp[0] = (psi[0] - u[0])*np.power(np.e, -1*self.omega*t)
+        tmp[1] = (psi[1] - u[1])*np.power(np.e, -1*self.omega*t)
+        A = np.matrix([[1, 0, -1*tmp[0], 1, 0],
+                        [0, 1, -1*tmp[1], 0, 1]])
+        
+        b = np.array([0.0, 0.0])
+        
+        P = P.astype(float)
+        q = q.astype(float)
+        G = G.astype(float)
+        h = h.astype(float)
+        A = A.astype(float)
+        b = b.astype(float)
+        
+
+        self.x_opt = quadprog_solve_qp(P,q, G, h, A, b)
+        t_end = np.log(self.x_opt[2])/self.omega
+              
+        return self.x_opt[0] + u[0], self.x_opt[1] + u[1], t_end 
+
+    def compute_adapted_step_location_gurobi(self, u1, t1, n1, psi, W, v_des):
         
         l_nom1, w_nom1, t_nom1, bx_nom1, by_nom1 = self.compute_nominal_values(n1, v_des)
                 
@@ -83,141 +138,30 @@ class DCMStepPlanner:
         t1_end = np.log(x_opt[2].x)/self.omega
     
         return x_opt[0].x, x_opt[1].x, t1_end 
-
-    def compute_com_trajectory(self, x_com, u1, horizon, dt = 0.001):
+    
+    def compute_viability_boundary(self, u, t, psi):
         """
-        Computes the desired center of mass trajectory using LIPM dynamics
-        psi_d = omega(psi - u)
-        x_comd = omega(psi - x)
+        copmute the maximum and minimum step location considering ll above constraints
         Input:
-            psi: current location of DCM
-            x_com: current location of COM
-            u1: current location of step
-            t: step time
-            horizon: the number of steps to which com trajectory is to be computed
+            u: current step location
+            t: current step time
+            psi: current dcm location
         """
+        
+        u_max = np.subtract(psi[0:2],u)*np.power(np.e, -1*self.omega*t)*np.power(np.e, self.omega*self.t_max) \
+                                        + np.subtract(u[0:2], np.array([self.bx_min, self.by_max_out]))
+        u_min = np.subtract(psi[0:2],u)*np.power(np.e, -1*self.omega*t)*np.power(np.e, self.omega*self.t_min) \
+                                        + np.subtract(u[0:2],np.array([self.bx_max, self.by_max_in]))
 
-        assert np.shape(psi) == (3,)
-        assert np.shape(x_com) == (3,)
-
-        des_x_com = []
-        des_xd_com = []
-        des_x_com.append(x_com[0:2])
-        des_xd_com.append(xd_com[0:2])
-        for i in range(0, int(horizon)):
-            psi_t = np.add((np.subtract(psi[0:2], u1)*np.power(np.e, self.omega*t)), u1)
-            xd_com = self.omega*np.subtract(psi_t, des_x_com[-1])
-            des_x_com.append(np.add(des_x_com[-1], xd_com*dt))
-            des_xd_com.append(xd_com)
-            t += dt
-        return np.array(des_x_com), np.array(des_xd_com)
-
-class TrajGenerator:
-    
-    def __init__(self, robot):
         
-        self.robot = robot
+        if u_max[0] > self.l_max + u[0]:
+            u_max[0] = self.l_max + u[0]
+        elif u_max[1] > self.w_max + u[1]:
+            u_max[1] = self.w_max + u[1]
         
-    def get_frame_location(self, q, dq, frame_idx):
-        """
-            returns the global location of the frame
-        """
-        self.robot.framesForwardKinematics(q)
-        return np.reshape(np.array(self.robot.model.oMf[frame_idx].translation), (3,))
-        
-    def generate_traj(self, start, end, traj_time, t):
-        """
-            returns desired location at a given time t, 
-            Generates a straight line start to end point 
-        """
-
-        slope = np.divide(np.subtract(end, start), traj_time)
-        
-        return np.add(start, slope*t)
-    
-    def generate_sin_traj(self, start, end, via_point, traj_time, t):
-        """
-            returns desired location at a giv        psi = sse.return_dcm_location(q, dq, step_planner.omega)
-en time t,
-            Generates sine trajectory from start to end point through a via point
-            The trajectory passes through the via point at mid duration
-        """
-        assert np.shape(start) == np.shape(end)
-        assert np.shape(start) == np.shape(via_point)
-        
-        if t < traj_time/2.0:
-            amplitude = np.subtract(via_point,start)
-            omega = (np.pi)/traj_time
-            return np.add(start, amplitude*np.sin(omega*t))
-        elif t == traj_time/2.0:
-            return via_point
-        else:
-            amplitude = np.subtract(via_point, end)
-            omega = (np.pi)/traj_time
-            return np.add(end, amplitude*np.sin(omega*t))
-        
-    def generate_foot_traj(self,start, end, via_point, traj_time,t):
-        """
-            Generates foot trajecotry for solo
-            Input:
-                Start: Current location of the foot 3d
-                end: desired location of the of the foot at the end of the step
-                via_point: the hieght in the z axis the leg has to rise
-                traj_time: step time
-                t: current time
-        """
- 
-        assert np.shape(start) == (3,)
-        assert np.shape(end) == (3,)
- 
-        x_des = np.zeros(3)
-        x_des[0:2] = self.generate_traj(start[0:2], end[0:2], traj_time, t)
-        x_des[2] = self.generate_sin_traj(start[2], end[2], via_point[2], traj_time, t)
-             
-        return x_des
-        
-class SoloStateEstimator:
-    
-    def __init__(self, robot):
-        self.robot = robot
-        self.x = np.zeros(3)
-        self.xd = np.zeros(3)
-        
-    def get_frame_location(self, q, dq, frame_idx):
-        """
-            returns the global location of the frame
-        """
-        self.robot.framesForwardKinematics(q)
-        return np.reshape(np.array(self.robot.data.oMf[frame_idx].translation), (3,))
-        
-    def return_foot_locations(self, q, dq):
-        
-        fl_foot = self.get_frame_location(q, dq, self.robot.model.getFrameId("FL_FOOT"))
-        fr_foot = self.get_frame_location(q, dq, self.robot.model.getFrameId("FR_FOOT"))
-        hl_foot = self.get_frame_location(q, dq, self.robot.model.getFrameId("HL_FOOT"))
-        hr_foot = self.get_frame_location(q, dq, self.robot.model.getFrameId("HR_FOOT"))
-        
-        return fl_foot, fr_foot, hl_foot, hr_foot
-    
-    def return_hip_locations(self, q, dq):
-        
-        fl_hip = self.get_frame_location(q, dq, self.robot.model.getFrameId("FL_HFE"))
-        fr_hip = self.get_frame_location(q, dq, self.robot.model.getFrameId("FR_HFE"))
-        hl_hip = self.get_frame_location(q, dq, self.robot.model.getFrameId("HL_HFE"))
-        hr_hip = self.get_frame_location(q, dq, self.robot.model.getFrameId("HR_HFE"))
-        
-        return fl_hip, fr_hip, hl_hip, hr_hip
-    
-    def return_dcm_location(self, q, dq, omega):
-        self.x = np.reshape(np.array(q[0:3]), (3,))
-        self.xd = np.reshape(np.array(dq[0:3]), (3,))
-        return self.x + self.xd/omega
-    
-    def return_hip_offset(self, q, dq):
-        """
-            Returns the distance between the hip and the center of mass
-        """
-        fl_hip, fr_hip, hl_hip, hr_hip = self.return_hip_locations(q, dq)
-        com = np.reshape(np.array(q[0:3]), (3,))
-        return np.subtract(fl_hip, com), np.subtract(fr_hip, com), np.subtract(hl_hip, com), np.subtract(hr_hip, com)
-        
+        if u_min[0] < self.l_min + u[0]:
+            u_min[0] = self.l_min + u[0]
+        elif u_min[1] < self.w_min + u[1]:
+            u_min[1] = self.w_min + u[1]
+                            
+        return u_max, u_min
