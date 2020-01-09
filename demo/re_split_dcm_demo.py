@@ -32,7 +32,7 @@ from matplotlib import pyplot as plt
 #################################################################################################
 
 # Create a robot instance. This initializes the simulator as well.
-robot = Quadruped12Robot(ifrecord=False)
+robot = Quadruped12Robot()
 tau = np.zeros(12)
 
 # Reset the robot to some initial state.

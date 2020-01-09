@@ -8,6 +8,7 @@ from matplotlib import pyplot as plt
 import time
 
 import os
+import os.path
 import rospkg
 import pybullet as p
 import pinocchio as se3
@@ -25,10 +26,12 @@ from pinocchio.utils import zero
 from matplotlib import pyplot as plt
 
 from py_dcm_vrp_planner.uneven_terrain_planner import SplitDcmContactPlanner
-from py_dcm_vrp_planner.utils import create_terrain_constraints
+from py_utils.utils import create_terrain_constraints
+
+import py_utils.utils
 
 # Create a robot instance. This initializes the simulator as well.
-robot = Quadruped12Robot(ifrecord=False)
+robot = Quadruped12Robot()
 tau = np.zeros(12)
 
 
@@ -44,7 +47,7 @@ mat = lambda a: np.matrix(a).reshape((-1, 1))
 total_mass = sum([i.mass for i in robot.pin_robot.model.inertias[1:]])
 #####################################################
 
-uneven_terrain = ("/home/ameduri/py_devel/workspace/src/catkin/reactive_planners/python/py_dcm_vrp_planner/terrains/stairs.urdf")
+uneven_terrain = os.path.join(os.path.dirname(py_utils.utils.__file__), 'terrains/stairs.urdf')
 uneven_terrain_id = p.loadURDF(uneven_terrain)
 b = create_terrain_constraints(uneven_terrain)
 
