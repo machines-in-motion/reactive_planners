@@ -1,13 +1,16 @@
 <?xml version="1.0"?>
-<package>
+<package format="2">
   <name>reactive_planners</name>
   <version>1.0.0</version>
-  <description>This packages contains reactive planners</description>
-  <author email="am9789@nyu.edu">Avadesh Meduri</author>
-  <maintainer email="am9789@nyu.edu">Avadesh Meduri</maintainer>
-  <license>TODO</license>
-
+  <description>Contains a list of reactive planners specialized in locomotion of legged robots.</description>
+  <author email="mnaveau@tue.mpg.de">Maximilien Naveau</author>
+  <maintainer email="mnaveau@tue.mpg.de">Maximilien Naveau</maintainer>
+  <license>BSD 3-Clause</license>
   <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>mpi_cmake_modules</build_depend>
+  <build_depend>pybind11_catkin</build_depend>
+
   <export>
   </export>
 </package>
