@@ -1,8 +1,9 @@
 /**
  * @file
  * @license BSD 3-clause
- * @copyright Copyright (c) 2020, New York University and Max Planck Gesellschaft
- * 
+ * @copyright Copyright (c) 2020, New York University and Max Planck
+ * Gesellschaft
+ *
  * @brief Standard main for the google unittests framework.
  */
 #include "gtest/gtest.h"
