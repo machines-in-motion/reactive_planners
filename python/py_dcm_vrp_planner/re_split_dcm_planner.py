@@ -93,6 +93,7 @@ class DCMStepPlanner:
                         [0, 1, -1*tmp[1], 0, 1]])
         
         b = np.array([0.0, 0.0])
+        # b = np.array([u[0], u[1]])
         
         P = P.astype(float)
         q = q.astype(float)
@@ -101,8 +102,11 @@ class DCMStepPlanner:
         A = A.astype(float)
         b = b.astype(float)
         
-
-        self.x_opt = quadprog_solve_qp(P,q, G, h, A, b)
+        try:
+            self.x_opt = quadprog_solve_qp(P,q, G, h, A, b)
+        except ValueError as err:
+            import pdb; pdb.set_trace()
+            
         t_end = np.log(self.x_opt[2])/self.omega
               
         return self.x_opt[0] + u[0], self.x_opt[1] + u[1], t_end 

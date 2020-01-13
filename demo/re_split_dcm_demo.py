@@ -28,15 +28,18 @@ from py_utils.solo_state_estimator import SoloStateEstimator
 from pinocchio.utils import zero
 from matplotlib import pyplot as plt
 
-
 #################################################################################################
 
 # Create a robot instance. This initializes the simulator as well.
-robot = Quadruped12Robot()
+if not ('robot' in globals()):
+    robot = Quadruped12Robot()
 tau = np.zeros(12)
+
+p.resetDebugVisualizerCamera(1.4, 90, -30, (0,0,0))
 
 # Reset the robot to some initial state.
 q0 = np.matrix(Solo12Config.initial_configuration).T
+q0[2] = 0.3
 dq0 = np.matrix(Solo12Config.initial_velocity).T
 robot.reset_state(q0, dq0)
 
@@ -47,9 +50,9 @@ total_mass = sum([i.mass for i in robot.pin_robot.model.inertias[1:]])
 
 l_min = -0.2
 l_max = 0.2
-w_min = -0.1
-w_max = 0.1
-t_min = 0.01
+w_min = -0.15
+w_max = 0.15
+t_min = 0.1
 t_max = 0.3
 l_p = 0.0
 ht = 0.23
@@ -75,8 +78,13 @@ x_angvel = [0., 0., 0.]
 cnt_array = [0, 1, 1, 0]
 
 solo_leg_ctrl = SoloImpedanceController(robot)
-centr_controller = LipmCentroidalController(robot.pin_robot, total_mass,
-        mu=0.5, kc=[0,100,300], dc=[1,1,30], kb=[500,500,500], db=[10.,10.,10.],
+centr_lipm_controller = LipmCentroidalController(robot.pin_robot, total_mass,
+        mu=0.5, kc=[50,50,300], dc=[30,30,30], kb=[1500,1500,1500], db=[10.,10.,10.],
+        eff_ids=robot.pinocchio_endeff_ids)
+
+
+centr_controller = SoloCentroidalController(robot.pin_robot, total_mass,
+        mu=0.6, kc=[5, 5, 1], dc=[0,0,10], kb=[100,100,100], db=[10.,10.,10.],
         eff_ids=robot.pinocchio_endeff_ids)
 
 F = np.zeros(12)
@@ -98,7 +106,7 @@ t = 0
 u_min = np.array([-100000,-100000]) ## intitialising with values that won affect force generation
 u_max = np.array([1000000, 100000]) ## intitialising with values that won affect force generation
 t_end = 9999
-sim_time = 8000
+sim_time = 2500
 
 ################# SoloStepPlaner ###############################################################
 ssp = SoloStepPlanner(robot.pin_robot, np.array([l_min, w_min]), np.array([l_max, w_max]), ht)
@@ -111,13 +119,27 @@ plt_x_des = []
 
 ################# Running Simulation ######################################################################
 
+tau_plot = []
+ut_plot = []
+psi_plot = []
+
 for i in range(sim_time):
     p.stepSimulation()
-    time.sleep(0.0001) 
-    
+
     q, dq = robot.get_state()
     com = np.reshape(np.array(q[0:3]), (3,))
-    
+
+    if i > 500 and i < 600:
+        # p.applyExternalForce(robot.robotId, -1, [0, 30, 0], [0, 0, 0], p.WORLD_FRAME)
+        dq[1] = 0.1
+        robot.reset_state(q, dq)
+        
+    if i > 500 and i < 1000:
+        time.sleep(0.01) 
+
+    # if i > 1500:
+    #     break
+
     if i%10 == 0: ## reducing frequency of computation of stepping to 100 hz
         if t > t_end:
             t = 0
@@ -130,6 +152,8 @@ for i in range(sim_time):
         if t_end - t > 0.1*(t_end): ## this prevents replaning step location near the end of the step
             psi = sse.return_dcm_location(q, dq, step_planner.omega)
             zmp = sse.return_zmp_location(q, dq, cnt_array)
+
+            # QUESTION(jviereck): Why is the zmp used as u0 here?
             x_opt = step_planner.compute_adapted_step_location(zmp, t, n, psi, W, v_des)
             u_max_t, u_min_t = step_planner.compute_viability_boundary(zmp,t,psi)
             t_end = x_opt[2]
@@ -165,24 +189,62 @@ for i in range(sim_time):
     plt_x_des.append([u_min_t[0], hr_hip[0] , u_max_t[0]])
 
     # computing desired center of mass location and velocity
-    v_des_tmp = [1.0, 0.0]
-    x_com[0:2] = com_init[0:2]  + np.array(v_des_tmp)*i*0.001
-    xd_com[0:2] = v_des_tmp
+    x_com[0:2] = com_init[0:2]  + np.array(v_des)*i*0.001
+    xd_com[0:2] = v_des
     
     ### plugging Torques
-    w_com = centr_controller.compute_com_wrench(i, q, dq, x_com, xd_com, x_ori, x_angvel)
+    # w_com = centr_lipm_controller.compute_com_wrench(i, q, dq, x_com, xd_com, x_ori, x_angvel)
+    # w_com[2] += total_mass * 9.81
+    # F = centr_lipm_controller.compute_force_qp(i, q, dq, cnt_array, zmp, u_min, u_max, w_com)
+
+    w_com = centr_controller.compute_com_wrench(t, q, dq, x_com, xd_com, x_ori, x_angvel)
     w_com[2] += total_mass * 9.81
-    F = centr_controller.compute_force_qp(i, q, dq, cnt_array, zmp, u_min, u_max, w_com)
+    F = centr_controller.compute_force_qp(i, q, dq, cnt_array, w_com)
+
     tau = solo_leg_ctrl.return_joint_torques(q,dq,kp,kd,x_des,xd_des,F)
+
+    # Clip the tau.
+    # tau = tau.clip(-2.025, 2.025) # Assuming we are using 9 A for solo.
+
     robot.send_joint_command(tau)
     t += 0.001
+
+    tau_plot.append(tau)
+    ut_plot.append(u_t)
+    psi_plot.append(psi)
+
+    if i == 100:
+        print(x_com, xd_com)
+        print(w_com)
+        print()
 
 
 ################### 
 
 plt_x_des = np.array(plt_x_des)
 
-plt.plot(plt_x_des[:,0])
-plt.plot(plt_x_des[:,1], color = "green")
-plt.plot(plt_x_des[:,2], color = "red")
+psi_plot = np.array(psi_plot)
+ut_plot = np.array(ut_plot)
+
+plt.figure()
+plt.plot(psi_plot)
+plt.show(block=False)
+
+plt.figure()
+plt.plot(ut_plot)
+plt.show()
+
+
+
+
+# plt.plot(plt_x_des[:,0])
+# plt.plot(plt_x_des[:,1], color = "green")
+# plt.plot(plt_x_des[:,2], color = "red")
+# plt.show()
+
+# tau_plot = np.array(tau_plot).reshape(-1, 12)
+
+
+# plt.figure()
+# plt.plot(tau_plot)
 # plt.show()

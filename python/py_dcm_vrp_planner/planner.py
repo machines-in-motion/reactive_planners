@@ -245,6 +245,8 @@ class DcmVrpPlanner:
             n = n_current+1
             
         return n
+# 
+# dcm_vrp_planner.generate_foot_trajectory(x_opt[0:2], u_current_step, u_old, tend_scale * t_end, t, 0.1 , floor_height)
 
     def generate_foot_trajectory(self, u_t_end, u, u_old, t_end, t, z_max, z_ht, ctrl_timestep = 0.001):
         '''
@@ -268,26 +270,12 @@ class DcmVrpPlanner:
         
         ## for impedance the leg length has to be set to zero to move center of mass forward
         if t_end > 0.001:
-            
-            ## assumption that the center of mass is in the middle of the two legs at the contact phase
-            ## This will be removed when center of mass trajectories are obtained from a trajectory planner 
-            if t < t_end/2.0 :            
-                # x_foot_des_ground[0:2] = np.subtract(0.5*np.add(u[0:2], u_old[0:2]), self.x[0:2])*(-1 + np.sin((np.pi*t)/t_end))
-        
-                x_foot_des_ground[0] = -((0.5*(u_old[0] + u[0])) - self.x[0]) + (((0.5*(u_old[0] + u[0])) - self.x[0])/(0.5*t_end))*(t)
-                x_foot_des_ground[1] = -((0.5*(u_old[1] + u[1])) - self.x[1]) + (((0.5*(u_old[1] + u[1])) - self.x[1])/(0.5*t_end))*(t)
-        
-                x_foot_des_air[0] =  u_old[0] - self.x[0] - ((u_old[0] - self.x[0])/(0.5*t_end))*(t)
-                x_foot_des_air[1] =  u_old[1] - self.x[1] - ((u_old[1] - self.x[1])/(0.5*t_end))*(t)
-                
-            else:
-                x_foot_des_ground[0] = (((0.5*(u_t_end[0] + u[0])) - self.x[0])/(0.5*t_end))*(t - (0.5*t_end))
-                x_foot_des_ground[1] = (((0.5*(u_t_end[1] + u[1])) - self.x[1])/(0.5*t_end))*(t - (0.5*t_end))
-        
-                x_foot_des_air[0] =  ((u_t_end[0] - self.x[0])/(0.5*t_end))*(t - (0.5*t_end))
-                x_foot_des_air[1] =  ((u_t_end[1] - self.x[1])/(0.5*t_end))*(t - (0.5*t_end))
+            x_foot_des_air[0] = u_old[0] + (u_t_end[0] - u_old[0]) * (t / t_end)
+            x_foot_des_air[1] = u_old[1] + (u_t_end[1] - u_old[1]) * (t / t_end)
 
-                
+            x_foot_des_ground[0] = u[0]
+            x_foot_des_ground[1] = u[1]
+
             x_foot_des_ground[2] = z_ht
             x_foot_des_air[2] = (z_ht) +  (z_max) *np.sin((np.pi*t)/(t_end))
             

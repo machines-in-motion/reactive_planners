@@ -67,15 +67,15 @@ centr_controller = SoloCentroidalController(robot.pin_robot, total_mass,
 
 #################################################################################
 
-l_min = -0.15
-l_max = 0.15
-w_min = -0.05
-w_max = 0.15
-t_min = 0.00001
+l_min = -0.2
+l_max = 0.2
+w_min = -0.1
+w_max = 0.1
+t_min = 0.1
 t_max = 0.3
-v_des = [1.0,0.0]
+v_des = [0.1,0.0]
 l_p = 0
-ht = 0.25
+ht = 0.23
 
 dcm_vrp_planner = DcmVrpPlanner(l_min, l_max, w_min, w_max, t_min, t_max, v_des, l_p, ht)
 
