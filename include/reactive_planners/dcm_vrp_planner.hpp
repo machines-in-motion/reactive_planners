@@ -17,6 +17,8 @@
 namespace Eigen {
 typedef Matrix<double, 5, 1> Vector5d;
 typedef Matrix<double, 5, 5> Matrix5d;
+typedef Matrix<double, 9, 1> Vector9d;
+typedef Matrix<double, 9, 5> Matrix9d;
 }  // namespace Eigen
 
 namespace reactive_planners {
@@ -77,16 +79,6 @@ class DcmVrpPlanner {
                   const double& ht);
 
   /**
-   * @brief
-   * Input:
-   *     u :
-   *     t : time elapsed after the previous step has occured
-   *     n : 1 if left leg and 2 if right le is in contact
-   *     psi_current : current dcm location [psi_x, psi_y]
-   *     W : wieght array 5d
-   */
-
-  /**
    * @brief Computes adapted step location solving a QP. We use the following
    * notation:
    * \f{eqnarray*}{
@@ -108,13 +100,13 @@ class DcmVrpPlanner {
    * side, false if it is on the right side.
    * @param com_meas is the CoM position.
    * @param com_vel_meas is the CoM velocity.
-   * @param cost_weights is the weights.
+   * @param cost_weights is the cost weights.
    */
   void compute_adapted_step_locations(
       const Eigen::Vector2d& current_step_location,
       const double& time_from_last_step_touchdown,
       const bool& is_left_leg_in_contact, const Eigen::Vector3d& com_meas,
-      const Eigen::Vector3d& com_vel_meas, const Eigen::Vector5d& cost_weights);
+      const Eigen::Vector3d& com_vel_meas, const Eigen::Vector9d& cost_weights);
 
   /**
    * Private methods
@@ -223,6 +215,21 @@ class DcmVrpPlanner {
   /**
    * QP variables
    */
+
+  /** @brief Number of variabes in the optimization problem. */
+  int nb_var_;
+
+  /** @brief Number of equality constraints in the optimization problem. */
+  int nb_eq_;
+
+  /** @brief Number of inequality in the optimization problem. */
+  int nb_ineq_;
+  
+  /** @brief Quadratic program solver.
+   * 
+   * This is an eigen wrapper around the quad_prog fortran solver.
+   */
+  Eigen::QuadProgDense qp_solver_;
 
   /** @brief Solution of the optimization problem,
    * @see DcmVrpPlanner::compute_adapted_step_locations */
