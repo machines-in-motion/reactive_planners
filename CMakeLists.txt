@@ -2,7 +2,7 @@
 # Standard header #
 ###################
 cmake_minimum_required(VERSION 3.5.1) # ubuntu 16.04 minimum
-project(ci_example_cpp) 
+project(reactive_planners) 
 
 # required to use std::shared_ptr in code and to link the python bindings
 if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -29,6 +29,24 @@ find_package(catkin REQUIRED COMPONENTS
     pybind11_catkin
 )
 
+search_for_eigen()
+set(catkin_INCLUDE_DIRS ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS})
+
+# Depend on eigen-quadprog
+add_required_dependency("eigen-quadprog >= 1.0.0")
+build_prefix_for_pkg("eigen-quadprog" eigen_quadprog_name)
+set(catkin_INCLUDE_DIRS
+  ${${eigen_quadprog_name}_INCLUDE_DIRS}
+  ${catkin_INCLUDE_DIRS}
+)
+link_directories(
+  ${${eigen_quadprog_name}_LIBRARY_DIRS}
+)
+set(catkin_LIBRARIES
+  ${${eigen_quadprog_name}_LIBRARIES}
+  ${catkin_LIBRARIES}
+)
+
 ################
 # Include dirs #
 ################
@@ -40,9 +58,9 @@ include_directories( include ${catkin_INCLUDE_DIRS}  )
 
 # this package exports its include folder and its libraries for other catkin packages to enjoy
 catkin_package(
- LIBRARIES ci_example # exporting the ci_example library (libs and executable built in other catkin package will be able to link against them)
+ LIBRARIES ${PROJECT_NAME} # exporting the ci_example library (libs and executable built in other catkin package will be able to link against them)
  INCLUDE_DIRS include # exporting the include file: source file hosted by other catkin package will be able to include the related header files)
- CATKIN_DEPENDS roscpp std_msgs 
+ CATKIN_DEPENDS 
 )
 
 ##############################
@@ -55,10 +73,10 @@ catkin_python_setup()
 # Declare the library #
 #######################
 
-# add_library( ${PROJECT_NAME} SHARED
-#   src/
-# )
-# target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} )
+add_library( ${PROJECT_NAME} SHARED
+  src/dcm_vrp_planner.cpp
+)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} )
 
 #####################################################################
 # Stores the path to the config folder in the CONFIG_PATH variable. #
@@ -70,13 +88,16 @@ get_filename_component(CONFIG_PATH config ABSOLUTE)
 #  unit tests #
 ###############
 
-catkin_add_gtest(${PROJECT_NAME}_ut
-  tests/main.cpp
-  tests/${PROJECT_NAME}.cpp
-)
-target_link_libraries(${PROJECT_NAME}_ut ${PROJECT_NAME})
-set_target_properties(${PROJECT_NAME}_ut PROPERTIES 
-  COMPILE_DEFINITIONS CONFIG_FOLDER_PATH="${CONFIG_PATH}")
+macro(add_unit_test src_file)
+    catkin_add_gtest(${PROJECT_NAME}_${src_file}
+        tests/main.cpp tests/${src_file}.cpp)
+    target_link_libraries(${PROJECT_NAME}_${src_file} ${PROJECT_NAME})
+    set_target_properties(${PROJECT_NAME}_${src_file} PROPERTIES 
+        COMPILE_DEFINITIONS CONFIG_FOLDER_PATH="${CONFIG_PATH}")
+endmacro()
+
+add_unit_test(dcm_vrp_planner_ut)
+
 
 ####################
 # Demo executables #
