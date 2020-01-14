@@ -5,7 +5,8 @@
  * Gesellschaft
  *
  * @brief Implements the "Walking Control Based on Step Timing Adaptation" step
- * planner.
+ * planner. The pdf can be found in https://arxiv.org/abs/1704.01271, and in the
+ * `doc/` folder in this repository.
  */
 
 #pragma once

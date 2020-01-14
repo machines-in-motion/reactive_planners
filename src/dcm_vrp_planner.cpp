@@ -35,6 +35,7 @@ void DcmVrpPlanner::initialize(const double& l_min, const double& l_max,
   ht_ = ht;
 
   omega_ = sqrt(9.81 / ht_);
+  // Equation 7 and 9 in the paper.
   bx_max_ = l_max_ / (exp(omega_ * t_min_) - 1);
   bx_min_ = l_min_ / (exp(omega_ * t_max_) - 1);
   by_max_out_ =
@@ -46,22 +47,22 @@ void DcmVrpPlanner::initialize(const double& l_min, const double& l_max,
 
   int nb_var = 5;
   x_opt_.resize(nb_var);
-  x_opt_lb_.resize(nb_var);
-  x_opt_ub_.resize(nb_var);
-  Q_.resize(nb_var, nb_var);
-  q_.resize(nb_var);
-  A_eq_.resize(nb_var, nb_var);
-  B_eq_.resize(nb_var);
-  A_ineq_.resize(nb_var, nb_var);
-  B_ineq_.resize(nb_var);
   x_opt_.setZero();
+  x_opt_lb_.resize(nb_var);
   x_opt_lb_.setZero();
+  x_opt_ub_.resize(nb_var);
   x_opt_ub_.setZero();
+  Q_.resize(nb_var, nb_var);
   Q_.setZero();
+  q_.resize(nb_var);
   q_.setZero();
+  A_eq_.resize(nb_var, nb_var);
   A_eq_.setZero();
+  B_eq_.resize(nb_var);
   B_eq_.setZero();
+  A_ineq_.resize(nb_var, nb_var);
   A_ineq_.setZero();
+  B_ineq_.resize(nb_var);
   B_ineq_.setZero();
 }
 
@@ -106,13 +107,11 @@ void DcmVrpPlanner::compute_adapted_step_locations(
     const Eigen::Vector3d& com_vel_meas, const Eigen::Vector5d& cost_weights) {
   compute_current_dcm(com_meas, com_vel_meas);
   compute_nominal_step_values(is_left_leg_in_contact);
-  
 
-  
-   /* Warning, eigen-quadprog define the cost as \f$ (1/2) x^T Q' x - q'^T x \f$.
-    * Notice the "-" before the \f$ q'^T \f$. So we have to change the sign
-    * internally upon usage.
-    */
+  /* Warning, eigen-quadprog define the cost as \f$ (1/2) x^T Q' x - q'^T x \f$.
+   * Notice the "-" before the \f$ q'^T \f$. So we have to change the sign
+   * internally upon usage.
+   */
 }
 
 }  // namespace reactive_planners
