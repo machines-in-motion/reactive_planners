@@ -33,24 +33,13 @@ search_for_eigen()
 set(catkin_INCLUDE_DIRS ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS})
 
 # Depend on eigen-quadprog
-add_required_dependency("eigen-quadprog >= 1.0.0")
-build_prefix_for_pkg("eigen-quadprog" eigen_quadprog_name)
-set(catkin_INCLUDE_DIRS
-  ${${eigen_quadprog_name}_INCLUDE_DIRS}
-  ${catkin_INCLUDE_DIRS}
-)
-link_directories(
-  ${${eigen_quadprog_name}_LIBRARY_DIRS}
-)
-set(catkin_LIBRARIES
-  ${${eigen_quadprog_name}_LIBRARIES}
-  ${catkin_LIBRARIES}
-)
+catkin_add_required_dependency("eigen-quadprog >= 1.0.0")
+catkin_add_required_dependency("pinocchio >= 2.0.0")
 
 ################
 # Include dirs #
 ################
-include_directories( include ${catkin_INCLUDE_DIRS}  )
+include_directories(include ${catkin_INCLUDE_DIRS})
 
 ##############################
 # Declare the catkin package #
@@ -76,7 +65,7 @@ catkin_python_setup()
 add_library( ${PROJECT_NAME} SHARED
   src/dcm_vrp_planner.cpp
 )
-target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} )
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
 #####################################################################
 # Stores the path to the config folder in the CONFIG_PATH variable. #
@@ -87,11 +76,12 @@ get_filename_component(CONFIG_PATH config ABSOLUTE)
 ###############
 #  unit tests #
 ###############
-
+message(STATUS "################# ${catkin_LIBRARIES}")
 macro(add_unit_test src_file)
     catkin_add_gtest(${PROJECT_NAME}_${src_file}
         tests/main.cpp tests/${src_file}.cpp)
     target_link_libraries(${PROJECT_NAME}_${src_file} ${PROJECT_NAME})
+    target_link_libraries(${PROJECT_NAME}_${src_file} ${catkin_LIBRARIES})
     set_target_properties(${PROJECT_NAME}_${src_file} PROPERTIES 
         COMPILE_DEFINITIONS CONFIG_FOLDER_PATH="${CONFIG_PATH}")
 endmacro()

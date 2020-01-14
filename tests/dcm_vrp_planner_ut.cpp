@@ -1,12 +1,17 @@
 #include <gtest/gtest.h>
+#include <stdlib.h> /* srand, rand */
+#include <time.h>   /* time */
 #include "reactive_planners/dcm_vrp_planner.hpp"
 
-class TestReactivePlanners : public ::testing::Test {
+class TestEigenQuadProg : public ::testing::Test {
  protected:
   virtual void SetUp() {}
   virtual void TearDown() {}
 };
 
+/**
+ * Quick test on the eigen-quapgrog API
+ */
 struct QP1 {
   QP1() {
     nrvar = 6;
@@ -91,7 +96,7 @@ void ineqWithXBounds(Eigen::MatrixXd& Aineq, Eigen::VectorXd& Bineq,
   Bineq = B;
 }
 
-TEST_F(TestReactivePlanners, test_QuadProgDense) {
+TEST_F(TestEigenQuadProg, test_QuadProgDense) {
   QP1 qp1;
   ineqWithXBounds(qp1.Aineq, qp1.Bineq, qp1.XL, qp1.XU);
 
@@ -110,7 +115,7 @@ TEST_F(TestReactivePlanners, test_QuadProgDense) {
   ASSERT_LE((qp.result() - qp1.X).norm(), 1e-6);
 }
 
-TEST_F(TestReactivePlanners, test_QuadProgSparse) {
+TEST_F(TestEigenQuadProg, test_QuadProgSparse) {
   QP1 qp1;
   ineqWithXBounds(qp1.Aineq, qp1.Bineq, qp1.XL, qp1.XU);
 
@@ -132,4 +137,240 @@ TEST_F(TestReactivePlanners, test_QuadProgSparse) {
   qp.solve(Linv.inverse(), qp1.C, SAeq, qp1.Beq, SAineq, qp1.Bineq, true);
 
   ASSERT_LE((qp.result() - qp1.X).norm(), 1e-6);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/**
+ * Unit tests of the DcmVrpPlanner
+ */
+
+class TestDcmVrpPlanner : public ::testing::Test {
+ protected:
+  virtual void SetUp() {
+    /* initialize random seed: */
+    srand(time(NULL));
+
+    l_min_ = 0.0;
+    l_max_ = 0.0;
+    w_min_ = 0.0;
+    w_max_ = 0.0;
+    t_min_ = 0.0;
+    t_max_ = 0.0;
+    l_p_ = 0.0;
+    ht_ = 0.0;
+    cost_weights_local_.setZero();
+
+    current_step_location_.setZero();
+    time_from_last_step_touchdown_ = 0.0;
+    is_left_leg_in_contact_ = true;
+    v_des_.setZero();
+    com_.setZero();
+    com_vel_.setZero();
+    world_M_base_ = pinocchio::SE3::Identity();
+  }
+
+  virtual void TearDown() {}
+
+  // Planner
+  reactive_planners::DcmVrpPlanner dcm_vrp_planner_;
+
+  // Planner constant parameters
+  double l_min_;
+  double l_max_;
+  double w_min_;
+  double w_max_;
+  double t_min_;
+  double t_max_;
+  double l_p_;
+  double ht_;
+  Eigen::Vector9d cost_weights_local_;
+
+  // Time varying parameters
+  Eigen::Vector3d current_step_location_;
+  double time_from_last_step_touchdown_;
+  bool is_left_leg_in_contact_;
+  Eigen::Vector3d v_des_;
+  Eigen::Vector3d com_;
+  Eigen::Vector3d com_vel_;
+  pinocchio::SE3 world_M_base_;
+};
+
+/*---------------------------------------------------------------------------*/
+
+TEST_F(TestDcmVrpPlanner, test_constructor) {}
+
+/*---------------------------------------------------------------------------*/
+
+TEST_F(TestDcmVrpPlanner, test_t_nom) {
+  v_des_.setZero();
+  t_min_ = (double)rand() / (double)(RAND_MAX)*0.1 + 0.1;
+  t_max_ = (double)rand() / (double)(RAND_MAX)*0.1 + 3 * t_min_;
+  dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
+                              l_p_, ht_, cost_weights_local_);
+  dcm_vrp_planner_.update(
+      current_step_location_, time_from_last_step_touchdown_,
+      is_left_leg_in_contact_, v_des_, com_, com_vel_, world_M_base_);
+  ASSERT_NEAR(dcm_vrp_planner_.get_t_nom(), (t_min_ + t_max_) * 0.5, 1e-8);
+
+  v_des_ << 0.0, 1.0, 0.0;
+  dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
+                              l_p_, ht_, cost_weights_local_);
+  dcm_vrp_planner_.update(
+      current_step_location_, time_from_last_step_touchdown_,
+      is_left_leg_in_contact_, v_des_, com_, com_vel_, world_M_base_);
+  ASSERT_NEAR(dcm_vrp_planner_.get_t_nom(), (t_min_ + t_max_) * 0.5, 1e-8);
+
+  v_des_ << 1.0, 0.0, 0.0;
+  dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
+                              l_p_, ht_, cost_weights_local_);
+  dcm_vrp_planner_.update(
+      current_step_location_, time_from_last_step_touchdown_,
+      is_left_leg_in_contact_, v_des_, com_, com_vel_, world_M_base_);
+  ASSERT_NEAR(dcm_vrp_planner_.get_t_nom(), (t_min_ + t_max_) * 0.5, 1e-8);
+
+  v_des_ << 1.0, 1.0, 0.0;
+  t_min_ = 0.1;
+  l_min_ = 0.101;
+  w_min_ = 0.102;
+  t_max_ = 0.2;
+  l_max_ = 0.201;
+  w_max_ = 0.202;
+  dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
+                              l_p_, ht_, cost_weights_local_);
+  dcm_vrp_planner_.update(
+      current_step_location_, time_from_last_step_touchdown_,
+      is_left_leg_in_contact_, v_des_, com_, com_vel_, world_M_base_);
+  ASSERT_NEAR(dcm_vrp_planner_.get_t_nom(), (w_min_ + t_max_) * 0.5, 1e-8);
+
+  v_des_ << 1.0, 1.0, 0.0;
+  t_min_ = 0.102;
+  l_min_ = 0.101;
+  w_min_ = 0.100;
+  t_max_ = 0.202;
+  l_max_ = 0.201;
+  w_max_ = 0.200;
+  dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
+                              l_p_, ht_, cost_weights_local_);
+  dcm_vrp_planner_.update(
+      current_step_location_, time_from_last_step_touchdown_,
+      is_left_leg_in_contact_, v_des_, com_, com_vel_, world_M_base_);
+  ASSERT_NEAR(dcm_vrp_planner_.get_t_nom(), (t_min_ + w_max_) * 0.5, 1e-8);
+
+  v_des_ << 1.0, 1.0, 0.0;
+  t_min_ = 0.101;
+  l_min_ = 0.102;
+  w_min_ = 0.100;
+  t_max_ = 0.201;
+  l_max_ = 0.200;
+  w_max_ = 0.202;
+  dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
+                              l_p_, ht_, cost_weights_local_);
+  dcm_vrp_planner_.update(
+      current_step_location_, time_from_last_step_touchdown_,
+      is_left_leg_in_contact_, v_des_, com_, com_vel_, world_M_base_);
+  ASSERT_NEAR(dcm_vrp_planner_.get_t_nom(), (l_min_ + l_max_) * 0.5, 1e-8);
+}
+
+/*---------------------------------------------------------------------------*/
+
+TEST_F(TestDcmVrpPlanner, test_tau_nom) {
+  dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
+                              l_p_, ht_, cost_weights_local_);
+  dcm_vrp_planner_.update(
+      current_step_location_, time_from_last_step_touchdown_,
+      is_left_leg_in_contact_, v_des_, com_, com_vel_, world_M_base_);
+
+  ASSERT_FALSE(dcm_vrp_planner_.get_tau_nom() ==
+               dcm_vrp_planner_.get_tau_nom());
+
+  ht_ = 9.81;
+  t_min_ = 1.0;
+  t_max_ = 3.0;
+  dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
+                              l_p_, ht_, cost_weights_local_);
+  dcm_vrp_planner_.update(
+      current_step_location_, time_from_last_step_touchdown_,
+      is_left_leg_in_contact_, v_des_, com_, com_vel_, world_M_base_);
+  ASSERT_EQ(dcm_vrp_planner_.get_t_nom(), 2.0);
+  ASSERT_EQ(dcm_vrp_planner_.get_tau_nom(), exp(2.0));
+}
+
+/*---------------------------------------------------------------------------*/
+
+TEST_F(TestDcmVrpPlanner, test_lw_nom) {
+  dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
+                              l_p_, ht_, cost_weights_local_);
+  dcm_vrp_planner_.update(
+      current_step_location_, time_from_last_step_touchdown_,
+      is_left_leg_in_contact_, v_des_, com_, com_vel_, world_M_base_);
+
+  ASSERT_EQ(dcm_vrp_planner_.get_l_nom(), 0.0);
+
+  t_min_ = 1.0;
+  t_max_ = 3.0;
+  dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
+                              l_p_, ht_, cost_weights_local_);
+  dcm_vrp_planner_.update(
+      current_step_location_, time_from_last_step_touchdown_,
+      is_left_leg_in_contact_, v_des_, com_, com_vel_, world_M_base_);
+  ASSERT_EQ(dcm_vrp_planner_.get_l_nom(), 0.0);
+
+  double a(0.1), b(0.2);
+  v_des_ << a, b, 0.0;
+  t_min_ = a;
+  l_min_ = a - 0.1;
+  w_min_ = a - 0.1;
+  t_max_ = b;
+  l_max_ = b + 0.1;
+  w_max_ = b + 0.1;
+  dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
+                              l_p_, ht_, cost_weights_local_);
+  dcm_vrp_planner_.update(
+      current_step_location_, time_from_last_step_touchdown_,
+      is_left_leg_in_contact_, v_des_, com_, com_vel_, world_M_base_);
+  ASSERT_EQ(dcm_vrp_planner_.get_l_nom(), a * (0.5 * (a + b)));
+  ASSERT_EQ(dcm_vrp_planner_.get_w_nom(), b * (0.5 * (a + b)));
+}
+
+/*---------------------------------------------------------------------------*/
+
+TEST_F(TestDcmVrpPlanner, test_compute_adapted_step_locations) {
+  l_min_ = -0.2;
+  l_max_ = 0.2;
+  w_min_ = -0.1;
+  w_max_ = 0.1;
+  t_min_ = 0.1;
+  t_max_ = 0.3;
+  v_des_ << 0.1, 0.0, 0.0;
+  l_p_ = 0;
+  ht_ = 0.23;
+  cost_weights_local_ << /*u_T_x*/ 10, /*u_T_y*/ 10, /*tau*/ 1.0, /*b_x*/ 1000,
+      /*b_x*/ 1000, /*psi_0*/ 1e6, /*psi_1*/ 1e6, /*psi_2*/ 1e6, /*psi_3*/ 1e6;
+  dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
+                              l_p_, ht_, cost_weights_local_);
+
+  current_step_location_ << 0.0, 0.0, 0.0;
+  time_from_last_step_touchdown_ = 0.0;
+  is_left_leg_in_contact_ = 0.0;
+  v_des_ << 0.1, 0.0, 0.0;
+  com_ << 0.0, 0.0, ht_;
+  com_vel_ << 0.0, 0.0, 0.0;
+  world_M_base_ = pinocchio::SE3::Identity();
+  dcm_vrp_planner_.update(
+      current_step_location_, time_from_last_step_touchdown_,
+      is_left_leg_in_contact_, v_des_, com_, com_vel_, world_M_base_);
+
+  dcm_vrp_planner_.solve();
+
+  if (!dcm_vrp_planner_.internal_checks()) {
+    dcm_vrp_planner_.print_solver();
+  }
+  ASSERT_TRUE(dcm_vrp_planner_.internal_checks());
+
+  Eigen::Vector3d next_step;
+  next_step << 0.0071578, 0, 0;
+  ASSERT_TRUE((next_step - dcm_vrp_planner_.get_next_step_location())
+                  .isMuchSmallerThan(1.0, 1e-6));
+  ASSERT_EQ(0.1, dcm_vrp_planner_.get_duration_before_step_landing());
 }

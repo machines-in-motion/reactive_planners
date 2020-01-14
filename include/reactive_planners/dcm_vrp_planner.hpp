@@ -13,16 +13,29 @@
 
 #include <eigen-quadprog/QuadProg.h>
 #include <Eigen/Eigen>
+#include <pinocchio/spatial/se3.hpp>
 
 namespace Eigen {
-typedef Matrix<double, 5, 1> Vector5d;
-typedef Matrix<double, 5, 5> Matrix5d;
+/** @brief Colomn vector of size 9 which correspond to the number of
+ * optimization variables. */
 typedef Matrix<double, 9, 1> Vector9d;
+/** @brief Rectangle matrix of size which correspond to the number of inequality
+ * constraint by the number of optimization variables. */
 typedef Matrix<double, 9, 5> Matrix9d;
 }  // namespace Eigen
 
 namespace reactive_planners {
 
+/**
+ * @brief Implements the "Walking Control Based on Step Timing Adaptation" step
+ * planner. The pdf can be found in https://arxiv.org/abs/1704.01271, and in the
+ * `doc/` folder in this repository.
+ *
+ * All quantities are here expressed in the local frame. Which means for a robot
+ * that the quantities are expressed in the "base" frame.
+ *
+ * @todo write here the formulation of the QP.
+ */
 class DcmVrpPlanner {
  public:
   /**
@@ -42,17 +55,19 @@ class DcmVrpPlanner {
    * vector.
    * @param l_p [in] Default step width.
    * @param ht [in] Average desired height of the com above the ground.
+   * @param cost_weights_local [in] Weights of the QP cost expressed in the
+   * local frame.
    */
   DcmVrpPlanner(const double& l_min, const double& l_max, const double& w_min,
                 const double& w_max, const double& t_min, const double& t_max,
-                const Eigen::Vector2d& v_des, const double& l_p,
-                const double& ht);
+                const double& l_p, const double& ht,
+                const Eigen::Vector9d& cost_weights_local);
 
   /**
    * @brief Construct a new DcmVrpPlanner object with some default parameters.
    */
   DcmVrpPlanner() {
-    initialize(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Eigen::Vector2d::Zero(), 0.0, 0.0);
+    initialize(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Eigen::Vector9d::Zero());
   }
 
   /**
@@ -72,15 +87,18 @@ class DcmVrpPlanner {
    * vector.
    * @param l_p [in] Default step width.
    * @param ht [in] Average desired height of the com above the ground.
+   * @param cost_weights_local [in] Weights of the QP cost expressed in the
+   * local frame.
    */
   void initialize(const double& l_min, const double& l_max, const double& w_min,
                   const double& w_max, const double& t_min, const double& t_max,
-                  const Eigen::Vector2d& v_des, const double& l_p,
-                  const double& ht);
+                  const double& l_p, const double& ht,
+                  const Eigen::Vector9d& cost_weights_local);
 
   /**
-   * @brief Computes adapted step location solving a QP. We use the following
-   * notation:
+   * @brief Computes adapted step location.
+   *
+   * We use a QP formulation with the following notation:
    * \f{eqnarray*}{
    *    minimize   & \\
    *       x       & (1/2) x^T Q x + q^T x \\
@@ -89,26 +107,143 @@ class DcmVrpPlanner {
    *               & A_{eq} x = b_{eq} \\
    *               & x_{opt_{lb}} \leq x \leq x_{opt_{ub}}
    * \f}
+   * We use the off-the-shelf QP solver eigen-quadprog in order to solve it.
+   * @see DcmVrpPlanner for the full formulation.
    *
-   * We use the off-the-shelf QP solver eigen-quadprog in order to solve this.
-   *
-   * @param current_support_location is the location of the previous foot step
+   * @param current_step_location is the location of the previous foot step
    * location (2d vector) [ux, uy].
    * @param time_from_last_step_touchdown is the time elapsed since the last
    * foot step landed.
    * @param is_left_leg_in_contact is true is the current foot is on the left
    * side, false if it is on the right side.
-   * @param com_meas is the CoM position.
-   * @param com_vel_meas is the CoM velocity.
-   * @param cost_weights is the cost weights.
+   * @param v_des
+   * @param com is the CoM position.
+   * @param com_vel is the CoM velocity.
+   * @param world_M_base SE3 position of the robot base expressed in the world
+   * frame.
    */
-  void compute_adapted_step_locations(
-      const Eigen::Vector2d& current_step_location,
-      const double& time_from_last_step_touchdown,
-      const bool& is_left_leg_in_contact, const Eigen::Vector3d& com_meas,
-      const Eigen::Vector3d& com_vel_meas, const Eigen::Vector9d& cost_weights);
+  void update(const Eigen::Vector3d& current_step_location,
+              const double& time_from_last_step_touchdown,
+              const bool& is_left_leg_in_contact, const Eigen::Vector3d& v_des,
+              const Eigen::Vector3d& com, const Eigen::Vector3d& com_vel,
+              const pinocchio::SE3& world_M_base);
 
   /**
+   * @brief Solve the Quadratic program and extract the solution. Use
+   * DcmVrpPlanner::get_next_step_location() and
+   * DcmVrpPlanner::get_duration_before_step_landing() to acces the results.
+   */
+  void solve();
+  
+  /**
+   * @brief Perform an internal checks on the solver matrices. A warning message
+   * is displayed in case of problems.
+   * 
+   * @return true is everything seems fine.
+   * @return false is something wrong.
+   */
+  bool internal_checks();
+
+  /**
+   * @brief Display the matrices of the Problem.
+   */
+  void print_solver();
+
+  /*
+   * Getters
+   */
+
+  /**
+   * @brief @copydoc DcmVrpPlanner::t_nom_
+   *
+   * @return const double&
+   */
+  const double& get_t_nom() const { return t_nom_; }
+
+  /**
+   * @brief @copydoc DcmVrpPlanner::tau_nom_
+   *
+   * @return const double&
+   */
+  const double& get_tau_nom() const { return tau_nom_; }
+
+  /**
+   * @brief @copydoc DcmVrpPlanner::l_nom_
+   *
+   * @return const double&
+   */
+  const double& get_l_nom() const { return l_nom_; }
+
+  /**
+   * @brief @copydoc DcmVrpPlanner::w_nom_
+   *
+   * @return const double&
+   */
+  const double& get_w_nom() const { return w_nom_; }
+
+  /**
+   * @brief @copydoc DcmVrpPlanner::bx_nom_
+   *
+   * @return const double&
+   */
+  const double& get_bx_nom() const { return bx_nom_; }
+
+  /**
+   * @brief @copydoc DcmVrpPlanner::by_nom_
+   *
+   * @return const double&
+   */
+  const double& get_by_nom() const { return by_nom_; }
+
+  /**
+   * @brief @copydoc DcmVrpPlanner::world_M_local_
+   *
+   * @return const pinocchio::SE3&
+   */
+  const pinocchio::SE3& get_world_M_local() const { return world_M_local_; }
+
+  /**
+   * @brief @copydoc DcmVrpPlanner::dcm_local_
+   *
+   * @return const Eigen::Vector3d&
+   */
+  const Eigen::Vector3d& get_dcm_local() const { return dcm_local_; }
+
+  /**
+   * @brief @copydoc DcmVrpPlanner::current_step_location_local_
+   *
+   * @return const Eigen::Vector3d&
+   */
+  const Eigen::Vector3d& get_current_step_location_local() const {
+    return current_step_location_local_;
+  }
+
+  /**
+   * @brief @copydoc DcmVrpPlanner::v_des_local_
+   *
+   * @return const Eigen::Vector3d&
+   */
+  const Eigen::Vector3d& get_v_des_local() const { return v_des_local_; }
+
+  /**
+   * @brief @copydoc DcmVrpPlanner::next_step_location_
+   *
+   * @return const Eigen::Vector3d&
+   */
+  const Eigen::Vector3d& get_next_step_location() const {
+    return next_step_location_;
+  }
+
+  /**
+   * @brief @copydoc DcmVrpPlanner::duration_before_step_landing_
+   *
+   * @return const double&
+   */
+  const double& get_duration_before_step_landing() const {
+    return duration_before_step_landing_;
+  }
+
+  /*
    * Private methods
    */
  private:
@@ -119,19 +254,12 @@ class DcmVrpPlanner {
    * to use for the next contact.
    * - 1 if left leg is in contact
    * - 2 if right leg is in contact
+   * @param v_des_local in the local frame.
    */
-  void compute_nominal_step_values(const double& is_left_leg_in_contact);
+  void compute_nominal_step_values(const bool& is_left_leg_in_contact,
+                                   const Eigen::Vector3d& v_des_local);
 
-  /**
-   * @brief Computes the current location of the dcm.
-   *
-   * @param com [in] center of mass location at current time step
-   * @param com_vel [in] center of mass velocity of current time step
-   */
-  void compute_current_dcm(const Eigen::Vector3d& com_meas,
-                           const Eigen::Vector3d& com_vel_meas);
-
-  /**
+  /*
    * Attributes
    */
  private:
@@ -172,9 +300,6 @@ class DcmVrpPlanner {
    * \f$ e^{\omega t_{nom}} \f$*/
   double tau_nom_;
 
-  /** @brief Desired average velocity in the x and y ([v_x, v_y]) 2d vector. */
-  Eigen::Vector2d v_des_;
-
   /** @brief Default step width. */
   double l_p_;
 
@@ -203,14 +328,27 @@ class DcmVrpPlanner {
   /** @brief Nominal DCM offset along the Y-axis. */
   double by_nom_;
 
+  /** @brief SE3 position of the robot base in the world frame. */
+  pinocchio::SE3 world_M_local_;
+
   /** @brief Current DCM computed from the CoM estimation. */
-  Eigen::Vector2d dcm_meas_;
+  Eigen::Vector3d dcm_local_;
 
-  /** @brief Current CoM position. */
-  Eigen::Vector3d com_meas_;
+  /** @brief Current DCM computed from the CoM estimation. */
+  Eigen::Vector3d current_step_location_local_;
 
-  /** @brief Current CoM velocity. */
-  Eigen::Vector3d com_vel_meas_;
+  /** @brief Current DCM computed from the CoM estimation. */
+  Eigen::Vector3d v_des_local_;
+
+  /*
+   * Problem results
+   */
+
+  /** @brief Next step location expressed in the world frame. */
+  Eigen::Vector3d next_step_location_;
+
+  /** @brief Remaining time before the step landing. */
+  double duration_before_step_landing_;
 
   /**
    * QP variables
@@ -224,47 +362,50 @@ class DcmVrpPlanner {
 
   /** @brief Number of inequality in the optimization problem. */
   int nb_ineq_;
-  
+
   /** @brief Quadratic program solver.
-   * 
+   *
    * This is an eigen wrapper around the quad_prog fortran solver.
    */
   Eigen::QuadProgDense qp_solver_;
 
-  /** @brief Solution of the optimization problem,
-   * @see DcmVrpPlanner::compute_adapted_step_locations */
+  /** @brief Solution of the optimization problem.
+   * @see DcmVrpPlanner::compute_adapted_step_locations. */
   Eigen::VectorXd x_opt_;
 
-  /** @brief Lower Bound on the solution of the optimization problem,
-   * @see DcmVrpPlanner::compute_adapted_step_locations */
+  /** @brief Lower Bound on the solution of the optimization problem.
+   * @see DcmVrpPlanner::compute_adapted_step_locations. */
   Eigen::VectorXd x_opt_lb_;
 
-  /** @brief Upper Bound on the solution of the optimization problem,
-   * @see DcmVrpPlanner::compute_adapted_step_locations */
+  /** @brief Upper Bound on the solution of the optimization problem.
+   * @see DcmVrpPlanner::compute_adapted_step_locations. */
   Eigen::VectorXd x_opt_ub_;
 
-  /** @brief Quadratic term of the quadratic cost,
-   * @see DcmVrpPlanner::compute_adapted_step_locations */
+  /** @brief Quadratic term of the quadratic cost.
+   * @see DcmVrpPlanner::compute_adapted_step_locations. */
   Eigen::MatrixXd Q_;
 
-  /** @brief Linear term of the quadratic cost,
-   * @see DcmVrpPlanner::compute_adapted_step_locations */
+  /** @brief Cost weights expressed in the local frame. */
+  Eigen::Vector9d cost_weights_local_;
+
+  /** @brief Linear term of the quadratic cost.
+   * @see DcmVrpPlanner::compute_adapted_step_locations. */
   Eigen::VectorXd q_;
 
-  /** @brief Linear equality matrix,
-   * @see DcmVrpPlanner::compute_adapted_step_locations */
+  /** @brief Linear equality matrix.
+   * @see DcmVrpPlanner::compute_adapted_step_locations. */
   Eigen::MatrixXd A_eq_;
 
-  /** @brief Linear equality vector,
-   * @see DcmVrpPlanner::compute_adapted_step_locations */
+  /** @brief Linear equality vector.
+   * @see DcmVrpPlanner::compute_adapted_step_locations. */
   Eigen::VectorXd B_eq_;
 
-  /** @brief Linear inequality matrix,
-   * @see DcmVrpPlanner::compute_adapted_step_locations */
+  /** @brief Linear inequality matrix.
+   * @see DcmVrpPlanner::compute_adapted_step_locations. */
   Eigen::MatrixXd A_ineq_;
-  
-  /** @brief Linear inequality vector,
-   * @see DcmVrpPlanner::compute_adapted_step_locations */
+
+  /** @brief Linear inequality vector.
+   * @see DcmVrpPlanner::compute_adapted_step_locations. */
   Eigen::VectorXd B_ineq_;
 };
 
