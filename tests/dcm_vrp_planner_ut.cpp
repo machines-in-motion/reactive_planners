@@ -335,25 +335,35 @@ TEST_F(TestDcmVrpPlanner, test_lw_nom) {
 
 /*---------------------------------------------------------------------------*/
 
-TEST_F(TestDcmVrpPlanner, test_compute_adapted_step_locations) {
-  l_min_ = -0.2;
-  l_max_ = 0.2;
-  w_min_ = -0.1;
-  w_max_ = 0.1;
+TEST_F(TestDcmVrpPlanner, test_solver_rest_pose) {
+  l_min_ = -0.15;
+  l_max_ = -l_min_;
+  w_min_ = -0.15;
+  w_max_ = -w_min_;
   t_min_ = 0.1;
-  t_max_ = 0.3;
-  v_des_ << 0.1, 0.0, 0.0;
+  t_max_ = t_min_ + 0.2;
+  v_des_ << 0.0, 0.0, 0.0;
   l_p_ = 0;
-  ht_ = 0.23;
-  cost_weights_local_ << /*u_T_x*/ 10, /*u_T_y*/ 10, /*tau*/ 1.0, /*b_x*/ 1000,
-      /*b_x*/ 1000, /*psi_0*/ 1e6, /*psi_1*/ 1e6, /*psi_2*/ 1e6, /*psi_3*/ 1e6;
+  ht_ = 0.20;
+  // clang-format off
+  cost_weights_local_ <<
+      /*u_T_x*/ 10,
+      /*u_T_y*/ 10,
+      /*tau*/ 1.0,
+      /*b_x*/ 1000,
+      /*b_x*/ 1000,
+      /*psi_0*/ 1e6,
+      /*psi_1*/ 1e6,
+      /*psi_2*/ 1e6,
+      /*psi_3*/ 1e6;
+  // clang-format on
   dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
                               l_p_, ht_, cost_weights_local_);
 
   current_step_location_ << 0.0, 0.0, 0.0;
   time_from_last_step_touchdown_ = 0.0;
   is_left_leg_in_contact_ = 0.0;
-  v_des_ << 0.1, 0.0, 0.0;
+  v_des_ << 0.0, 0.0, 0.0;
   com_ << 0.0, 0.0, ht_;
   com_vel_ << 0.0, 0.0, 0.0;
   world_M_base_ = pinocchio::SE3::Identity();
@@ -363,14 +373,217 @@ TEST_F(TestDcmVrpPlanner, test_compute_adapted_step_locations) {
 
   dcm_vrp_planner_.solve();
 
-  if (!dcm_vrp_planner_.internal_checks()) {
-    dcm_vrp_planner_.print_solver();
-  }
   ASSERT_TRUE(dcm_vrp_planner_.internal_checks());
 
   Eigen::Vector3d next_step;
-  next_step << 0.0071578, 0, 0;
+  next_step << 0, 0, 0;
+
   ASSERT_TRUE((next_step - dcm_vrp_planner_.get_next_step_location())
                   .isMuchSmallerThan(1.0, 1e-6));
-  ASSERT_EQ(0.1, dcm_vrp_planner_.get_duration_before_step_landing());
+  ASSERT_EQ(dcm_vrp_planner_.get_t_nom(),
+            dcm_vrp_planner_.get_duration_before_step_landing());
+}
+
+/*---------------------------------------------------------------------------*/
+
+TEST_F(TestDcmVrpPlanner, test_solver_com_forward) {
+  l_min_ = -0.15;
+  l_max_ = -l_min_;
+  w_min_ = -0.15;
+  w_max_ = -w_min_;
+  t_min_ = 0.1;
+  t_max_ = t_min_ + 0.2;
+  v_des_ << 0.0, 0.0, 0.0;
+  l_p_ = 0;
+  ht_ = 0.20;
+  // clang-format off
+  cost_weights_local_ <<
+      /*u_T_x*/ 10,
+      /*u_T_y*/ 10,
+      /*tau*/ 1.0,
+      /*b_x*/ 1000,
+      /*b_x*/ 1000,
+      /*psi_0*/ 1e6,
+      /*psi_1*/ 1e6,
+      /*psi_2*/ 1e6,
+      /*psi_3*/ 1e6;
+  // clang-format on
+  dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
+                              l_p_, ht_, cost_weights_local_);
+
+  current_step_location_ << 0.0, 0.0, 0.0;
+  time_from_last_step_touchdown_ = 0.0;
+  is_left_leg_in_contact_ = 0.0;
+  v_des_ << 0.0, 0.0, 0.0;
+  com_ << 0.02, 0.0, ht_;
+  com_vel_ << 0.0, 0.0, 0.0;
+  world_M_base_ = pinocchio::SE3::Identity();
+  dcm_vrp_planner_.update(
+      current_step_location_, time_from_last_step_touchdown_,
+      is_left_leg_in_contact_, v_des_, com_, com_vel_, world_M_base_);
+
+  dcm_vrp_planner_.solve();
+
+  ASSERT_TRUE(dcm_vrp_planner_.internal_checks());
+
+  Eigen::Vector3d next_step;
+  next_step << 0.0800414, 0, 0;
+
+  ASSERT_TRUE((next_step - dcm_vrp_planner_.get_next_step_location())
+                  .isMuchSmallerThan(1.0, 1e-5));
+  ASSERT_NEAR(0.199436, dcm_vrp_planner_.get_duration_before_step_landing(),
+              1e-5);
+}
+
+/*---------------------------------------------------------------------------*/
+
+TEST_F(TestDcmVrpPlanner, test_solver_com_backward) {
+  l_min_ = -0.15;
+  l_max_ = -l_min_;
+  w_min_ = -0.15;
+  w_max_ = -w_min_;
+  t_min_ = 0.1;
+  t_max_ = t_min_ + 0.2;
+  v_des_ << 0.0, 0.0, 0.0;
+  l_p_ = 0;
+  ht_ = 0.20;
+  // clang-format off
+  cost_weights_local_ <<
+      /*u_T_x*/ 10,
+      /*u_T_y*/ 10,
+      /*tau*/ 1.0,
+      /*b_x*/ 1000,
+      /*b_x*/ 1000,
+      /*psi_0*/ 1e6,
+      /*psi_1*/ 1e6,
+      /*psi_2*/ 1e6,
+      /*psi_3*/ 1e6;
+  // clang-format on
+  dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
+                              l_p_, ht_, cost_weights_local_);
+
+  current_step_location_ << 0.0, 0.0, 0.0;
+  time_from_last_step_touchdown_ = 0.0;
+  is_left_leg_in_contact_ = 0.0;
+  v_des_ << 0.0, 0.0, 0.0;
+  com_ << -0.02, 0.0, ht_;
+  com_vel_ << 0.0, 0.0, 0.0;
+  world_M_base_ = pinocchio::SE3::Identity();
+  dcm_vrp_planner_.update(
+      current_step_location_, time_from_last_step_touchdown_,
+      is_left_leg_in_contact_, v_des_, com_, com_vel_, world_M_base_);
+
+  dcm_vrp_planner_.solve();
+
+  ASSERT_TRUE(dcm_vrp_planner_.internal_checks());
+
+  Eigen::Vector3d next_step;
+  next_step << -0.0800414, 0, 0;
+
+  ASSERT_TRUE((next_step - dcm_vrp_planner_.get_next_step_location())
+                  .isMuchSmallerThan(1.0, 1e-5));
+  ASSERT_NEAR(0.199436, dcm_vrp_planner_.get_duration_before_step_landing(),
+              1e-5);
+}
+
+/*---------------------------------------------------------------------------*/
+
+TEST_F(TestDcmVrpPlanner, test_solver_com_left) {
+  l_min_ = -0.15;
+  l_max_ = -l_min_;
+  w_min_ = -0.15;
+  w_max_ = -w_min_;
+  t_min_ = 0.1;
+  t_max_ = t_min_ + 0.2;
+  v_des_ << 0.0, 0.0, 0.0;
+  l_p_ = 0;
+  ht_ = 0.20;
+  // clang-format off
+  cost_weights_local_ <<
+      /*u_T_x*/ 10,
+      /*u_T_y*/ 10,
+      /*tau*/ 1.0,
+      /*b_x*/ 1000,
+      /*b_x*/ 1000,
+      /*psi_0*/ 1e6,
+      /*psi_1*/ 1e6,
+      /*psi_2*/ 1e6,
+      /*psi_3*/ 1e6;
+  // clang-format on
+  dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
+                              l_p_, ht_, cost_weights_local_);
+
+  current_step_location_ << 0.0, 0.0, 0.0;
+  time_from_last_step_touchdown_ = 0.0;
+  is_left_leg_in_contact_ = 0.0;
+  v_des_ << 0.0, 0.0, 0.0;
+  com_ << 0.0, -0.02, ht_;
+  com_vel_ << 0.0, 0.0, 0.0;
+  world_M_base_ = pinocchio::SE3::Identity();
+  dcm_vrp_planner_.update(
+      current_step_location_, time_from_last_step_touchdown_,
+      is_left_leg_in_contact_, v_des_, com_, com_vel_, world_M_base_);
+
+  dcm_vrp_planner_.solve();
+
+  ASSERT_TRUE(dcm_vrp_planner_.internal_checks());
+
+  Eigen::Vector3d next_step;
+  next_step << 0, -0.0800414, 0;
+
+  ASSERT_TRUE((next_step - dcm_vrp_planner_.get_next_step_location())
+                  .isMuchSmallerThan(1.0, 1e-5));
+  ASSERT_NEAR(0.199436, dcm_vrp_planner_.get_duration_before_step_landing(),
+              1e-5);
+}
+
+/*---------------------------------------------------------------------------*/
+
+TEST_F(TestDcmVrpPlanner, test_solver_com_right) {
+  l_min_ = -0.15;
+  l_max_ = -l_min_;
+  w_min_ = -0.15;
+  w_max_ = -w_min_;
+  t_min_ = 0.1;
+  t_max_ = t_min_ + 0.2;
+  v_des_ << 0.0, 0.0, 0.0;
+  l_p_ = 0;
+  ht_ = 0.20;
+  // clang-format off
+  cost_weights_local_ <<
+      /*u_T_x*/ 10,
+      /*u_T_y*/ 10,
+      /*tau*/ 1.0,
+      /*b_x*/ 1000,
+      /*b_x*/ 1000,
+      /*psi_0*/ 1e6,
+      /*psi_1*/ 1e6,
+      /*psi_2*/ 1e6,
+      /*psi_3*/ 1e6;
+  // clang-format on
+  dcm_vrp_planner_.initialize(l_min_, l_max_, w_min_, w_max_, t_min_, t_max_,
+                              l_p_, ht_, cost_weights_local_);
+
+  current_step_location_ << 0.0, 0.0, 0.0;
+  time_from_last_step_touchdown_ = 0.0;
+  is_left_leg_in_contact_ = 0.0;
+  v_des_ << 0.0, 0.0, 0.0;
+  com_ << 0.0, 0.02, ht_;
+  com_vel_ << 0.0, 0.0, 0.0;
+  world_M_base_ = pinocchio::SE3::Identity();
+  dcm_vrp_planner_.update(
+      current_step_location_, time_from_last_step_touchdown_,
+      is_left_leg_in_contact_, v_des_, com_, com_vel_, world_M_base_);
+
+  dcm_vrp_planner_.solve();
+
+  ASSERT_TRUE(dcm_vrp_planner_.internal_checks());
+
+  Eigen::Vector3d next_step;
+  next_step << 0, 0.0800414, 0;
+
+  ASSERT_TRUE((next_step - dcm_vrp_planner_.get_next_step_location())
+                  .isMuchSmallerThan(1.0, 1e-5));
+  ASSERT_NEAR(0.199436, dcm_vrp_planner_.get_duration_before_step_landing(),
+              1e-5);
 }

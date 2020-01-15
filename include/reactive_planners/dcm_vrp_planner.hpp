@@ -53,7 +53,9 @@ class DcmVrpPlanner {
    * @param t_max [in] Maximum step time.
    * @param v_des [in] Desired average velocity in the x and y ([v_x, v_y]) 2d
    * vector.
-   * @param l_p [in] Default step width.
+   * @param l_p [in] Default lateral step length. Typically usefull for humnaoid
+   * robot where this value refer to the distance between the 2 feet while in
+   * the half-sitting/neutral position.
    * @param ht [in] Average desired height of the com above the ground.
    * @param cost_weights_local [in] Weights of the QP cost expressed in the
    * local frame.
@@ -71,24 +73,9 @@ class DcmVrpPlanner {
   }
 
   /**
-   * @brief Construct a new DcmVrpPlanner object and initialize it.
+   * @brief Initialize The inner variable that are not time varying.
    *
-   * @param l_min [in] Minimum step length in the x direction (in the direction
-   * of forward motion).
-   * @param l_max [in] Maximum step length in the x direction (in the direction
-   * of forward motion).
-   * @param w_min [in] Minimum step length in the y direction (in the lateral
-   * direction).
-   * @param w_max [in] Maximum step lenght in the y direction (in the lateratl
-   * direction).
-   * @param t_min [in] Minimum step time.
-   * @param t_max [in] Maximum step time.
-   * @param v_des [in] Desired average velocity in the x and y ([v_x, v_y]) 2d
-   * vector.
-   * @param l_p [in] Default step width.
-   * @param ht [in] Average desired height of the com above the ground.
-   * @param cost_weights_local [in] Weights of the QP cost expressed in the
-   * local frame.
+   * @copydoc DcmVrpPlanner::DcmVrpPlanner()
    */
   void initialize(const double& l_min, const double& l_max, const double& w_min,
                   const double& w_max, const double& t_min, const double& t_max,
@@ -133,12 +120,12 @@ class DcmVrpPlanner {
    * DcmVrpPlanner::get_next_step_location() and
    * DcmVrpPlanner::get_duration_before_step_landing() to acces the results.
    */
-  void solve();
-  
+  bool solve();
+
   /**
    * @brief Perform an internal checks on the solver matrices. A warning message
    * is displayed in case of problems.
-   * 
+   *
    * @return true is everything seems fine.
    * @return false is something wrong.
    */
@@ -224,6 +211,17 @@ class DcmVrpPlanner {
    * @return const Eigen::Vector3d&
    */
   const Eigen::Vector3d& get_v_des_local() const { return v_des_local_; }
+  
+  /**
+   * @brief @copydoc DcmVrpPlanner::dcm_nominal_
+   * 
+   * @return const Eigen::Vector3d& 
+   */
+  const Eigen::Vector3d& get_dcm_nominal() const { return dcm_nominal_; }
+
+  /*
+   * Output
+   */
 
   /**
    * @brief @copydoc DcmVrpPlanner::next_step_location_
@@ -296,6 +294,14 @@ class DcmVrpPlanner {
   /** @brief Nominal step time. */
   double t_nom_;
 
+  /** @brief Minimum step time in logarithmic scale:
+   * \f$ e^{\omega t_{nom}} \f$*/
+  double tau_min_;
+
+  /** @brief Maximum step time in logarithmic scale:
+   * \f$ e^{\omega t_{nom}} \f$*/
+  double tau_max_;
+
   /** @brief Nominal step time in logarithmic scale:
    * \f$ e^{\omega t_{nom}} \f$*/
   double tau_nom_;
@@ -333,6 +339,9 @@ class DcmVrpPlanner {
 
   /** @brief Current DCM computed from the CoM estimation. */
   Eigen::Vector3d dcm_local_;
+
+  /** @brief Nominal DCM computed from the CoM estimation and nominal time. */
+  Eigen::Vector3d dcm_nominal_;
 
   /** @brief Current DCM computed from the CoM estimation. */
   Eigen::Vector3d current_step_location_local_;

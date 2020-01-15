@@ -39,15 +39,16 @@ void DcmVrpPlanner::initialize(const double& l_min, const double& l_max,
   cost_weights_local_ = cost_weights_local;
 
   omega_ = sqrt(9.81 / ht_);
+  tau_min_ = exp(omega_ * t_min_);
+  tau_max_ = exp(omega_ * t_max_);
+
   // Equation 7 and 9 in the paper.
-  bx_max_ = l_max_ / (exp(omega_ * t_min_) - 1);
-  bx_min_ = l_min_ / (exp(omega_ * t_max_) - 1);
-  by_max_out_ =
-      l_p_ / (1 + exp(omega_ * t_min)) +
-      (w_max_ - w_min_ * exp(omega_ * t_min_)) / (1 - exp(2 * omega_ * t_min_));
-  by_max_in_ =
-      l_p_ / (1 + exp(omega_ * t_min)) +
-      (w_min_ - w_max_ * exp(omega_ * t_min_)) / (1 - exp(2 * omega_ * t_min_));
+  bx_max_ = l_max_ / (tau_min_ - 1);
+  bx_min_ = l_min_ / (tau_max_ - 1);
+  by_max_out_ = l_p_ / (1 + tau_min_) +
+                (w_max_ - w_min_ * tau_min_) / (1 - exp(2 * omega_ * t_min_));
+  by_max_in_ = l_p_ / (1 + tau_min_) +
+               (w_min_ - w_max_ * tau_min_) / (1 - exp(2 * omega_ * t_min_));
 
   // psi are slack variables here.
   // u_x, u_y, tau, b_x, b_y, psi_0, psi_1, psi_2, psi_3
@@ -80,16 +81,16 @@ void DcmVrpPlanner::initialize(const double& l_min, const double& l_max,
               0.0, -1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 3
               0.0,  0.0,  1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 4
               0.0,  0.0, -1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 5
-              0.0,  0.0,  0.0,  1.0,  0.0,  0.0, -1.0,  0.0,  0.0,   // 6
+              0.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,  0.0,   // 6
               0.0,  0.0,  0.0, -1.0,  0.0,  1.0,  0.0,  0.0,  0.0,   // 7
-              0.0,  0.0,  0.0,  0.0,  1.0,  0.0,  0.0, -1.0,  0.0,   // 8
+              0.0,  0.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,   // 8
               0.0,  0.0,  0.0,  0.0, -1.0,  0.0,  0.0,  0.0,  1.0;   // 9
   // clang-format on
-
   B_ineq_.resize(nb_ineq_);
   B_ineq_.setZero();
-
   qp_solver_.problem(nb_var_, nb_eq_, nb_ineq_);
+
+  dcm_nominal_.setZero();
 }
 
 void DcmVrpPlanner::compute_nominal_step_values(
@@ -150,6 +151,10 @@ void DcmVrpPlanner::update(const Eigen::Vector3d& current_step_location,
   // Current step location in the local frame.
   current_step_location_local_ = world_M_local_.actInv(current_step_location);
 
+  // dcm nominal
+  dcm_nominal_ = (com_vel / omega_ + com - current_step_location) * tau_nom_;
+  dcm_nominal_(2) = 0.0;
+
   // Quadratic cost matrix is constant
   // Q_ = cost_weights_local_.diagonal();
 
@@ -169,8 +174,8 @@ void DcmVrpPlanner::update(const Eigen::Vector3d& current_step_location,
               w_max_,                // 1
              -l_min_,                // 2
              -w_min_,                // 3
-              exp(omega_ * t_max_),  // 4
-             -exp(omega_ * t_min_),  // 5
+              tau_max_,              // 4
+             -tau_min_,              // 5
               bx_max_,               // 6
              -bx_min_,               // 7
               by_max_in_,            // 8
@@ -192,35 +197,51 @@ void DcmVrpPlanner::update(const Eigen::Vector3d& current_step_location,
   // clang-format on
 }
 
-void DcmVrpPlanner::solve() {
+bool DcmVrpPlanner::solve() {
   /* Warning, eigen-quadprog define the cost as \f$ (1/2) x^T Q' x - q'^T x \f$.
    * Notice the "-" before the \f$ q'^T \f$. So we have to change the sign
    * internally upon usage.
    */
-  assert(internal_checks() && "Internal checks failed.");
-
-  if (!qp_solver_.solve(Q_, -q_, A_eq_, B_eq_, A_ineq_, B_ineq_)) {
-    std::string error =
-        "DcmVrpPlanner::compute_adapted_step_locations(): "
-        "failed to solve the QP.";
-    std::cout << "Error: " << error << std::endl;
-    print_solver();
+  bool failure = false;
+  if (!internal_checks()) {
+    std::cout << "DcmVrpPlanner::solve(): Error, internal checks failed."
+              << std::endl;
+    failure = true;
   }
-  x_opt_ = qp_solver_.result();
 
-  // Extract the information from the solution.
-  next_step_location_ =
-      current_step_location_local_ +
-      (Eigen::Vector3d() << x_opt_(0), x_opt_(1), 0.0).finished();
-  next_step_location_ = world_M_local_.act(next_step_location_);
-  duration_before_step_landing_ = log(x_opt_(2)) / omega_;
+  if (!failure) {
+    if (!qp_solver_.solve(Q_, q_, A_eq_, B_eq_, A_ineq_, B_ineq_)) {
+      std::string error =
+          "DcmVrpPlanner::compute_adapted_step_locations(): "
+          "failed to solve the QP.";
+      std::cout << "Error: " << error << std::endl;
+      print_solver();
+      failure = true;
+    }
+  }
 
-  if (x_opt_.tail<4>().norm() > 1e-5) {
+  if (!failure && x_opt_.tail<4>().norm() > 1e-5) {
     std::ostringstream oss;
     oss << "Warning: norm of slack variables (" << x_opt_.tail<4>().norm()
         << ") > 1e-5 !";
     std::cout << oss.str() << std::endl;
+    failure = true;
   }
+
+  if (!failure) {
+    // Extract the information from the solution.
+    x_opt_ = qp_solver_.result();
+    next_step_location_ =
+        current_step_location_local_ +
+        (Eigen::Vector3d() << x_opt_(0), x_opt_(1), 0.0).finished();
+    next_step_location_ = world_M_local_.act(next_step_location_);
+    duration_before_step_landing_ = log(x_opt_(2)) / omega_;
+  } else {
+    duration_before_step_landing_ = t_nom_;
+    next_step_location_ << l_nom_, w_nom_, 0.0;
+  }
+
+  return !failure;
 }
 
 // clang-format off
@@ -241,8 +262,8 @@ bool DcmVrpPlanner::internal_checks() {
   assert_DcmVrpPlanner(l_p_ == l_p_);
   assert_DcmVrpPlanner(ht_ > 0.0);
   assert_DcmVrpPlanner((cost_weights_local_.array() >= 0.0).all());
-  assert_DcmVrpPlanner(bx_min_ * bx_min_ < bx_max_);
-  assert_DcmVrpPlanner(by_max_out_ * by_max_out_ <= by_max_in_ * by_max_in_);
+  assert_DcmVrpPlanner(bx_min_ < bx_max_);
+  assert_DcmVrpPlanner(by_max_out_ <= by_max_in_);
   assert_DcmVrpPlanner(Q_.rows() == x_opt_.size());
   assert_DcmVrpPlanner(Q_.cols() == x_opt_.size());
   assert_DcmVrpPlanner(q_.size() == x_opt_.size());
@@ -252,6 +273,12 @@ bool DcmVrpPlanner::internal_checks() {
   assert_DcmVrpPlanner(A_ineq_.rows() == 10);
   assert_DcmVrpPlanner(A_ineq_.cols() == x_opt_.size());
   assert_DcmVrpPlanner(B_ineq_.size() == 10);
+  assert_DcmVrpPlanner((t_min_ - log(tau_min_) / omega_) *
+                           (t_min_ - log(tau_min_) / omega_) <
+                       1e-8);
+  assert_DcmVrpPlanner((t_max_ - log(tau_max_) / omega_) *
+                           (t_max_ - log(tau_max_) / omega_) <
+                       1e-8);
   return true;
 }
 
