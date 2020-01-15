@@ -8,9 +8,12 @@
   <license>BSD 3-Clause</license>
   <buildtool_depend>catkin</buildtool_depend>
 
-  <build_depend>mpi_cmake_modules</build_depend>
-  <build_depend>pybind11_catkin</build_depend>
-
+  <depend>yaml_cpp_catkin</depend>
+  <depend>mpi_cmake_modules</depend>
+  <depend>pybind11_catkin</depend>
+  <depend>eigen-quadprog</depend>
+  <depend>pinocchio</depend>
+  
   <export>
   </export>
 </package>
