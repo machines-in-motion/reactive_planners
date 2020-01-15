@@ -104,12 +104,13 @@ build_doxygen_documentation()
 ################################
 # python bindings with pybind11#
 ################################
-# pybind11_add_module(basic_pid srcpy/python_bindings.cpp)
-# target_link_libraries(basic_pid PRIVATE ci_example ${catkin_LIBRARIES})
-# pkg_config_use_dependency(basic_pid yaml-cpp)
-# set_target_properties(basic_pid PROPERTIES
-#   LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_PYTHON_DESTINATION})
-# install(TARGETS ci_example DESTINATION ${CATKIN_GLOBAL_PYTHON_DESTINATION})
+pybind11_add_module(py_${PROJECT_NAME} srcpy/dcm_vrp_planner.cpp)
+target_link_libraries(py_${PROJECT_NAME} PRIVATE ${PROJECT_NAME} ${catkin_LIBRARIES})
+set_target_properties(py_${PROJECT_NAME} PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_PYTHON_DESTINATION}
+  OUTPUT_NAME ${PROJECT_NAME}
+)
+install(TARGETS py_${PROJECT_NAME} DESTINATION ${CATKIN_GLOBAL_PYTHON_DESTINATION})
 
 # this will create a module of name "basic_pid". After calling catkin_make
 # and sourcing <workspace>/devel/setup.bash, the following should work in python:

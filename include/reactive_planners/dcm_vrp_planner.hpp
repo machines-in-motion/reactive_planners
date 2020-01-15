@@ -63,7 +63,7 @@ class DcmVrpPlanner {
   DcmVrpPlanner(const double& l_min, const double& l_max, const double& w_min,
                 const double& w_max, const double& t_min, const double& t_max,
                 const double& l_p, const double& ht,
-                const Eigen::Vector9d& cost_weights_local);
+                Eigen::Ref<const Eigen::Vector9d> cost_weights_local);
 
   /**
    * @brief Construct a new DcmVrpPlanner object with some default parameters.
@@ -80,7 +80,7 @@ class DcmVrpPlanner {
   void initialize(const double& l_min, const double& l_max, const double& w_min,
                   const double& w_max, const double& t_min, const double& t_max,
                   const double& l_p, const double& ht,
-                  const Eigen::Vector9d& cost_weights_local);
+                  Eigen::Ref<const Eigen::Vector9d> cost_weights_local);
 
   /**
    * @brief Computes adapted step location.
@@ -134,7 +134,12 @@ class DcmVrpPlanner {
   /**
    * @brief Display the matrices of the Problem.
    */
-  void print_solver();
+  void print_solver() const;
+
+  /**
+   * @brief Convert the inner data to a string format.
+   */
+  std::string to_string() const;
 
   /*
    * Getters
@@ -211,11 +216,11 @@ class DcmVrpPlanner {
    * @return const Eigen::Vector3d&
    */
   const Eigen::Vector3d& get_v_des_local() const { return v_des_local_; }
-  
+
   /**
    * @brief @copydoc DcmVrpPlanner::dcm_nominal_
-   * 
-   * @return const Eigen::Vector3d& 
+   *
+   * @return const Eigen::Vector3d&
    */
   const Eigen::Vector3d& get_dcm_nominal() const { return dcm_nominal_; }
 

@@ -14,20 +14,20 @@
 #include <stdexcept>
 
 namespace reactive_planners {
-DcmVrpPlanner::DcmVrpPlanner(const double& l_min, const double& l_max,
-                             const double& w_min, const double& w_max,
-                             const double& t_min, const double& t_max,
-                             const double& l_p, const double& ht,
-                             const Eigen::Vector9d& cost_weights_local) {
+DcmVrpPlanner::DcmVrpPlanner(
+    const double& l_min, const double& l_max, const double& w_min,
+    const double& w_max, const double& t_min, const double& t_max,
+    const double& l_p, const double& ht,
+    Eigen::Ref<const Eigen::Vector9d> cost_weights_local) {
   initialize(l_min, l_max, w_min, w_max, t_min, t_max, l_p, ht,
              cost_weights_local);
 }
 
-void DcmVrpPlanner::initialize(const double& l_min, const double& l_max,
-                               const double& w_min, const double& w_max,
-                               const double& t_min, const double& t_max,
-                               const double& l_p, const double& ht,
-                               const Eigen::Vector9d& cost_weights_local) {
+void DcmVrpPlanner::initialize(
+    const double& l_min, const double& l_max, const double& w_min,
+    const double& w_max, const double& t_min, const double& t_max,
+    const double& l_p, const double& ht,
+    Eigen::Ref<const Eigen::Vector9d> cost_weights_local) {
   l_min_ = l_min;
   l_max_ = l_max;
   w_min_ = w_min;
@@ -282,14 +282,20 @@ bool DcmVrpPlanner::internal_checks() {
   return true;
 }
 
-void DcmVrpPlanner::print_solver() {
-  std::cout << "Solver info:" << std::endl;
-  std::cout << "Q:" << std::endl << Q_ << std::endl;
-  std::cout << "q:" << q_.transpose() << std::endl;
-  std::cout << "A_eq:" << std::endl << A_eq_ << std::endl;
-  std::cout << "B_eq:" << B_eq_.transpose() << std::endl;
-  std::cout << "A_ineq:" << std::endl << A_ineq_ << std::endl;
-  std::cout << "B_ineq:" << B_ineq_.transpose() << std::endl;
+std::string DcmVrpPlanner::to_string() const {
+  std::ostringstream oss;
+  oss << "Solver info:" << std::endl;
+  oss << "Q:" << std::endl << Q_ << std::endl;
+  oss << "q:" << q_.transpose() << std::endl;
+  oss << "A_eq:" << std::endl << A_eq_ << std::endl;
+  oss << "B_eq:" << B_eq_.transpose() << std::endl;
+  oss << "A_ineq:" << std::endl << A_ineq_ << std::endl;
+  oss << "B_ineq:" << B_ineq_.transpose();
+  return oss.str();
+}
+
+void DcmVrpPlanner::print_solver() const {
+  std::cout << to_string() << std::endl;
 }
 
 }  // namespace reactive_planners
