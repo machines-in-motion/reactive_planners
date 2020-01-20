@@ -38,6 +38,12 @@ void DcmVrpPlanner::initialize(
   ht_ = ht;
   cost_weights_local_ = cost_weights_local;
 
+  std::cout << "void DcmVrpPlanner::initialize" << std::endl;
+  std::cout << l_min << "," << l_max << "," << w_min << "," << w_max << ","
+            << t_min << "," << t_max << ","
+            << l_p << "," << ht << std::endl;
+  std::cout << cost_weights_local << std::endl;
+
   omega_ = sqrt(9.81 / ht_);
   tau_min_ = exp(omega_ * t_min_);
   tau_max_ = exp(omega_ * t_max_);
@@ -99,7 +105,8 @@ void DcmVrpPlanner::compute_nominal_step_values(
   double t_lower_bound(0.0), t_upper_bound(0.0);
   Eigen::Vector3d max_or_min_time;
   /** @todo Better manage the lower and upper bound on `t`. */
-  if ((v_des_local.head<2>().array().abs() < 1e-5).any()) {
+  // if ((v_des_local.head<2>().array().abs() < 1e-5).any()) {
+  if (abs(v_des_local(0)) < 1e-5 || abs(v_des_local(1)) < 1e-5) {
     t_lower_bound = t_min_;
     t_upper_bound = t_max_;
   } else {
@@ -141,7 +148,7 @@ void DcmVrpPlanner::update(const Eigen::Vector3d& current_step_location,
   dcm_local_(2) = ground_height;
   dcm_local_ = world_M_local_.actInv(dcm_local_);
 
-  // Express the desired velocity in the lcoal frame.
+  // Express the desired velocity in the local frame.
   v_des_local_ = v_des;
   v_des_local_ = world_M_local_.rotation().transpose() * v_des_local_;
 
@@ -236,9 +243,23 @@ bool DcmVrpPlanner::solve() {
         (Eigen::Vector3d() << x_opt_(0), x_opt_(1), 0.0).finished();
     next_step_location_ = world_M_local_.act(next_step_location_);
     duration_before_step_landing_ = log(x_opt_(2)) / omega_;
+    std::cout << "DcmVrpPlanner::solve() -> x_opt=" << x_opt_ << std::endl;
+
+    if (x_opt_(1) != x_opt_(1)) {
+      std::cout << Q_ << std::endl;
+      std::cout << q_ << std::endl;
+      std::cout << A_eq_ << std::endl;
+      std::cout << B_eq_ << std::endl;
+      std::cout << A_ineq_ << std::endl;
+      std::cout << B_ineq_ << std::endl;
+    }
+
   } else {
+    std::cout << "DcmVrpPlanner::solve() -> failure!" << std::endl;
     duration_before_step_landing_ = t_nom_;
     next_step_location_ << l_nom_, w_nom_, 0.0;
+    next_step_location_ += current_step_location_local_;
+    next_step_location_ = world_M_local_.act(next_step_location_);
   }
 
   return !failure;

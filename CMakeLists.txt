@@ -2,7 +2,7 @@
 # Standard header #
 ###################
 cmake_minimum_required(VERSION 3.5.1) # ubuntu 16.04 minimum
-project(reactive_planners) 
+project(reactive_planners)
 
 # required to use std::shared_ptr in code and to link the python bindings
 if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -15,8 +15,8 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED on)
 
 set(CMAKE_SKIP_BUILD_RPATH  FALSE)
-set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE) 
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)                                                
+set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
 
 ################
@@ -49,7 +49,7 @@ include_directories(include ${catkin_INCLUDE_DIRS})
 catkin_package(
  LIBRARIES ${PROJECT_NAME} # exporting the ci_example library (libs and executable built in other catkin package will be able to link against them)
  INCLUDE_DIRS include # exporting the include file: source file hosted by other catkin package will be able to include the related header files)
- CATKIN_DEPENDS 
+ CATKIN_DEPENDS
 )
 
 ##############################
@@ -67,6 +67,7 @@ add_library( ${PROJECT_NAME} SHARED
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
+
 #####################################################################
 # Stores the path to the config folder in the CONFIG_PATH variable. #
 #####################################################################
@@ -82,7 +83,7 @@ macro(add_unit_test src_file)
         tests/main.cpp tests/${src_file}.cpp)
     target_link_libraries(${PROJECT_NAME}_${src_file} ${PROJECT_NAME})
     target_link_libraries(${PROJECT_NAME}_${src_file} ${catkin_LIBRARIES})
-    set_target_properties(${PROJECT_NAME}_${src_file} PROPERTIES 
+    set_target_properties(${PROJECT_NAME}_${src_file} PROPERTIES
         COMPILE_DEFINITIONS CONFIG_FOLDER_PATH="${CONFIG_PATH}")
 endmacro()
 
