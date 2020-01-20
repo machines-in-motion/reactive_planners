@@ -15,16 +15,16 @@ class DcmVrpPlanner:
     def __init__(self, l_min, l_max, w_min, w_max, t_min, t_max, v_des, l_p, ht):
         
         '''
-            Input:
-                l_min : minimum step length in the x direction (in the direction of forward motion)
-                l_max : maximum step length in the x direction (in the direction of forward motion)
-                w_min : minimum step length in the y direction (in the lateral direction)
-                w_max : maximum step lenght in the y direction (in the lateratl direction)
-                t_min : minimum step time
-                t_max : maximum step time
-                v_des : desired average velocity in the x and y ([v_x, v_y]) 2d vector
-                l_p : default step width
-                ht : average desired height of the com above the ground
+        Input:
+            l_min : minimum step length in the x direction (in the direction of forward motion)
+            l_max : maximum step length in the x direction (in the direction of forward motion)
+            w_min : minimum step length in the y direction (in the lateral direction)
+            w_max : maximum step lenght in the y direction (in the lateratl direction)
+            t_min : minimum step time
+            t_max : maximum step time
+            v_des : desired average velocity in the x and y ([v_x, v_y]) 2d vector
+            l_p : default step width
+            ht : average desired height of the com above the ground
         '''
         
         assert(np.shape(v_des) == (2,))
@@ -171,6 +171,8 @@ class DcmVrpPlanner:
 
         x_opt = quadprog_solve_qp(P,q, G, h, A, b)
         t_end = np.log(x_opt[2])/self.omega
+
+        self._quad_params = [P,q, G, h, A, b]
 
                 
         return (x_opt[0] + u[0], x_opt[1] + u[1], t_end, x_opt[3], x_opt[4])
