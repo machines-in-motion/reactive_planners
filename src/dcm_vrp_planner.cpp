@@ -245,15 +245,14 @@ bool DcmVrpPlanner::solve() {
     duration_before_step_landing_ = log(x_opt_(2)) / omega_;
     std::cout << "DcmVrpPlanner::solve() -> x_opt=" << x_opt_ << std::endl;
 
-    if (x_opt_(1) != x_opt_(1)) {
-      std::cout << Q_ << std::endl;
-      std::cout << q_ << std::endl;
-      std::cout << A_eq_ << std::endl;
-      std::cout << B_eq_ << std::endl;
-      std::cout << A_ineq_ << std::endl;
-      std::cout << B_ineq_ << std::endl;
-    }
-
+    // if (x_opt_(1) != x_opt_(1) /* isnan() */) {
+    //   std::cout << Q_ << std::endl;
+    //   std::cout << q_ << std::endl;
+    //   std::cout << A_eq_ << std::endl;
+    //   std::cout << B_eq_ << std::endl;
+    //   std::cout << A_ineq_ << std::endl;
+    //   std::cout << B_ineq_ << std::endl;
+    // }
   } else {
     std::cout << "DcmVrpPlanner::solve() -> failure!" << std::endl;
     duration_before_step_landing_ = t_nom_;
