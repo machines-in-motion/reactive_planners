@@ -278,8 +278,6 @@ class DcmVrpPlanner:
 
             x_foot_des_ground[2] = z_ht
             x_foot_des_air[2] = (z_ht) +  (z_max) *np.sin((np.pi*t)/(t_end))
-
-
         else:
             x_foot_des_air = [u_t_end[0], u_t_end[1], z_ht]
             x_foot_des_ground = [u[0], u[1],z_ht]
