@@ -38,11 +38,11 @@ void DcmVrpPlanner::initialize(
   ht_ = ht;
   cost_weights_local_ = cost_weights_local;
 
-  std::cout << "void DcmVrpPlanner::initialize" << std::endl;
-  std::cout << l_min << "," << l_max << "," << w_min << "," << w_max << ","
-            << t_min << "," << t_max << ","
-            << l_p << "," << ht << std::endl;
-  std::cout << cost_weights_local << std::endl;
+  // std::cout << "void DcmVrpPlanner::initialize" << std::endl;
+  // std::cout << l_min << "," << l_max << "," << w_min << "," << w_max << ","
+  //           << t_min << "," << t_max << ","
+  //           << l_p << "," << ht << std::endl;
+  // std::cout << cost_weights_local << std::endl;
 
   omega_ = sqrt(9.81 / ht_);
   tau_min_ = exp(omega_ * t_min_);
@@ -126,6 +126,8 @@ void DcmVrpPlanner::compute_nominal_step_values(
             w_nom_ / (1 - tau_nom_);
 }
 
+#define dbg_dump(var) std::cout << "  " << #var << ": " << var << std::endl
+
 void DcmVrpPlanner::update(const Eigen::Vector3d& current_step_location,
                            const double& time_from_last_step_touchdown,
                            const bool& is_left_leg_in_contact,
@@ -133,6 +135,16 @@ void DcmVrpPlanner::update(const Eigen::Vector3d& current_step_location,
                            const Eigen::Vector3d& com,
                            const Eigen::Vector3d& com_vel,
                            const pinocchio::SE3& world_M_base) {
+
+  // std::cout << "DcmVrpPlanner::update" << std::endl;
+  // dbg_dump(current_step_location);
+  // dbg_dump(time_from_last_step_touchdown);
+  // dbg_dump(is_left_leg_in_contact);
+  // dbg_dump(v_des);
+  // dbg_dump(com);
+  // dbg_dump(com_vel);
+  // dbg_dump(world_M_base);
+
   // Ground height.
   double ground_height = 0.0;
 
@@ -243,8 +255,7 @@ bool DcmVrpPlanner::solve() {
         (Eigen::Vector3d() << x_opt_(0), x_opt_(1), 0.0).finished();
     next_step_location_ = world_M_local_.act(next_step_location_);
     duration_before_step_landing_ = log(x_opt_(2)) / omega_;
-    std::cout << "DcmVrpPlanner::solve() -> x_opt=" << x_opt_ << std::endl;
-
+    // std::cout << "DcmVrpPlanner::solve() -> x_opt=" << x_opt_ << std::endl;
     // if (x_opt_(1) != x_opt_(1) /* isnan() */) {
     //   std::cout << Q_ << std::endl;
     //   std::cout << q_ << std::endl;
