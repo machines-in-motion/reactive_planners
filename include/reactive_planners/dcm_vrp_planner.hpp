@@ -238,6 +238,13 @@ class DcmVrpPlanner {
   }
 
   /**
+   * @brief Return the slack values from the last solution.
+   **/
+  const Eigen::Vector4d& get_slack_variables() const {
+    return slack_variables_;
+  }
+
+  /**
    * @brief @copydoc DcmVrpPlanner::duration_before_step_landing_
    *
    * @return const double&
@@ -360,6 +367,9 @@ class DcmVrpPlanner {
 
   /** @brief Next step location expressed in the world frame. */
   Eigen::Vector3d next_step_location_;
+
+  /** @brief Slack variable values corresponding to last solution. */
+  Eigen::Vector4d slack_variables_;
 
   /** @brief Remaining time before the step landing. */
   double duration_before_step_landing_;

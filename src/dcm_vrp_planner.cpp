@@ -65,6 +65,7 @@ void DcmVrpPlanner::initialize(
   x_opt_lb_.setZero();
   x_opt_ub_.resize(nb_var_);
   x_opt_ub_.setZero();
+  slack_variables_.resize(4);
   Q_.resize(nb_var_, nb_var_);
   Q_.setZero();
   Q_.diagonal() = cost_weights_local_;
@@ -239,14 +240,6 @@ bool DcmVrpPlanner::solve() {
     }
   }
 
-  if (!failure && x_opt_.tail<4>().norm() > 1e-5) {
-    std::ostringstream oss;
-    oss << "Warning: norm of slack variables (" << x_opt_.tail<4>().norm()
-        << ") > 1e-5 !";
-    std::cout << oss.str() << std::endl;
-    failure = true;
-  }
-
   if (!failure) {
     // Extract the information from the solution.
     x_opt_ = qp_solver_.result();
@@ -255,17 +248,16 @@ bool DcmVrpPlanner::solve() {
         (Eigen::Vector3d() << x_opt_(0), x_opt_(1), 0.0).finished();
     next_step_location_ = world_M_local_.act(next_step_location_);
     duration_before_step_landing_ = log(x_opt_(2)) / omega_;
-    // std::cout << "DcmVrpPlanner::solve() -> x_opt=" << x_opt_ << std::endl;
-    // if (x_opt_(1) != x_opt_(1) /* isnan() */) {
-    //   std::cout << Q_ << std::endl;
-    //   std::cout << q_ << std::endl;
-    //   std::cout << A_eq_ << std::endl;
-    //   std::cout << B_eq_ << std::endl;
-    //   std::cout << A_ineq_ << std::endl;
-    //   std::cout << B_ineq_ << std::endl;
-    // }
+    slack_variables_ = x_opt_.tail<4>();
   } else {
-    std::cout << "DcmVrpPlanner::solve() -> failure!" << std::endl;
+    // https://github.com/jrl-umi3218/eigen-quadprog/blob/master/src/QuadProg/c/solve.QP.compact.c#L94
+    if (qp_solver_.fail() == 1) {
+      std::cout << "DcmVrpPlanner::solve() -> the minimization problem has no solution!" << std::endl;
+    } else {
+      std::cout << "DcmVrpPlanner::solve() -> problems with decomposing D!" << std::endl;
+    }
+    slack_variables_.setZero();
+
     duration_before_step_landing_ = t_nom_;
     next_step_location_ << l_nom_, w_nom_, 0.0;
     next_step_location_ += current_step_location_local_;
