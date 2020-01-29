@@ -92,6 +92,7 @@ class DcmVrpPlanner:
         '''
 
         if max(v_des) == 0 and np.square(max(xd_com)) < 0.001:
+            print("****************************************")
             return 1
         else:
             return 0
@@ -111,7 +112,6 @@ class DcmVrpPlanner:
         assert(np.shape(psi_current) == (2,))
 
         l_nom, w_nom, t_nom, bx_nom, by_nom = self.compute_nominal_step_values(n)
-
         t_nom = np.power(np.e, self.omega*t_nom) ### take exp as T is considered as e^wt in qp
 
         P = np.identity(6) ## quadratic cost matrix
@@ -168,12 +168,13 @@ class DcmVrpPlanner:
         x_opt = quadprog_solve_qp(P,q, G, h, A, b)
         t_end = np.log(x_opt[2])/self.omega
 
-        self._quad_params = [P,q, G, h, A, b]
-
-
+        self._quad_params = [P, q, G, h, A, b]
+        print("^^^^^^^")
+        print(alpha)
+        print(x_opt[4])
         return (x_opt[0] + u[0], x_opt[1] + u[1], t_end, x_opt[3], x_opt[4])
 
-    def compute_adapted_step_locations_gurobi(self,u, t, n, psi_current, alpha, W):
+    def compute_adapted_step_locations_gurobi(self, u, t, n, psi_current, alpha, W):
         '''
             computes adapted step location after solving QP
             Input:
@@ -184,7 +185,7 @@ class DcmVrpPlanner:
                 W : wieght array 5d
         '''
         # Import only when used.
-        from gurobipy import *
+        #from gurobipy import *
 
         assert(np.shape(u) == (2,))
         assert(np.shape(psi_current) == (2,))
