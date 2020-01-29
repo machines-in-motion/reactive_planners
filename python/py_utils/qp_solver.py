@@ -68,5 +68,4 @@ def quadprog_solve_qp(P, q, G=None, h=None, A=None, b=None, initvals=None):
         qp_C = -G.T
         qp_b = -h
         meq = 0
-    import numpy as np
-    return solve_qp(np.array(qp_G), np.array(qp_a), np.array(qp_C), np.array(qp_b), np.array(meq))[0]
+    return solve_qp(qp_G, qp_a, qp_C, qp_b, meq)[0]
