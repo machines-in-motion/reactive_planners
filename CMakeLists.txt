@@ -64,6 +64,7 @@ catkin_python_setup()
 
 add_library( ${PROJECT_NAME} SHARED
   src/dcm_vrp_planner.cpp
+  src/end_effector_trajectory_3d.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
@@ -94,8 +95,8 @@ add_unit_test(dcm_vrp_planner_ut)
 # Demo executables #
 ####################
 
-# add_executable(demo_${PROJECT_NAME} demos/demo_${PROJECT_NAME}.cpp)
-# target_link_libraries(demo_pid ${PROJECT_NAME})
+add_executable(demo_end_effector_trajectory_3d demos/demo_end_effector_trajectory_3d.cpp)
+target_link_libraries(demo_end_effector_trajectory_3d ${PROJECT_NAME} ${catkin_LIBRARIES})
 
 ##########################
 # building documentation #
@@ -112,11 +113,3 @@ set_target_properties(py_${PROJECT_NAME} PROPERTIES
   OUTPUT_NAME ${PROJECT_NAME}
 )
 install(TARGETS py_${PROJECT_NAME} DESTINATION ${CATKIN_GLOBAL_PYTHON_DESTINATION})
-
-# this will create a module of name "basic_pid". After calling catkin_make
-# and sourcing <workspace>/devel/setup.bash, the following should work in python:
-
-# import basic_pid
-# p = basic_pid.PID()
-# p.compute(1,1,1,1)
-# p.reset_integral()

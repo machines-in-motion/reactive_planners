@@ -218,10 +218,6 @@ void DcmVrpPlanner::update(const Eigen::Vector3d& current_step_location,
 }
 
 bool DcmVrpPlanner::solve() {
-  /* Warning, eigen-quadprog define the cost as \f$ (1/2) x^T Q' x - q'^T x \f$.
-   * Notice the "-" before the \f$ q'^T \f$. So we have to change the sign
-   * internally upon usage.
-   */
   bool failure = false;
   if (!internal_checks()) {
     std::cout << "DcmVrpPlanner::solve(): Error, internal checks failed."
