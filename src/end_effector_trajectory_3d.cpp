@@ -42,14 +42,8 @@ EndEffectorTrajectory3D::EndEffectorTrajectory3D() {
   // QP parameter.
   nb_var_ = nb_var_x_ + nb_var_y_ + nb_var_z_;
   // Around 10 nodes for the z_min < z(t) < z_max.
-  nb_ineq_ = 2 * 3 + 1;
-  // 3 current condition for x +
-  // 2 final condition for x +
-  // 3 current condition for y +
-  // 2 final condition for y +
-  // 3 current condition for z +
-  // 3 final condition for z.
-  // 1 mid condition dz = 0.
+  nb_ineq_ = 2 * 10;
+  // current and final conditions
   nb_eq_ = 5 + 5 + 6; // + 1;
 
   x_opt_.resize(nb_var_);
@@ -105,43 +99,42 @@ bool EndEffectorTrajectory3D::compute(
     last_end_time_seen_ = end_time;
   }
 
-  // mid time
-  double mid_time = start_time + (end_time - start_time) * 0.5;
-
-  // z-cost
-  double delta_time = (end_time - start_time);
-  double cost_z = delta_time < 0.6 ? 1e9 / delta_time : cost_z_;
+  // scaling the problem
+  double duration = (last_end_time_seen_ - start_time);
+  double local_current_time = (current_time - start_time) / duration;
+  double local_end_time = 1.0;
+  double mid_time = 0.5;
 
   /*
    * Quadratic cost
    */
   Q_.setZero();
   // Q_x
-  t_vec(end_time, time_vec_x_);
+  t_vec(local_end_time, time_vec_x_);
   Q_.block(0, 0, nb_var_x_, nb_var_x_) =
       time_vec_x_ * time_vec_x_.transpose() * cost_x_;
   // Q_y
-  t_vec(end_time, time_vec_y_);
+  t_vec(local_end_time, time_vec_y_);
   Q_.block(nb_var_x_, nb_var_x_, nb_var_y_, nb_var_y_) =
       time_vec_y_ * time_vec_y_.transpose() * cost_y_;
   // Q_z
   t_vec(mid_time, time_vec_z_);
   Q_.block(nb_var_x_ + nb_var_y_, nb_var_x_ + nb_var_y_, nb_var_z_, nb_var_z_) =
-      time_vec_z_ * time_vec_z_.transpose() * cost_z;
+      time_vec_z_ * time_vec_z_.transpose() * cost_z_;
   // Q_regul
   Q_ += Q_regul_;
 
   // q_x
-  t_vec(end_time, time_vec_x_);
+  t_vec(local_end_time, time_vec_x_);
   q_.head(nb_var_x_) = -time_vec_x_ * target_pose(0) * cost_x_;
   // q_y
-  t_vec(end_time, time_vec_y_);
+  t_vec(local_end_time, time_vec_y_);
   q_.segment(nb_var_x_, nb_var_y_) = -time_vec_y_ * target_pose(1) * cost_y_;
   // q_z
   t_vec(mid_time, time_vec_z_);
   q_.tail(nb_var_z_) =
       -time_vec_z_ *
-      (std::max(start_pose(2), target_pose(2)) + mid_air_height_) * cost_z;
+      (std::max(start_pose(2), target_pose(2)) + mid_air_height_) * cost_z_;
 
   /*
    * Equality constraints.
@@ -149,42 +142,42 @@ bool EndEffectorTrajectory3D::compute(
   // clang-format off
   A_eq_.setZero();
   // X current constraints
-  t_vec(current_time, time_vec_x_);
+  t_vec(local_current_time, time_vec_x_);
   A_eq_.row(0).head(nb_var_x_) = time_vec_x_;
-  dt_vec(current_time, time_vec_x_);
+  dt_vec(local_current_time, time_vec_x_);
   A_eq_.row(1).head(nb_var_x_) = time_vec_x_;
-  ddt_vec(current_time, time_vec_x_);
+  ddt_vec(local_current_time, time_vec_x_);
   A_eq_.row(2).head(nb_var_x_) = time_vec_x_;
   // X end constraints
-  dt_vec(end_time, time_vec_x_);
+  dt_vec(local_end_time, time_vec_x_);
   A_eq_.row(3).head(nb_var_x_) = time_vec_x_;
-  ddt_vec(end_time, time_vec_x_);
+  ddt_vec(local_end_time, time_vec_x_);
   A_eq_.row(4).head(nb_var_x_) = time_vec_x_;
   // Y current constraints
-  t_vec(current_time, time_vec_y_);
+  t_vec(local_current_time, time_vec_y_);
   A_eq_.row(5).segment(nb_var_x_, nb_var_y_) = time_vec_y_;
-  dt_vec(current_time, time_vec_y_);
+  dt_vec(local_current_time, time_vec_y_);
   A_eq_.row(6).segment(nb_var_x_, nb_var_y_) = time_vec_y_;
-  ddt_vec(current_time, time_vec_y_);
+  ddt_vec(local_current_time, time_vec_y_);
   A_eq_.row(7).segment(nb_var_x_, nb_var_y_) = time_vec_y_;
   // Y end constraints
-  dt_vec(end_time, time_vec_y_);
+  dt_vec(local_end_time, time_vec_y_);
   A_eq_.row(8).segment(nb_var_x_, nb_var_y_) = time_vec_y_;
-  ddt_vec(end_time, time_vec_y_);
+  ddt_vec(local_end_time, time_vec_y_);
   A_eq_.row(9).segment(nb_var_x_, nb_var_y_) = time_vec_y_;
   // Z current constraints
-  t_vec(current_time, time_vec_z_);
+  t_vec(local_current_time, time_vec_z_);
   A_eq_.row(10).tail(nb_var_z_) = time_vec_z_;
-  dt_vec(current_time, time_vec_z_);
+  dt_vec(local_current_time, time_vec_z_);
   A_eq_.row(11).tail(nb_var_z_) = time_vec_z_;
-  ddt_vec(current_time, time_vec_z_);
+  ddt_vec(local_current_time, time_vec_z_);
   A_eq_.row(12).tail(nb_var_z_) = time_vec_z_;
   // Z end constraints
-  t_vec(end_time, time_vec_z_);
+  t_vec(local_end_time, time_vec_z_);
   A_eq_.row(13).tail(nb_var_z_) = time_vec_z_;
-  dt_vec(end_time, time_vec_z_);
+  dt_vec(local_end_time, time_vec_z_);
   A_eq_.row(14).tail(nb_var_z_) = time_vec_z_;
-  ddt_vec(end_time, time_vec_z_);
+  ddt_vec(local_end_time, time_vec_z_);
   A_eq_.row(15).tail(nb_var_z_) = time_vec_z_;
   // Z mid constraints
 //   dt_vec(mid_time, time_vec_z_);
@@ -205,13 +198,8 @@ bool EndEffectorTrajectory3D::compute(
   B_ineq_.setZero();
 
   int n = A_ineq_.rows() / 2;
-  double t = current_time;
-  double duration = (end_time - current_time);
-  double dt = duration / (double)n;
-  if (dt <= 0.01) {
-    dt = 0.01;
-    t = end_time - n * dt;
-  }
+  double t = 0.0;
+  double dt = 1.0 / (double)n;
 
   for (int i = 0; i < n; ++i) {
     // time vector
@@ -219,23 +207,18 @@ bool EndEffectorTrajectory3D::compute(
 
     // z >= zmin   =>   -z <= -z_min
     A_ineq_.row(i).tail(nb_var_z_) = -time_vec_z_;
-    B_ineq_(i) = -std::min(start_pose(2), target_pose(2)) + 0.001;
+    B_ineq_(i) = -std::min(start_pose(2), target_pose(2)) + 0.0001;
     // B_ineq_(i) = std::numeric_limits<double>::max();
 
     // z <= z_max
     A_ineq_.row(i + n).tail(nb_var_z_) = time_vec_z_;
     // B_ineq_(i + n) = std::numeric_limits<double>::max();
     B_ineq_(i + n) =
-        std::max(start_pose(2), target_pose(2)) + 1.5 * mid_air_height_;
+        std::max(start_pose(2), target_pose(2)) + 1.0 * mid_air_height_;
 
     // Update the time.
     t += dt;
   }
-  // Minimum height mid air.
-  t_vec(mid_time, time_vec_z_);
-  A_ineq_.bottomRows<1>().tail(nb_var_z_) = -time_vec_z_;
-  B_ineq_(B_ineq_.size() - 1) = // std::numeric_limits<double>::max();
-      -(std::max(start_pose(2), target_pose(2)) + 0.3 * mid_air_height_);
 
   bool failure = false;
   if (!failure) {
@@ -268,6 +251,9 @@ void EndEffectorTrajectory3D::get_next_state(
     const double &next_time, Eigen::Vector3d &next_pose,
     Eigen::Vector3d &next_velocity, Eigen::Vector3d &next_acceleration) {
 
+  double duration = (last_end_time_seen_ - start_time_);
+  double local_current_time = (next_time - start_time_) / duration;
+
   if (current_time_ < start_time_) {
     next_pose = start_pose_;
     next_velocity.setZero();
@@ -279,23 +265,23 @@ void EndEffectorTrajectory3D::get_next_state(
   } else {
     // Extract the information from the solution.
     x_opt_ = qp_solver_.result();
-    t_vec(next_time, time_vec_x_);
-    t_vec(next_time, time_vec_y_);
-    t_vec(next_time, time_vec_z_);
+    t_vec(local_current_time, time_vec_x_);
+    t_vec(local_current_time, time_vec_y_);
+    t_vec(local_current_time, time_vec_z_);
     next_pose << x_opt_.head(nb_var_x_).transpose() * time_vec_x_,
         x_opt_.segment(nb_var_x_, nb_var_y_).transpose() * time_vec_y_,
         x_opt_.tail(nb_var_z_).transpose() * time_vec_z_;
 
-    dt_vec(next_time, time_vec_x_);
-    dt_vec(next_time, time_vec_y_);
-    dt_vec(next_time, time_vec_z_);
+    dt_vec(local_current_time, time_vec_x_);
+    dt_vec(local_current_time, time_vec_y_);
+    dt_vec(local_current_time, time_vec_z_);
     next_velocity << x_opt_.head(nb_var_x_).transpose() * time_vec_x_,
         x_opt_.segment(nb_var_x_, nb_var_y_).transpose() * time_vec_y_,
         x_opt_.tail(nb_var_z_).transpose() * time_vec_z_;
 
-    ddt_vec(next_time, time_vec_x_);
-    ddt_vec(next_time, time_vec_y_);
-    ddt_vec(next_time, time_vec_z_);
+    ddt_vec(local_current_time, time_vec_x_);
+    ddt_vec(local_current_time, time_vec_y_);
+    ddt_vec(local_current_time, time_vec_z_);
     next_acceleration << x_opt_.head(nb_var_x_).transpose() * time_vec_x_,
         x_opt_.segment(nb_var_x_, nb_var_y_).transpose() * time_vec_y_,
         x_opt_.tail(nb_var_z_).transpose() * time_vec_z_;

@@ -27,7 +27,7 @@ bool run(std::ofstream &myfile, double duration) {
   // Timing
   double start_time = 0.1;
   double end_time = start_time + duration;
-  double fluct_end_time = 0.30 * duration;
+  double fluct_end_time = 0.5 * duration;
 
   double traj_time = start_time + (end_time - start_time) + 1.0;
   double dt = 0.001;
@@ -73,13 +73,16 @@ bool run(std::ofstream &myfile, double duration) {
 int main(int, char **) {
   std::ofstream myfile;
   myfile.open("/tmp/demo_end_effector_trajectory_3d.dat");
-  unsigned N = 20;
+  unsigned N = 15;
   for (unsigned i = 0; i < N; ++i) {
     double duration = 0.1 * (i + 1);
+    std::cout << "Running test: " << i << " ; duration: " << duration
+              << std::endl;
+
     for (unsigned j = 0; j < 30; ++j) {
       if (!run(myfile, duration)) {
-        std::cout << "Running test: " << i * N + j << " ; duration: " << duration
-            << std::endl;
+        std::cout << "Running test: " << j << " ; duration: " << duration
+                  << std::endl;
         std::cout << "Fail to compute the QP!" << std::endl;
       }
       for (unsigned j = 0; j < 1000; ++j) {
