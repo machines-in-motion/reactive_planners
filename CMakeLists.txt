@@ -106,8 +106,13 @@ build_doxygen_documentation()
 ################################
 # python bindings with pybind11#
 ################################
-pybind11_add_module(py_${PROJECT_NAME} srcpy/dcm_vrp_planner.cpp)
-target_link_libraries(py_${PROJECT_NAME} PRIVATE ${PROJECT_NAME} ${catkin_LIBRARIES})
+pybind11_add_module(py_${PROJECT_NAME}
+    srcpy/reactive_planners
+    srcpy/dcm_vrp_planner.cpp
+    srcpy/end_effector_trajectory_3d.cpp
+)
+target_link_libraries(
+    py_${PROJECT_NAME} PRIVATE ${PROJECT_NAME} ${catkin_LIBRARIES})
 set_target_properties(py_${PROJECT_NAME} PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_PYTHON_DESTINATION}
   OUTPUT_NAME ${PROJECT_NAME}
