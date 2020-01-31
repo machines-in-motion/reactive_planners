@@ -74,11 +74,11 @@ EndEffectorTrajectory3D::EndEffectorTrajectory3D() {
 EndEffectorTrajectory3D::~EndEffectorTrajectory3D() {}
 
 bool EndEffectorTrajectory3D::compute(
-    const Eigen::Ref<Eigen::Vector3d> &start_pose,
-    const Eigen::Ref<Eigen::Vector3d> &current_pose,
-    const Eigen::Ref<Eigen::Vector3d> &current_velocity,
-    const Eigen::Ref<Eigen::Vector3d> &current_acceleration,
-    const Eigen::Ref<Eigen::Vector3d> &target_pose, const double &start_time,
+    const Eigen::Vector3d &start_pose,
+    const Eigen::Vector3d &current_pose,
+    const Eigen::Vector3d &current_velocity,
+    const Eigen::Vector3d &current_acceleration,
+    const Eigen::Vector3d &target_pose, const double &start_time,
     const double &current_time, const double &end_time) {
   // save args:
   start_pose_ = start_pose;
