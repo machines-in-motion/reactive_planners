@@ -99,9 +99,7 @@ class StepAdjustment:
 
         self.plot()
 
-    def update_planner(self, u_current_step, t, v_des, x_com, xd_com, yaw):
-        self.dcm_vrp_planner.py_update(u_current_step, t, self.is_left_leg_in_contact, v_des, x_com, xd_com, yaw)
-        self.dcm_vrp_planner.solve()
+
 
     def plot(self):
         fig1, ax1 = plt.subplots(1, 1)
@@ -144,11 +142,3 @@ class StepAdjustment:
             if v == 1:
                 gain[3 * i:3 * (i + 1)] = 0.
         return gain
-
-
-if __name__ == "__main__":
-    planner = StepAdjustment(is_left_leg_in_contact=True, l_min=-0.5, l_max=0.5, w_min=-0.5, w_max=0.5, t_min=0.1,
-                             t_max=0.2, l_p=0.1235 * 2, com_height=0.26487417,
-                             weight=[1, 1, 5, 100, 100, 100, 100, 100, 100])
-    planner.simulator(u_current_step=np.array([.0, 0.1235, .0]), v_des=np.array([.0, .0, .0]),
-                      x_com=np.array([.0, .0, .2]), xd_com=np.array([.0, .0, .0]))
