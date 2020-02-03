@@ -129,6 +129,19 @@ void DcmVrpPlanner::compute_nominal_step_values(
 
 #define dbg_dump(var) std::cout << "  " << #var << ": " << var << std::endl
 
+
+void DcmVrpPlanner::py_update(const Eigen::Vector3d& current_step_location,
+                              const double& time_from_last_step_touchdown,
+                              const bool& is_left_leg_in_contact,
+                              const Eigen::Vector3d& v_des,
+                              const Eigen::Vector3d& com,
+                              const Eigen::Vector3d& com_vel,
+                              const double yaw) {
+  pinocchio::SE3 world_M_base(Eigen::Matrix3d::Identity(), Eigen::Vector3d::Zero());
+  update(current_step_location, time_from_last_step_touchdown, is_left_leg_in_contact, v_des, com, com_vel, world_M_base);
+}
+
+
 void DcmVrpPlanner::update(const Eigen::Vector3d& current_step_location,
                            const double& time_from_last_step_touchdown,
                            const bool& is_left_leg_in_contact,

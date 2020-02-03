@@ -23,6 +23,7 @@ void bind_dcm_vrp_planner(pybind11::module &module) {
       .def("solve", &DcmVrpPlanner::solve)
       .def("internal_checks", &DcmVrpPlanner::internal_checks)
       .def("print_solver", &DcmVrpPlanner::print_solver)
+      .def("py_update", &DcmVrpPlanner::py_update)
 
       // getters
       .def_property_readonly("get_t_nom", &DcmVrpPlanner::get_t_nom)

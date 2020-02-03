@@ -29,6 +29,7 @@ find_package(catkin REQUIRED COMPONENTS
     pybind11_catkin
 )
 
+search_for_boost()
 search_for_eigen()
 set(catkin_INCLUDE_DIRS ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS})
 
@@ -39,7 +40,9 @@ catkin_add_required_dependency("pinocchio >= 2.0.0")
 ################
 # Include dirs #
 ################
-include_directories(include ${catkin_INCLUDE_DIRS})
+include_directories(include
+    ${catkin_INCLUDE_DIRS}
+    ${Boost_INCLUDE_DIRS})
 
 ##############################
 # Declare the catkin package #

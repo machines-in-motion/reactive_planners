@@ -114,6 +114,41 @@ class DcmVrpPlanner {
               const bool& is_left_leg_in_contact, const Eigen::Vector3d& v_des,
               const Eigen::Vector3d& com, const Eigen::Vector3d& com_vel,
               const pinocchio::SE3& world_M_base);
+  /**
+   * @brief Computes adapted step location for python3.
+   *
+   * We use a QP formulation with the following notation:
+   * \f{eqnarray*}{
+   *    minimize   & \\
+   *       x       & (1/2) x^T Q x + q^T x \\
+   *    subject to & \\
+   *               & A_{ineq} x \leq b_{ineq} \\
+   *               & A_{eq} x = b_{eq} \\
+   *               & x_{opt_{lb}} \leq x \leq x_{opt_{ub}}
+   * \f}
+   * We use the off-the-shelf QP solver eigen-quadprog in order to solve it.
+   * @see DcmVrpPlanner for the full formulation.
+   *
+   * @param current_step_location is the location of the previous foot step
+   * location (2d vector) [ux, uy].
+   * @param time_from_last_step_touchdown is the time elapsed since the last
+   * foot step landed.
+   * @param is_left_leg_in_contact is true is the current foot is on the left
+   * side, false if it is on the right side.
+   * @param v_des
+   * @param com is the CoM position.
+   * @param com_vel is the CoM velocity.
+   * @param (x, y, z, qx, qy, qz, qw) SE3 position of the robot base expressed in the world
+   * frame.
+   */
+  void py_update(const Eigen::Vector3d& current_step_location,
+                 const double& time_from_last_step_touchdown,
+                 const bool& is_left_leg_in_contact,
+                 const Eigen::Vector3d& v_des,
+                 const Eigen::Vector3d& com,
+                 const Eigen::Vector3d& com_vel,
+                 const double yaw);
+
 
   /**
    * @brief Solve the Quadratic program and extract the solution. Use
