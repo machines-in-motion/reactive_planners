@@ -37,9 +37,9 @@ public:
                const Eigen::Vector3d &target_pose, const double &start_time,
                const double &current_time, const double &end_time);
 
-  void get_next_state(const double &next_time, Eigen::Vector3d &next_pose,
-                      Eigen::Vector3d &next_velocity,
-                      Eigen::Vector3d &next_acceleration);
+  void get_next_state(const double &next_time, Eigen::Ref<Eigen::Vector3d> next_pose,
+                      Eigen::Ref<Eigen::Vector3d> next_velocity,
+                      Eigen::Ref<Eigen::Vector3d> next_acceleration);
 
   /** @brief Display the matrices of the Problem. */
   void print_solver() const;

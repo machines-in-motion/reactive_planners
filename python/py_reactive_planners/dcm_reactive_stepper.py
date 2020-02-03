@@ -35,13 +35,13 @@ class DcmReactiveStepper(object):
         self.current_support_foot = np.array([0, 0, 0])
         self.next_support_foot = np.array([0, 0, 0])
         self.des_com_vel = np.array([0, 0, 0])
-        self.right_foot_position = np.array([0, 0, 0])
-        self.right_foot_velocity = np.array([0, 0, 0])
-        self.right_foot_acceleration = np.array([0, 0, 0])
-        self.left_foot_position = np.array([0, 0, 0])
+        self.right_foot_position = np.matrix([[0, 0, 0]])
+        self.right_foot_velocity = np.matrix([[0, 0, 0]])
+        self.right_foot_acceleration = np.matrix([[0, 0, 0]])
+        self.left_foot_position = np.matrix([[0, 0, 0]])
         self.flying_foot_position = np.array([0, 0, 0])
-        self.left_foot_velocity = np.array([0, 0, 0])
-        self.left_foot_acceleration = np.array([0, 0, 0])
+        self.left_foot_velocity = np.matrix([[0, 0, 0]])
+        self.left_foot_acceleration = np.matrix([[0, 0, 0]])
         self.feasible_velocity = np.array([0, 0, 0])
 
     def set_des_com_vel(self, des_com_vel):
@@ -60,12 +60,13 @@ class DcmReactiveStepper(object):
             self.stepper_head.get_is_left_leg_in_contact(), self.des_com_vel,
             com_position,
             com_velocity, base_yaw)
-        self.dcm_vrp_planner.solve()
+        assert(self.dcm_vrp_planner.solve())
 
+        self.duration_before_step_landing = self.dcm_vrp_planner.get_duration_before_step_landing()
         start_time = 0.0
-        current_time = self.dcm_vrp_planner.get_duration_before_step_landing()
-        end_time = (self.stepper_head.get_time_from_last_step_touchdown() +
-                    self.dcm_vrp_planner.get_duration_before_step_landing())
+        current_time = self.stepper_head.get_time_from_last_step_touchdown()
+        end_time = self.dcm_vrp_planner.get_duration_before_step_landing()
+        print(start_time, ":",current_time, ":", end_time)
         # check which foot is in contact
         if(self.stepper_head.get_is_left_leg_in_contact()):
             # flying foot is the right foot
@@ -89,12 +90,12 @@ class DcmReactiveStepper(object):
             self.left_foot_acceleration = np.array([0, 0, 0])
         else:
             # flying foot is the left foot
-            self.end_eff_traj3d.compute(
-                self.stepper_head.get_previous_support_location(),
-                self.left_foot_position, self.left_foot_velocity,
-                self.left_foot_acceleration,
-                self.dcm_vrp_planner.get_next_step_location(),
-                start_time, current_time, end_time)
+            # self.end_eff_traj3d.compute(
+            #     self.stepper_head.get_previous_support_location(),
+            #     self.left_foot_position, self.left_foot_velocity,
+            #     self.left_foot_acceleration,
+            #     self.dcm_vrp_planner.get_next_step_location(),
+            #     start_time, current_time, end_time)
 
             self.end_eff_traj3d.get_next_state(
                 current_time + self.control_period,

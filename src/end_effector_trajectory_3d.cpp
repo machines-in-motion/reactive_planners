@@ -248,8 +248,8 @@ bool EndEffectorTrajectory3D::compute(
 }
 
 void EndEffectorTrajectory3D::get_next_state(
-    const double &next_time, Eigen::Vector3d &next_pose,
-    Eigen::Vector3d &next_velocity, Eigen::Vector3d &next_acceleration) {
+    const double &next_time, Eigen::Ref<Eigen::Vector3d> next_pose,
+    Eigen::Ref<Eigen::Vector3d> next_velocity, Eigen::Ref<Eigen::Vector3d> next_acceleration) {
 
   double duration = (last_end_time_seen_ - start_time_);
   double local_current_time = (next_time - start_time_) / duration;
