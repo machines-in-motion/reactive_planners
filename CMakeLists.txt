@@ -63,6 +63,7 @@ catkin_python_setup()
 #######################
 
 add_library( ${PROJECT_NAME} SHARED
+  src/stepper_head.cpp
   src/dcm_vrp_planner.cpp
   src/end_effector_trajectory_3d.cpp
 )
@@ -98,6 +99,10 @@ add_unit_test(dcm_vrp_planner_ut)
 add_executable(demo_end_effector_trajectory_3d demos/demo_end_effector_trajectory_3d.cpp)
 target_link_libraries(demo_end_effector_trajectory_3d ${PROJECT_NAME} ${catkin_LIBRARIES})
 
+add_executable(demo_stepper_head demos/demo_stepper_head.cpp)
+target_link_libraries(demo_stepper_head ${PROJECT_NAME} ${catkin_LIBRARIES})
+
+
 ##########################
 # building documentation #
 ##########################
@@ -108,6 +113,7 @@ build_doxygen_documentation()
 ################################
 pybind11_add_module(py_${PROJECT_NAME}
     srcpy/reactive_planners
+    srcpy/stepper_head.cpp
     srcpy/dcm_vrp_planner.cpp
     srcpy/end_effector_trajectory_3d.cpp
 )
