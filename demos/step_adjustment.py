@@ -1,3 +1,11 @@
+## @namespace reactive_planners.step_adjustment
+""" This module find the step  adjustment for biped robots.
+    @author Elham Daneshmand (exledh@gmail.com)
+    @copyright Copyright (c) 2020,
+               New York University and Max Planck Gesellschaft,
+               License BSD-3-Clause
+"""
+
 import numpy as np
 from matplotlib import pyplot as plt
 from reactive_planners import DcmVrpPlanner
@@ -104,7 +112,6 @@ class StepAdjustment:
         ax1.plot(np.array(self.next_step_location)[:, 1], label="next_step_location")
         ax1.plot(np.array(self.current_step_location)[:, 1], label="current_step_location")
         ax1.plot(self.duration_before_step_landing, label="duration_before_step_landing")
-        print(self.time_step)
         for t in self.time_step:
             ax1.axvline(t)
         ax1.grid()
