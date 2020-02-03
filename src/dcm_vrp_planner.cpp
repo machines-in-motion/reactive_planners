@@ -114,7 +114,7 @@ void DcmVrpPlanner::initialize(
 }
 
 void DcmVrpPlanner::compute_nominal_step_values(
-    const bool& is_left_leg_in_contact, const Eigen::Vector3d& v_des_local)
+    const bool& is_left_leg_in_contact, Eigen::Ref<const Eigen::Vector3d> v_des_local)
 {
     double contact_switcher = is_left_leg_in_contact ? 1.0 : 2.0;
     double t_lower_bound(0.0), t_upper_bound(0.0);
@@ -148,12 +148,12 @@ void DcmVrpPlanner::compute_nominal_step_values(
 
 #define dbg_dump(var) std::cout << "  " << #var << ": " << var << std::endl
 
-void DcmVrpPlanner::update(const Eigen::Vector3d& current_step_location,
+void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_location,
                            const double& time_from_last_step_touchdown,
                            const bool& is_left_leg_in_contact,
-                           const Eigen::Vector3d& v_des,
-                           const Eigen::Vector3d& com,
-                           const Eigen::Vector3d& com_vel,
+                           Eigen::Ref<const Eigen::Vector3d> v_des,
+                           Eigen::Ref<const Eigen::Vector3d> com,
+                           Eigen::Ref<const Eigen::Vector3d> com_vel,
                            const double& yaw)
 {
     pinocchio::SE3 world_M_base(
@@ -168,12 +168,12 @@ void DcmVrpPlanner::update(const Eigen::Vector3d& current_step_location,
            world_M_base);
 }
 
-void DcmVrpPlanner::update(const Eigen::Vector3d& current_step_location,
+void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_location,
                            const double& time_from_last_step_touchdown,
                            const bool& is_left_leg_in_contact,
-                           const Eigen::Vector3d& v_des,
-                           const Eigen::Vector3d& com,
-                           const Eigen::Vector3d& com_vel,
+                           Eigen::Ref<const Eigen::Vector3d> v_des,
+                           Eigen::Ref<const Eigen::Vector3d> com,
+                           Eigen::Ref<const Eigen::Vector3d> com_vel,
                            const pinocchio::SE3& world_M_base)
 {
     // std::cout << "DcmVrpPlanner::update" << std::endl;
@@ -218,7 +218,8 @@ void DcmVrpPlanner::update(const Eigen::Vector3d& current_step_location,
     compute_nominal_step_values(is_left_leg_in_contact, v_des_local_);
 
     // Current step location in the local frame.
-    current_step_location_local_ = world_M_local_.actInv(current_step_location);
+    const Eigen::Vector3d& tmp = current_step_location;
+    current_step_location_local_ = world_M_local_.actInv(tmp);
 
     // dcm nominal
     dcm_nominal_ = (com_vel / omega_ + com - current_step_location) * tau_nom_;

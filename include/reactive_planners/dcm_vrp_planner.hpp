@@ -123,12 +123,12 @@ public:
      * @param world_M_base SE3 position of the robot base expressed in the world
      * frame.
      */
-    void update(const Eigen::Vector3d& current_step_location,
+    void update(Eigen::Ref<const Eigen::Vector3d> current_step_location,
                 const double& time_from_last_step_touchdown,
                 const bool& is_left_leg_in_contact,
-                const Eigen::Vector3d& v_des,
-                const Eigen::Vector3d& com,
-                const Eigen::Vector3d& com_vel,
+                Eigen::Ref<const Eigen::Vector3d> v_des,
+                Eigen::Ref<const Eigen::Vector3d> com,
+                Eigen::Ref<const Eigen::Vector3d> com_vel,
                 const pinocchio::SE3& world_M_base);
     /**
      * @brief Computes adapted step location for python3.
@@ -156,12 +156,12 @@ public:
      * @param com_vel is the CoM velocity.
      * @param yaw
      */
-    void update(const Eigen::Vector3d& current_step_location,
+    void update(Eigen::Ref<const Eigen::Vector3d> current_step_location,
                 const double& time_from_last_step_touchdown,
                 const bool& is_left_leg_in_contact,
-                const Eigen::Vector3d& v_des,
-                const Eigen::Vector3d& com,
-                const Eigen::Vector3d& com_vel,
+                Eigen::Ref<const Eigen::Vector3d> v_des,
+                Eigen::Ref<const Eigen::Vector3d> com,
+                Eigen::Ref<const Eigen::Vector3d> com_vel,
                 const double& yaw);
 
     /**
@@ -267,9 +267,9 @@ public:
     /**
      * @brief @copydoc DcmVrpPlanner::dcm_local_
      *
-     * @return const Eigen::Vector3d&
+     * @return Eigen::Ref<const Eigen::Vector3d>
      */
-    const Eigen::Vector3d& get_dcm_local() const
+    Eigen::Ref<const Eigen::Vector3d> get_dcm_local() const
     {
         return dcm_local_;
     }
@@ -277,9 +277,9 @@ public:
     /**
      * @brief @copydoc DcmVrpPlanner::current_step_location_local_
      *
-     * @return const Eigen::Vector3d&
+     * @return Eigen::Ref<const Eigen::Vector3d>
      */
-    const Eigen::Vector3d& get_current_step_location_local() const
+    Eigen::Ref<const Eigen::Vector3d> get_current_step_location_local() const
     {
         return current_step_location_local_;
     }
@@ -287,9 +287,9 @@ public:
     /**
      * @brief @copydoc DcmVrpPlanner::v_des_local_
      *
-     * @return const Eigen::Vector3d&
+     * @return Eigen::Ref<const Eigen::Vector3d>
      */
-    const Eigen::Vector3d& get_v_des_local() const
+    Eigen::Ref<const Eigen::Vector3d> get_v_des_local() const
     {
         return v_des_local_;
     }
@@ -297,9 +297,9 @@ public:
     /**
      * @brief @copydoc DcmVrpPlanner::dcm_nominal_
      *
-     * @return const Eigen::Vector3d&
+     * @return Eigen::Ref<const Eigen::Vector3d>
      */
-    const Eigen::Vector3d& get_dcm_nominal() const
+    Eigen::Ref<const Eigen::Vector3d> get_dcm_nominal() const
     {
         return dcm_nominal_;
     }
@@ -311,9 +311,9 @@ public:
     /**
      * @brief @copydoc DcmVrpPlanner::next_step_location_
      *
-     * @return const Eigen::Vector3d&
+     * @return Eigen::Ref<const Eigen::Vector3d>
      */
-    const Eigen::Vector3d& get_next_step_location() const
+    Eigen::Ref<const Eigen::Vector3d> get_next_step_location() const
     {
         return next_step_location_;
     }
@@ -350,7 +350,7 @@ private:
      * @param v_des_local in the local frame.
      */
     void compute_nominal_step_values(const bool& is_left_leg_in_contact,
-                                     const Eigen::Vector3d& v_des_local);
+                                     Eigen::Ref<const Eigen::Vector3d> v_des_local);
 
     /*
      * Attributes
