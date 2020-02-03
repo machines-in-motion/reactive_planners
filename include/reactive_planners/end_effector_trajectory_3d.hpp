@@ -34,9 +34,8 @@ public:
                const Eigen::Vector3d &current_pose,
                const Eigen::Vector3d &current_velocity,
                const Eigen::Vector3d &current_acceleration,
-               const Eigen::Vector3d &target_pose,
-               const double &start_time, const double &current_time,
-               const double &end_time);
+               const Eigen::Vector3d &target_pose, const double &start_time,
+               const double &current_time, const double &end_time);
 
   void get_next_state(const double &next_time, Eigen::Vector3d &next_pose,
                       Eigen::Vector3d &next_velocity,
@@ -47,6 +46,17 @@ public:
 
   /** @brief Convert the inner data to a string format. */
   std::string to_string() const;
+
+  /*
+   * Getters
+   */
+
+  /** @brief Get the height of the flying foot. */
+  double get_mid_air_height() { return mid_air_height_; }
+  
+  /** @brief Get the last end time taken into account during the foot trajectory
+   * computation. */
+  double get_last_end_time_taken_into_account() { return last_end_time_seen_; }
 
   /*
    * Setters
