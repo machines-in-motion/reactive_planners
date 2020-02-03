@@ -1,3 +1,4 @@
+from matplotlib import pyplot as plt
 from py_reactive_planners.dcm_reactive_stepper import DcmReactiveStepper
 from py_reactive_planners.lipm_simulator import LipmSimpulator
 import numpy as np
@@ -32,3 +33,23 @@ if __name__ == "__main__":
         dc.add_vector_3d(dcm_reactive_stepper.left_foot_velocity, "left_foot_velocity", "m/s")
         dc.add_vector_3d(dcm_reactive_stepper.left_foot_acceleration, "left_foot_acceleration", "m/s^2")
     dc.dump('/tmp/demo_walking.npy')
+
+    plt.figure(1)
+    plt.plot(plt_time, np.array(plt_x_com)[:,0])
+    plt.plot(plt_time, np.array(plt_x_com)[:,1])
+    plt.plot(plt_time, np.array(plt_x_com)[:,2])
+
+    plt.figure(2)
+    plt.plot(plt_time, np.array(plt_xd_com)[:,0])
+    plt.plot(plt_time, np.array(plt_xd_com)[:,1])
+    plt.plot(plt_time, np.array(plt_xd_com)[:,2])
+    
+    plt.figure(3)
+    plt.plot(plt_time, np.array(plt_right_foot_position)[:,0])
+    plt.plot(plt_time, np.array(plt_right_foot_position)[:,1])
+    plt.plot(plt_time, np.array(plt_right_foot_position)[:,2])
+
+    plt.figure(4)
+    plt.plot(plt_time, np.array(plt_left_foot_position)[:,0])
+    plt.plot(plt_time, np.array(plt_left_foot_position)[:,1])
+    plt.plot(plt_time, np.array(plt_left_foot_position)[:,2])
