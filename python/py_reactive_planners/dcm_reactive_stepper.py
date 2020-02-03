@@ -30,6 +30,7 @@ class DcmReactiveStepper(object):
         # Parameters
         self.is_left_leg_in_contact = is_left_leg_in_contact
         self.duration_before_step_landing = 0.0
+        self.time_from_last_step_touchdown = 0.0
         self.previous_support_foot = np.array([0, 0, 0])
         self.current_support_foot = np.array([0, 0, 0])
         self.next_support_foot = np.array([0, 0, 0])
@@ -38,6 +39,7 @@ class DcmReactiveStepper(object):
         self.right_foot_velocity = np.array([0, 0, 0])
         self.right_foot_acceleration = np.array([0, 0, 0])
         self.left_foot_position = np.array([0, 0, 0])
+        self.flying_foot_position = np.array([0, 0, 0])
         self.left_foot_velocity = np.array([0, 0, 0])
         self.left_foot_acceleration = np.array([0, 0, 0])
         self.feasible_velocity = np.array([0, 0, 0])
@@ -45,9 +47,12 @@ class DcmReactiveStepper(object):
     def set_des_com_vel(self, des_com_vel):
         self.des_com_vel = des_com_vel
 
-    def run(self, time, current_support_foot, com_position, com_velocity, base_yaw):
+    def run(self, time, current_flying_foot_position, com_position, com_velocity, base_yaw):
         self.stepper_head.run(
-            self.duration_before_step_landing, self.next_support_foot, time)
+            self.duration_before_step_landing, current_flying_foot_position, time)
+
+        self.time_from_last_step_touchdown = self.stepper_head.get_time_from_last_step_touchdown()
+        self.current_support_foot = self.stepper_head.get_current_support_location()
 
         self.dcm_vrp_planner.update(
             self.stepper_head.get_current_support_location(),
@@ -76,6 +81,7 @@ class DcmReactiveStepper(object):
                 self.right_foot_position,
                 self.right_foot_velocity,
                 self.right_foot_acceleration)
+            self.flying_foot_position = self.right_foot_position
             # The current support foot does not move
             self.left_foot_position = (
                 self.stepper_head.get_current_support_location())
@@ -95,6 +101,7 @@ class DcmReactiveStepper(object):
                 self.left_foot_position,
                 self.left_foot_velocity,
                 self.left_foot_acceleration)
+            self.flying_foot_position = self.left_foot_position
             # The current support foot does not move
             self.right_foot_position = (
                 self.stepper_head.get_current_support_location())
