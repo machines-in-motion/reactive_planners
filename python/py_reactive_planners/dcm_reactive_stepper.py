@@ -31,18 +31,18 @@ class DcmReactiveStepper(object):
         self.is_left_leg_in_contact = is_left_leg_in_contact
         self.duration_before_step_landing = 0.0
         self.time_from_last_step_touchdown = 0.0
-        self.previous_support_foot = np.array([0, 0, 0])
-        self.current_support_foot = np.array([0, 0, 0])
-        self.next_support_foot = np.array([0, 0, 0])
-        self.des_com_vel = np.array([0, 0, 0])
-        self.right_foot_position = np.matrix([[0, 0, 0]])
-        self.right_foot_velocity = np.matrix([[0, 0, 0]])
-        self.right_foot_acceleration = np.matrix([[0, 0, 0]])
-        self.left_foot_position = np.matrix([[0, 0, 0]])
-        self.flying_foot_position = np.array([0, 0, 0])
-        self.left_foot_velocity = np.matrix([[0, 0, 0]])
-        self.left_foot_acceleration = np.matrix([[0, 0, 0]])
-        self.feasible_velocity = np.array([0, 0, 0])
+        self.previous_support_foot = np.zeros((3, 1))
+        self.current_support_foot = np.zeros((3, 1))
+        self.next_support_foot = np.zeros((3, 1))
+        self.des_com_vel = np.zeros((3, 1))
+        self.right_foot_position = np.zeros((3, 1))
+        self.right_foot_velocity = np.zeros((3, 1))
+        self.right_foot_acceleration = np.zeros((3, 1))
+        self.left_foot_position = np.zeros((3, 1))
+        self.flying_foot_position = np.zeros((3, 1))
+        self.left_foot_velocity = np.zeros((3, 1))
+        self.left_foot_acceleration = np.zeros((3, 1))
+        self.feasible_velocity = np.zeros((3, 1))
 
     def set_des_com_vel(self, des_com_vel):
         self.des_com_vel = des_com_vel

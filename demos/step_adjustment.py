@@ -13,7 +13,6 @@ from reactive_planners import DcmVrpPlanner
 
 class StepAdjustment:
     def __init__(self, is_left_leg_in_contact, l_min, l_max, w_min, w_max , t_min, t_max, l_p, com_height, weight):
-        self.total_mass = 1.2694259399999999#sum([i.mass for i in self.robot.pin_robot.model.inertias])
         self.kp = np.array(6 * [200.])
         self.kd = 6 * [5.]
         self.com_height = com_height
