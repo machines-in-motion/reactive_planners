@@ -1,3 +1,13 @@
+#!/usr/bin/env python
+
+""" @namespace Demos of the reactive_planners.dcm_reactive_planner.
+@file
+@copyright Copyright (c) 2017-2019,
+           New York University and Max Planck Gesellschaft,
+           License BSD-3-Clause
+@example
+"""
+
 from matplotlib import pyplot as plt
 from py_reactive_planners.dcm_reactive_stepper import DcmReactiveStepper
 from py_reactive_planners.lipm_simulator import LipmSimpulator
