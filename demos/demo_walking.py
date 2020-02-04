@@ -12,10 +12,8 @@ from matplotlib import pyplot as plt
 from py_reactive_planners.dcm_reactive_stepper import DcmReactiveStepper
 from py_reactive_planners.lipm_simulator import LipmSimpulator
 import numpy as np
-from RAI.data_collector import DataCollector
 
 if __name__ == "__main__":
-    dc = DataCollector()
     sim = LipmSimpulator(.2)
 
     dcm_reactive_stepper = DcmReactiveStepper(is_left_leg_in_contact=True, l_min=-0.5, l_max=0.5, w_min=-0.5, w_max=0.5, t_min=0.1,
