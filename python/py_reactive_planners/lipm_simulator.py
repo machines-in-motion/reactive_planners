@@ -38,6 +38,5 @@ class LipmSimpulator():
         self.x_com[2] = self.last_x_com[2]
         self.xd_com[2] = 0
         self.xdd_com[2] = 0
-        print(self.x_com)
         return self.x_com, self.xd_com, self.xdd_com
 

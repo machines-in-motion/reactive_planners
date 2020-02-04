@@ -12,7 +12,7 @@
 void bind_stepper_head(pybind11::module &module);
 void bind_dcm_vrp_planner(pybind11::module &module);
 void bind_end_effector_trajectory_3d(pybind11::module &module);
-
+void bind_dcm_reactive_stepper(pybind11::module &module);
 
 PYBIND11_MODULE(reactive_planners, m) {
   m.doc() = R"pbdoc(
@@ -28,4 +28,5 @@ PYBIND11_MODULE(reactive_planners, m) {
   bind_stepper_head(m);
   bind_dcm_vrp_planner(m);
   bind_end_effector_trajectory_3d(m);
+  bind_dcm_reactive_stepper(m);
 }
