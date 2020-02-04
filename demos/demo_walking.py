@@ -22,10 +22,10 @@ if __name__ == "__main__":
                              t_max=0.2, l_p=0.1235 * 2, com_height=0.26487417,
                              weight=[1, 1, 5, 100, 100, 100, 100, 100, 100], mid_air_foot_height=.05,
                             control_period= 0.001)
-    u_current_step=np.array([.0, 0.1235, .0])
-    v_des=np.array([.0, .0, .0])
-    x_com=np.array([.0, .0, .2])
-    xd_com=np.array([.0, .0, .0])
+    u_current_step = np.zeros((3, 1)); u_current_step[:] = [[.0], [0.1235], [.0]]
+    v_des = np.zeros((3, 1))
+    x_com = np.zeros((3, 1)); x_com[:] = [[.0], [.0], [.2]]
+    xd_com = np.zeros((3, 1))
     time = 0
     plt_time = []
     plt_x_com = []
@@ -38,6 +38,7 @@ if __name__ == "__main__":
     plt_left_foot_acceleration = []
     plt_time_from_last_step_touchdown = []
     plt_duration_before_step_landing = []
+    plt_current_support_foot = []
     for i in range(1000):
         time += 0.001
         dcm_reactive_stepper.run(time, dcm_reactive_stepper.flying_foot_position, x_com, xd_com, 0)
@@ -54,6 +55,7 @@ if __name__ == "__main__":
         plt_left_foot_acceleration.append(dcm_reactive_stepper.left_foot_acceleration.copy())
         plt_time_from_last_step_touchdown.append(dcm_reactive_stepper.time_from_last_step_touchdown)
         plt_duration_before_step_landing.append(dcm_reactive_stepper.duration_before_step_landing)
+        plt_current_support_foot.append(dcm_reactive_stepper.current_support_foot.copy())
 
     print(dcm_reactive_stepper.time_from_last_step_touchdown)
     plt.figure("com")
@@ -76,7 +78,17 @@ if __name__ == "__main__":
     plt.plot(plt_time, np.array(plt_left_foot_position)[:,1])
     plt.plot(plt_time, np.array(plt_left_foot_position)[:,2])
 
+
+    plt.figure("foot_pos_z")
+    plt.plot(plt_time, np.array(plt_right_foot_position)[:,2])
+    plt.plot(plt_time, np.array(plt_left_foot_position)[:,2])
+
     plt.figure("last_step_touchdown")
     plt.plot(plt_time, np.array(plt_time_from_last_step_touchdown)[:])
     plt.plot(plt_time, np.array(plt_duration_before_step_landing)[:])
+
+    plt.figure("support_foot")
+    plt.plot(plt_time, np.array(plt_current_support_foot)[:,0])
+    plt.plot(plt_time, np.array(plt_current_support_foot)[:,1])
+    plt.plot(plt_time, np.array(plt_current_support_foot)[:,2])
     plt.show()
