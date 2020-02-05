@@ -60,8 +60,10 @@ public:
      * @param com_position
      * @param com_velocity
      * @param base_yaw
+     *
+     * @return bool, true upon success.
      */
-    void run(double time,
+    bool run(double time,
              Eigen::Ref<const Eigen::Vector3d> current_flying_foot_position,
              Eigen::Ref<const Eigen::Vector3d> com_position,
              Eigen::Ref<const Eigen::Vector3d> com_velocity,
@@ -205,6 +207,16 @@ public:
     const double &get_time_from_last_step_touchdown()
     {
         return time_from_last_step_touchdown_;
+    }
+
+    /**
+     * @brief Get if the left foot is in contact, else it is the right foot.
+     *
+     * @return const bool&
+     */
+    const bool &get_is_left_leg_in_contact()
+    {
+        return is_left_leg_in_contact_;
     }
 
     /**
