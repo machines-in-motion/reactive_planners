@@ -64,10 +64,27 @@ public:
      * @return bool, true upon success.
      */
     bool run(double time,
-             Eigen::Ref<const Eigen::Vector3d> current_flying_foot_position,
+             Eigen::Ref<const Eigen::Vector3d> left_foot_position,
+             Eigen::Ref<const Eigen::Vector3d> right_foot_position,
              Eigen::Ref<const Eigen::Vector3d> com_position,
              Eigen::Ref<const Eigen::Vector3d> com_velocity,
              const double &base_yaw);
+
+    /**
+     * @brief Start the stepping.
+     */
+    void start()
+    {
+        running_ = true;
+    }
+
+    /**
+     * @brief Stop the stepping.
+     */
+    void stop()
+    {
+        running_ = false;
+    }
 
     /*
      * Setters
@@ -236,6 +253,43 @@ public:
         }
     }
 
+    /*
+     * Private methods
+     */
+private:
+    /**
+     * @brief Makes the robot walk.
+     *
+     * @param time
+     * @param current_flying_foot_position
+     * @param com_position
+     * @param com_velocity
+     * @param base_yaw
+     * @return true
+     * @return false
+     */
+    bool walk(double time,
+              Eigen::Ref<const Eigen::Vector3d> left_foot_position,
+              Eigen::Ref<const Eigen::Vector3d> right_foot_position,
+              Eigen::Ref<const Eigen::Vector3d> com_position,
+              Eigen::Ref<const Eigen::Vector3d> com_velocity,
+              const double &base_yaw);
+
+    /**
+     * @brief Makes the robot stand still.
+     *
+     * @param time
+     * @param current_flying_foot_position
+     * @param com_position
+     * @param com_velocity
+     * @param base_yaw
+     * @return true
+     * @return false
+     */
+    bool stand_still(double time,
+                     Eigen::Ref<const Eigen::Vector3d> left_foot_position,
+                     Eigen::Ref<const Eigen::Vector3d> right_foot_position);
+
 private:
     /** @brief Robot control period, used when computing the end-effector
      * trajectory. */
@@ -292,6 +346,9 @@ private:
 
     /** @brief The feasible center of mass velocity achievable by the robot. */
     Eigen::Vector3d feasible_com_velocity_;
+
+    /** @brief Define if we compute a solution or stay still. */
+    bool running_;
 };
 
 }  // namespace reactive_planners

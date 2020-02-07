@@ -21,6 +21,8 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
         // Public methods.
         .def("initialize", &DcmReactiveStepper::initialize)
         .def("run", &DcmReactiveStepper::run)
+        .def("start", &DcmReactiveStepper::start)
+        .def("stop", &DcmReactiveStepper::stop)
         // Getters.
         .def("get_right_foot_position",
              &DcmReactiveStepper::get_right_foot_position)
