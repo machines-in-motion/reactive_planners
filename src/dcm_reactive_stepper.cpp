@@ -84,19 +84,11 @@ bool DcmReactiveStepper::run(
     const double &base_yaw)
 {
     bool succeed = true;
-    std::cout << "running_ = " << running_ << " ; "
-              << "time_from_last_step_touchdown_ "
-              << time_from_last_step_touchdown_ +
-                     std::numeric_limits<double>::epsilon()
-              << " ; "
-              << "step_duration_ + epsilon = " << step_duration_ << " ; "
-              << std::endl;
     if (running_ ||
         (!running_ && time_from_last_step_touchdown_ + control_period_ +
                               std::numeric_limits<double>::epsilon() <
                           step_duration_))
     {
-        std::cout << "walking asked!" << std::endl;
         walk(time,
              left_foot_position,
              right_foot_position,
@@ -106,7 +98,6 @@ bool DcmReactiveStepper::run(
     }
     else
     {
-        std::cout << "Standing still asked!" << std::endl;
         stand_still(time, left_foot_position, right_foot_position);
     }
     return succeed;
