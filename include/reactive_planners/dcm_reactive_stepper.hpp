@@ -132,7 +132,7 @@ public:
      */
     const Eigen::Vector3d &get_right_foot_acceleration()
     {
-        return right_foot_position_;
+        return right_foot_acceleration_;
     }
 
     /**
@@ -162,7 +162,7 @@ public:
      */
     const Eigen::Vector3d &get_left_foot_acceleration()
     {
-        return left_foot_position_;
+        return left_foot_acceleration_;
     }
 
     /**
