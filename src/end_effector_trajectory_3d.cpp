@@ -90,20 +90,19 @@ bool EndEffectorTrajectory3D::compute(
   current_time_ = current_time;
   end_time_ = end_time;
 
+  // scaling the problem
+  double duration = (end_time - start_time);
+  double local_current_time = (current_time - start_time) / duration;
+  double local_end_time = 1.0;
+  double mid_time = 0.5;
+
   // Do not compute the QP if the solution is trivial or too close to the end of
-  // the trajectory
-  double safe_end_time = end_time_ * 0.70;
-  if (current_time_ < start_time_ || current_time_ >= safe_end_time) {
+  // the trajectory.
+  if (current_time_ < start_time_ || local_current_time >= 0.7) {
     return true;
   } else {
     last_end_time_seen_ = end_time;
   }
-
-  // scaling the problem
-  double duration = (last_end_time_seen_ - start_time);
-  double local_current_time = (current_time - start_time) / duration;
-  double local_end_time = 1.0;
-  double mid_time = 0.5;
 
   /*
    * Quadratic cost
