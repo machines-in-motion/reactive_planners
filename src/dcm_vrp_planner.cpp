@@ -85,7 +85,7 @@ void DcmVrpPlanner::initialize(
     B_eq_.resize(nb_eq_);
     B_eq_.setZero();
 
-    nb_ineq_ = 10;
+    nb_ineq_ = 6; //10;
     A_ineq_.resize(nb_ineq_, nb_var_);
     // clang-format off
   //          ux    uy    tau   bx    by    psi0  psi1  psi2  psi3
@@ -94,14 +94,15 @@ void DcmVrpPlanner::initialize(
              -1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 2
               0.0, -1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 3
               0.0,  0.0,  1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 4
-              0.0,  0.0, -1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 5
-              0.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,  0.0,   // 6
-              0.0,  0.0,  0.0, -1.0,  0.0,  1.0,  0.0,  0.0,  0.0,   // 7
-              0.0,  0.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,   // 8
-              0.0,  0.0,  0.0,  0.0, -1.0,  0.0,  0.0,  0.0,  1.0;   // 9
+              0.0,  0.0, -1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0;   // 5
+              // 0.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,  0.0,   // 6
+              // 0.0,  0.0,  0.0, -1.0,  0.0,  1.0,  0.0,  0.0,  0.0,   // 7
+              // 0.0,  0.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,   // 8
+              // 0.0,  0.0,  0.0,  0.0, -1.0,  0.0,  0.0,  0.0,  1.0;   // 9
     // clang-format on
     B_ineq_.resize(nb_ineq_);
     B_ineq_.setZero();
+
     qp_solver_.problem(nb_var_, nb_eq_, nb_ineq_);
 
     dcm_nominal_.setZero();
@@ -258,11 +259,11 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
              -l_min_,                // 2
              -w_min_local,           // 3
               tau_max_,              // 4
-             -tau_min_,              // 5
-              bx_max_,               // 6
-             -bx_min_,               // 7
-              by_max,                // 8
-             -by_min;                // 9
+             -tau_min_;              // 5
+            //   bx_max_,               // 6
+            //  -bx_min_,               // 7
+            //   by_max_in_,            // 8
+            //  -by_max_out_;           // 9
     // clang-format on
 
     // Equality constraints
@@ -332,7 +333,7 @@ bool DcmVrpPlanner::solve()
         else
         {
             std::cout
-                << "DcmVrpPlanner::solve() -> problems with decomposing D!"
+                << "DcmVrpPlanner::solve() -> problems with decomposing the hessian!"
                 << std::endl;
         }
         slack_variables_.setZero();
@@ -373,9 +374,9 @@ bool DcmVrpPlanner::internal_checks()
     assert_DcmVrpPlanner(A_eq_.rows() == 2);
     assert_DcmVrpPlanner(A_eq_.cols() == x_opt_.size());
     assert_DcmVrpPlanner(B_eq_.size() == 2);
-    assert_DcmVrpPlanner(A_ineq_.rows() == 10);
+    assert_DcmVrpPlanner(A_ineq_.rows() == 6);
     assert_DcmVrpPlanner(A_ineq_.cols() == x_opt_.size());
-    assert_DcmVrpPlanner(B_ineq_.size() == 10);
+    assert_DcmVrpPlanner(B_ineq_.size() == 6);
     assert_DcmVrpPlanner((t_min_ - log(tau_min_) / omega_) *
                              (t_min_ - log(tau_min_) / omega_) <
                          1e-8);

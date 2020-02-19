@@ -209,6 +209,14 @@ bool DcmReactiveStepper::walk(
         right_foot_acceleration_.setZero();
     }
 
+    /** @todo WARNING HUGE HACK TO BE REMOVED!!!!! */
+    right_foot_position_.head<2>().setZero();
+    left_foot_position_.head<2>().setZero();
+    right_foot_velocity_.head<2>().setZero();
+    left_foot_velocity_.head<2>().setZero();
+    right_foot_acceleration_.head<2>().setZero();
+    left_foot_acceleration_.head<2>().setZero();
+
     // Compute the feasible velocity.
     feasible_com_velocity_ =
         (next_support_foot_position_ - previous_support_foot_position_) * 0.5;
