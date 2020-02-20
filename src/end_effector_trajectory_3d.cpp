@@ -80,6 +80,12 @@ bool EndEffectorTrajectory3D::compute(
     Eigen::Ref<const Eigen::Vector3d> current_acceleration,
     Eigen::Ref<const Eigen::Vector3d> target_pose, const double &start_time,
     const double &current_time, const double &end_time) {
+  // scaling the problem
+  double duration = (end_time - start_time);
+  double local_current_time = (current_time - start_time) / duration;
+  double local_end_time = 1.0;
+  double mid_time = 0.5;
+
   // save args:
   start_pose_ = start_pose;
   current_pose_ = current_pose;
@@ -90,11 +96,9 @@ bool EndEffectorTrajectory3D::compute(
   current_time_ = current_time;
   end_time_ = end_time;
 
-  // scaling the problem
-  double duration = (end_time - start_time);
-  double local_current_time = (current_time - start_time) / duration;
-  double local_end_time = 1.0;
-  double mid_time = 0.5;
+  // Scale velocity and acceleration into local time.
+  current_velocity_ *= duration;
+  current_acceleration_ *= std::pow(duration, 2);
 
   // Do not compute the QP if the solution is trivial or too close to the end of
   // the trajectory.
@@ -183,9 +187,9 @@ bool EndEffectorTrajectory3D::compute(
 //   A_eq_.row(16).tail(nb_var_z_) = time_vec_z_;
 
   B_eq_.setZero();
-  B_eq_ << current_pose(0), current_velocity(0), current_acceleration(0), 0.0, 0.0,
-           current_pose(1), current_velocity(1), current_acceleration(1), 0.0, 0.0,
-           current_pose(2), current_velocity(2), current_acceleration(2),
+  B_eq_ << current_pose_(0), current_velocity_(0), current_acceleration_(0), 0.0, 0.0,
+           current_pose_(1), current_velocity_(1), current_acceleration_(1), 0.0, 0.0,
+           current_pose_(2), current_velocity_(2), current_acceleration_(2),
            target_pose(2), 0.0, 0.0;
         //    0.0;
   // clang-format on
@@ -267,6 +271,7 @@ void EndEffectorTrajectory3D::get_next_state(
     t_vec(local_current_time, time_vec_x_);
     t_vec(local_current_time, time_vec_y_);
     t_vec(local_current_time, time_vec_z_);
+
     next_pose << x_opt_.head(nb_var_x_).transpose() * time_vec_x_,
         x_opt_.segment(nb_var_x_, nb_var_y_).transpose() * time_vec_y_,
         x_opt_.tail(nb_var_z_).transpose() * time_vec_z_;
@@ -284,6 +289,10 @@ void EndEffectorTrajectory3D::get_next_state(
     next_acceleration << x_opt_.head(nb_var_x_).transpose() * time_vec_x_,
         x_opt_.segment(nb_var_x_, nb_var_y_).transpose() * time_vec_y_,
         x_opt_.tail(nb_var_z_).transpose() * time_vec_z_;
+
+    // Rescale to non-local time.
+    next_velocity = next_velocity / duration;
+    next_acceleration = next_acceleration / std::pow(duration, 2);
   }
   previous_solution_pose_ = next_pose;
 }
@@ -297,6 +306,12 @@ std::string EndEffectorTrajectory3D::to_string() const {
   oss << "B_eq:" << B_eq_.transpose() << std::endl;
   oss << "A_ineq:" << std::endl << A_ineq_ << std::endl;
   oss << "B_ineq:" << B_ineq_.transpose();
+  if (qp_solver_.fail() == 0) {
+    oss << "sol: " << qp_solver_.result() << std::endl;
+  } else {
+    oss << "sol: failed " << qp_solver_.fail() << std::endl;
+  }
+
   return oss.str();
 }
 
