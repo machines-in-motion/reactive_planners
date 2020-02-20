@@ -98,7 +98,7 @@ bool EndEffectorTrajectory3D::compute(
 
   // Scale velocity and acceleration into local time.
   current_velocity_ *= duration;
-  current_acceleration_ *= std::pow(duration, 2);
+  current_acceleration_ *= duration * duration;
 
   // Do not compute the QP if the solution is trivial or too close to the end of
   // the trajectory.
@@ -292,7 +292,7 @@ void EndEffectorTrajectory3D::get_next_state(
 
     // Rescale to non-local time.
     next_velocity = next_velocity / duration;
-    next_acceleration = next_acceleration / std::pow(duration, 2);
+    next_acceleration = next_acceleration / (duration * duration);
   }
   previous_solution_pose_ = next_pose;
 }
@@ -307,9 +307,9 @@ std::string EndEffectorTrajectory3D::to_string() const {
   oss << "A_ineq:" << std::endl << A_ineq_ << std::endl;
   oss << "B_ineq:" << B_ineq_.transpose();
   if (qp_solver_.fail() == 0) {
-    oss << "sol: " << qp_solver_.result() << std::endl;
+    oss << "QP solution: " << qp_solver_.result() << std::endl;
   } else {
-    oss << "sol: failed " << qp_solver_.fail() << std::endl;
+    oss << "QP failed with code error: " << qp_solver_.fail() << std::endl;
   }
 
   return oss.str();
