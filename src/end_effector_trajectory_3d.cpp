@@ -295,6 +295,9 @@ void EndEffectorTrajectory3D::get_next_state(
     next_acceleration = next_acceleration / (duration * duration);
   }
   previous_solution_pose_ = next_pose;
+
+  next_velocity *= duration;
+  next_acceleration *= duration * duration;
 }
 
 std::string EndEffectorTrajectory3D::to_string() const {

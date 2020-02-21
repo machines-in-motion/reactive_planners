@@ -29,6 +29,8 @@ if __name__ == "__main__":
     control_period = 0.001
 
     plt_foot_position = []
+    plt_foot_velocity = []
+    plt_foot_velocity_num_diff = []
 
     for i in range(int(1/control_period)):
         current_time = i * control_period
@@ -47,6 +49,7 @@ if __name__ == "__main__":
             foot_acceleration)
 
         plt_foot_position += [foot_position.copy()]
+
 
     plt.plot(np.array(plt_foot_position)[:,2])
     plt.show()

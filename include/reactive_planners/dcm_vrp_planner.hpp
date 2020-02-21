@@ -336,6 +336,16 @@ public:
         return duration_before_step_landing_;
     }
 
+    /**
+     * @brief Get the desired com height.
+     * 
+     * @return const double& 
+     */
+    const double& get_com_height() const
+    {
+        return ht_;
+    }
+
     /*
      * Private methods
      */

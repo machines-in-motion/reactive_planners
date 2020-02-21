@@ -20,7 +20,22 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
 
         // Public methods.
         .def("initialize", &DcmReactiveStepper::initialize)
-        .def("run", &DcmReactiveStepper::run)
+        .def("run",
+             (bool (DcmReactiveStepper::*)(double,
+                                           Eigen::Ref<const Eigen::Vector3d>,
+                                           Eigen::Ref<const Eigen::Vector3d>,
+                                           Eigen::Ref<const Eigen::Vector3d>,
+                                           Eigen::Ref<const Eigen::Vector3d>,
+                                           const double &)) &
+                 DcmReactiveStepper::run)
+        .def("run",
+             (bool (DcmReactiveStepper::*)(double,
+                                           Eigen::Ref<const Eigen::Vector3d>,
+                                           Eigen::Ref<const Eigen::Vector3d>,
+                                           Eigen::Ref<const Eigen::Vector3d>,
+                                           Eigen::Ref<const Eigen::Vector3d>,
+                                           const pinocchio::SE3 &)) &
+                 DcmReactiveStepper::run)
         .def("start", &DcmReactiveStepper::start)
         .def("stop", &DcmReactiveStepper::stop)
         // Getters.
