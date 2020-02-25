@@ -29,6 +29,13 @@ public:
 
     void init();
 
+    void set_feet_pos(
+            Eigen::Ref<Eigen::Vector3d> previous_support_location,
+            Eigen::Ref<Eigen::Vector3d> current_support_location){
+        previous_support_location_ = previous_support_location;
+        current_support_location_ = current_support_location;
+    }
+
     void run(const double &duration_before_foot_landing,
              const Eigen::Vector3d &next_support_location,
              const double &current_time);
