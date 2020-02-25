@@ -35,9 +35,8 @@ class LipmSimpulator():
                   pow(np.e, (-self.omega * time)))
         self.xdd_com[:] = (self.omega ** 2) * (self.last_x_com - self.u_current_step)
 
-        self.x_com[2] = 0.2
+        self.x_com[2] = self.last_x_com[2]
         self.xd_com[2] = 0
         self.xdd_com[2] = 0
-        print(self.x_com)
         return self.x_com, self.xd_com, self.xdd_com
 
