@@ -69,7 +69,19 @@ public:
   void set_mid_air_height(double mid_air_height) {
     mid_air_height_ = mid_air_height;
   }
-
+  /** @brief Set the costs of x, y, z axes, and hessian regularization.
+   *
+   * @param cost_x
+   * @param cost_y
+   * @param cost_z
+   * @param hess_regularization
+   */
+  void set_costs(double cost_x, double cost_y, double cost_z, double hess_regularization){
+    cost_x_ = cost_x;
+    cost_y_ = cost_y;
+    cost_z_ = cost_z;
+    Q_regul_ = Eigen::MatrixXd::Identity(nb_var_, nb_var_) * hess_regularization;
+  }
   /*
    * Private methods
    */
