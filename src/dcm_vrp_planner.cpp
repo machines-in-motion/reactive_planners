@@ -51,19 +51,13 @@ void DcmVrpPlanner::initialize(
     ht_ = ht;
     cost_weights_local_ = cost_weights_local;
 
-    // std::cout << "void DcmVrpPlanner::initialize" << std::endl;
-    // std::cout << l_min << "," << l_max << "," << w_min << "," << w_max << ","
-    //           << t_min << "," << t_max << ","
-    //           << l_p << "," << ht << std::endl;
-    // std::cout << cost_weights_local << std::endl;
-
     omega_ = sqrt(9.81 / ht_);
     tau_min_ = exp(omega_ * t_min_);
     tau_max_ = exp(omega_ * t_max_);
 
     // Equation 7 and 9 in the paper.
     bx_max_ = l_max_ / (tau_min_ - 1);
-    bx_min_ = l_min_ / (tau_max_ - 1);
+    bx_min_ = l_min_ / (tau_min_ - 1);
     by_max_out_ = l_p_ / (1 + tau_min_) +
                   (w_max_ - w_min_ * tau_min_) / (1 - exp(2 * omega_ * t_min_));
     by_max_in_ = l_p_ / (1 + tau_min_) +
@@ -116,34 +110,42 @@ void DcmVrpPlanner::initialize(
 void DcmVrpPlanner::compute_nominal_step_values(
     const bool& is_left_leg_in_contact, Eigen::Ref<const Eigen::Vector3d> v_des_local)
 {
-    double contact_switcher = is_left_leg_in_contact ? 1.0 : 2.0;
+    double contact_switcher = is_left_leg_in_contact ? 2.0 : 1.0;
     double t_lower_bound(0.0), t_upper_bound(0.0);
     Eigen::Vector3d max_or_min_time;
     /** @todo Better manage the lower and upper bound on `t`. */
     // if ((v_des_local.head<2>().array().abs() < 1e-5).any()) {
-    if (abs(v_des_local(0)) < 1e-5 || abs(v_des_local(1)) < 1e-5)
+    double fabs_l_min = std::min(fabs(l_min_), fabs(l_max_));
+    if(l_min_ < 0 && 0 < l_max_)
+        fabs_l_min = 0;
+    double fabs_l_max = std::max(fabs(l_min_), fabs(l_max_));
+    double fabs_w_min = std:: min(fabs(w_min_), fabs(w_max_));
+    if(w_min_ < 0 && w_max_ > 0)
+        fabs_w_min = 0;
+    double fabs_w_max = std::max(fabs(w_min_), fabs(w_max_));
+    if (fabs(v_des_local(0)) < 1e-5 || fabs(v_des_local(1)) < 1e-5)
     {
         t_lower_bound = t_min_;
         t_upper_bound = t_max_;
     }
     else
     {
-        max_or_min_time << l_min_ / v_des_local(0), w_min_ / v_des_local(1),
-            t_min_;
+        max_or_min_time << fabs_l_min / fabs(v_des_local(0)), fabs_w_min / fabs(v_des_local(1)), t_min_;
         t_lower_bound = max_or_min_time.maxCoeff();
-        max_or_min_time << l_max_ / v_des_local(0), w_max_ / v_des_local(1),
-            t_max_;
+        max_or_min_time << fabs_l_max / fabs(v_des_local(0)), fabs_w_max / fabs(v_des_local(1)), t_max_;
         t_upper_bound = max_or_min_time.minCoeff();
     }
-
     t_nom_ = (t_lower_bound + t_upper_bound) * 0.5;
     tau_nom_ = exp(omega_ * t_nom_);
     l_nom_ = v_des_local(0) * t_nom_;
-    w_nom_ = v_des_local(1) * t_nom_;
+    if(is_left_leg_in_contact)
+        w_nom_ = v_des_local(1) * t_nom_ - l_p_;
+    else
+        w_nom_ = v_des_local(1) * t_nom_ + l_p_;
 
     bx_nom_ = l_nom_ / (tau_nom_ - 1);
     by_nom_ = (pow(-1, contact_switcher) * (l_p_ / (1 + tau_nom_))) -
-              w_nom_ / (1 - tau_nom_);
+              v_des_local(1) * t_nom_ / (1 - tau_nom_);
 }
 
 #define dbg_dump(var) std::cout << "  " << #var << ": " << var << std::endl
@@ -213,7 +215,6 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     // Express the desired velocity in the local frame.
     v_des_local_ = v_des;
     v_des_local_ = world_M_local_.rotation().transpose() * v_des_local_;
-
     // Nominal value tracked by the QP.
     compute_nominal_step_values(is_left_leg_in_contact, v_des_local_);
 
@@ -222,7 +223,7 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     current_step_location_local_ = world_M_local_.actInv(tmp);
 
     // dcm nominal
-    dcm_nominal_ = (com_vel / omega_ + com - current_step_location) * tau_nom_;
+    dcm_nominal_ = (com_vel / omega_ + com - current_step_location) * tau_nom_;//Lhum !!!!!!!!!!!!!!
     dcm_nominal_(2) = 0.0;
 
     // Quadratic cost matrix is constant
@@ -238,18 +239,30 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
 
     // Inequality constraints
     // A_ineq_ is constant see initialize.
-
+  double w_max_local, w_min_local, by_max, by_min;
+  if(is_left_leg_in_contact){
+    w_max_local = -w_min_ - l_p_;
+    w_min_local = -w_max_ - l_p_;
+    by_max = by_max_in_;
+    by_min = by_max_out_;
+  }
+  else{
+    w_max_local = w_max_ + l_p_;
+    w_min_local = w_min_ + l_p_;
+    by_max = -by_max_out_;
+    by_min = -by_max_in_;
+  }
     // clang-format off
   B_ineq_ <<  l_max_,                // 0
-              w_max_,                // 1
+              w_max_local,           // 1
              -l_min_,                // 2
-             -w_min_,                // 3
+             -w_min_local,           // 3
               tau_max_,              // 4
              -tau_min_,              // 5
               bx_max_,               // 6
              -bx_min_,               // 7
-              by_max_in_,            // 8
-             -by_max_out_;           // 9
+              by_max,                // 8
+             -by_min;                // 9
     // clang-format on
 
     // Equality constraints
