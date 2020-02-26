@@ -15,10 +15,22 @@ from reactive_planners import (
 class DcmReactiveStepper(object):
     def __init__(self, is_left_leg_in_contact, l_min, l_max, w_min, w_max,
                  t_min, t_max, l_p, com_height, weight, mid_air_foot_height,
-                 control_period):
+                 control_period, previous_support_foot=None,
+                 current_support_foot=None):
+        if previous_support_foot is None:
+            previous_support_foot = np.zeros((3, 1))
+            previous_support_foot[:] = [[0.], [0.], [0.]]
+        if current_support_foot is None:
+            current_support_foot = np.zeros((3, 1))
+            current_support_foot[:] = [[0.], [0.], [0.]]
         self.control_period = control_period
         # Create the stepper head.
         self.stepper_head = StepperHead()
+        self.previous_support_foot = np.zeros((3, 1))
+        self.current_support_foot = np.zeros((3, 1))
+        self.previous_support_foot[:] = previous_support_foot
+        self.current_support_foot[:] = current_support_foot
+        self.stepper_head.set_feet_pos(self.previous_support_foot, self.current_support_foot)
         # Create the dcm vrp planner and initialize it.
         self.dcm_vrp_planner = DcmVrpPlanner()
         self.dcm_vrp_planner.initialize(l_min, l_max, w_min, w_max, t_min,
@@ -31,40 +43,48 @@ class DcmReactiveStepper(object):
         self.is_left_leg_in_contact = is_left_leg_in_contact
         self.duration_before_step_landing = 0.0
         self.time_from_last_step_touchdown = 0.0
-        self.previous_support_foot = np.zeros((3, 1))
-        self.current_support_foot = np.zeros((3, 1))
-        self.next_support_foot = np.zeros((3, 1))
+        self.next_suset_des_com_velpport_foot = np.zeros((3, 1))
         self.des_com_vel = np.zeros((3, 1))
         self.right_foot_position = np.zeros((3, 1))
+        self.right_foot_position[:] = previous_support_foot
         self.right_foot_velocity = np.zeros((3, 1))
         self.right_foot_acceleration = np.zeros((3, 1))
         self.flying_foot_position = np.zeros((3, 1))
+        self.flying_foot_position[:] = previous_support_foot
         self.left_foot_position = np.zeros((3, 1))
+        self.left_foot_position[:] = current_support_foot
         self.left_foot_velocity = np.zeros((3, 1))
         self.left_foot_acceleration = np.zeros((3, 1))
         self.feasible_velocity = np.zeros((3, 1))
 
+    def set_costs(self, cost_x, cost_y, cost_z, hess_regularization):
+        self.end_eff_traj3d.set_costs(cost_x, cost_y, cost_z, hess_regularization)
+
     def set_des_com_vel(self, des_com_vel):
         self.des_com_vel = des_com_vel
 
-    def run(self, time, current_flying_foot_position, com_position, com_velocity, base_yaw):
+    def run(self, time, current_flying_foot_position, current_support_foot_position, com_position, com_velocity, base_yaw):
+        if current_support_foot_position is not None:
+            self.stepper_head.set_feet_pos(self.stepper_head.get_previous_support_location(),
+                                           current_support_foot_position)
         self.stepper_head.run(
             self.duration_before_step_landing, current_flying_foot_position, time)
 
         self.time_from_last_step_touchdown = self.stepper_head.get_time_from_last_step_touchdown()
         self.current_support_foot[:] = self.stepper_head.get_current_support_location().reshape((3, 1))
+        self.previous_support_foot[:] = self.stepper_head.get_previous_support_location().reshape((3, 1))
         self.dcm_vrp_planner.update(
             self.stepper_head.get_current_support_location(),
             self.stepper_head.get_time_from_last_step_touchdown(),
             self.stepper_head.get_is_left_leg_in_contact(), self.des_com_vel,
-            com_position,
-            com_velocity, base_yaw)
+            com_position, com_velocity, base_yaw)
         assert(self.dcm_vrp_planner.solve())
 
         self.duration_before_step_landing = self.dcm_vrp_planner.get_duration_before_step_landing()
         start_time = 0.0
         current_time = self.stepper_head.get_time_from_last_step_touchdown()
         end_time = self.dcm_vrp_planner.get_duration_before_step_landing()
+        self.is_left_leg_in_contact = self.stepper_head.get_is_left_leg_in_contact()
         # check which foot is in contact
         if(self.stepper_head.get_is_left_leg_in_contact()):
             # flying foot is the right foot
