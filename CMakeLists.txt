@@ -69,6 +69,7 @@ add_library( ${PROJECT_NAME} SHARED
   src/stepper_head.cpp
   src/dcm_vrp_planner.cpp
   src/end_effector_trajectory_3d.cpp
+  src/dcm_reactive_stepper.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
@@ -119,6 +120,7 @@ pybind11_add_module(py_${PROJECT_NAME}
     srcpy/stepper_head.cpp
     srcpy/dcm_vrp_planner.cpp
     srcpy/end_effector_trajectory_3d.cpp
+    srcpy/dcm_reactive_stepper.cpp
 )
 target_link_libraries(
     py_${PROJECT_NAME} PRIVATE ${PROJECT_NAME} ${catkin_LIBRARIES})

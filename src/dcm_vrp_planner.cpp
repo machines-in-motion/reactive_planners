@@ -305,7 +305,6 @@ bool DcmVrpPlanner::solve()
                 "DcmVrpPlanner::compute_adapted_step_locations(): "
                 "failed to solve the QP.";
             std::cout << "Error: " << error << std::endl;
-            print_solver();
             failure = true;
         }
     }
