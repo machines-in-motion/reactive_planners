@@ -30,7 +30,7 @@ class DcmReactiveStepper(object):
         self.current_support_foot = np.zeros((3, 1))
         self.previous_support_foot[:] = previous_support_foot
         self.current_support_foot[:] = current_support_foot
-        self.stepper_head.set_feet_pos(self.previous_support_foot, self.current_support_foot)
+        self.stepper_head.set_support_feet_pos(self.previous_support_foot, self.current_support_foot)
         # Create the dcm vrp planner and initialize it.
         self.dcm_vrp_planner = DcmVrpPlanner()
         self.dcm_vrp_planner.initialize(l_min, l_max, w_min, w_max, t_min,
@@ -65,7 +65,7 @@ class DcmReactiveStepper(object):
 
     def run(self, time, current_flying_foot_position, current_support_foot_position, com_position, com_velocity, base_yaw):
         if current_support_foot_position is not None:
-            self.stepper_head.set_feet_pos(self.stepper_head.get_previous_support_location(),
+            self.stepper_head.set_support_feet_pos(self.stepper_head.get_previous_support_location(),
                                            current_support_foot_position)
         self.stepper_head.run(
             self.duration_before_step_landing, current_flying_foot_position, time)

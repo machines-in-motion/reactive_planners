@@ -29,10 +29,14 @@ public:
 
     void init();
 
-    void set_feet_pos(
-            Eigen::Ref<Eigen::Vector3d> previous_support_location,
-            Eigen::Ref<Eigen::Vector3d> current_support_location){
+    void set_support_feet_pos(
+            Eigen::Ref<const Eigen::Vector3d> previous_support_location,
+            Eigen::Ref<const Eigen::Vector3d> current_support_location){
         previous_support_location_ = previous_support_location;
+        current_support_location_ = current_support_location;
+    }
+    void set_support_foot_pos(
+            Eigen::Ref<const Eigen::Vector3d> current_support_location){
         current_support_location_ = current_support_location;
     }
 

@@ -47,7 +47,11 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
              &DcmReactiveStepper::get_time_from_last_step_touchdown)
         .def("get_flying_foot_position",
              &DcmReactiveStepper::get_flying_foot_position)
+        .def("get_is_left_leg_in_contact",
+             &DcmReactiveStepper::get_is_left_leg_in_contact)
         // Setters
         .def("set_desired_com_velocity",
-             &DcmReactiveStepper::set_desired_com_velocity);
+             &DcmReactiveStepper::set_desired_com_velocity)
+        .def("set_costs",
+             &DcmReactiveStepper::set_costs);
 }

@@ -50,7 +50,9 @@ public:
                     const double &com_height,
                     const Eigen::Vector9d &weight,
                     const double &mid_air_foot_height,
-                    const double &control_period);
+                    const double &control_period,
+                    Eigen::Ref<const Eigen::Vector3d> left_foot_position,
+                    Eigen::Ref<const Eigen::Vector3d> right_foot_position);
 
     /**
      * @brief
@@ -99,6 +101,14 @@ public:
         Eigen::Ref<const Eigen::Vector3d> desired_com_velocity)
     {
         desired_com_velocity_ = desired_com_velocity;
+    }
+
+    /** @brief Set the costs of x, y, z axes, and hessian regularization.
+    *
+    * @param hess_regularization
+    */
+    void set_costs(double cost_x, double cost_y, double cost_z, double hess_regularization){
+        end_eff_traj3d_.set_costs(cost_x, cost_y, cost_z, hess_regularization);
     }
 
     /*
@@ -252,7 +262,6 @@ public:
             return left_foot_position_;
         }
     }
-
     /*
      * Private methods
      */

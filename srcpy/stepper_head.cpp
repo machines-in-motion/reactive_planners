@@ -28,6 +28,6 @@ void bind_stepper_head(pybind11::module &module)
              &StepperHead::get_previous_support_location)
         .def("get_current_support_location",
              &StepperHead::get_current_support_location)
-        .def("set_feet_pos",
-             &StepperHead::set_feet_pos);
+        .def("set_support_feet_pos",
+             &StepperHead::set_support_feet_pos);
 }
