@@ -207,7 +207,7 @@ if __name__ == "__main__":
         # torque = joint_controller(q, desired_q, qdot, desired_qdot, kp_joint, kd_joint, cnt_array)
         tau = bolt_leg_ctrl.return_joint_torques(q.copy(), qdot.copy(), zero_cnt_gain(kp, cnt_array),
                                                  zero_cnt_gain(kd, cnt_array),
-                                                 x_des_local.copy(), [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],F)
+                                                 x_des_local, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],F)
 
         plt_F.append(F)
         plt_x.append(x_des_local)
