@@ -43,7 +43,6 @@ class DcmReactiveStepper(object):
         self.is_left_leg_in_contact = is_left_leg_in_contact
         self.duration_before_step_landing = 0.0
         self.time_from_last_step_touchdown = 0.0
-        self.next_suset_des_com_velpport_foot = np.zeros((3, 1))
         self.des_com_vel = np.zeros((3, 1))
         self.right_foot_position = np.zeros((3, 1))
         self.right_foot_position[:] = previous_support_foot
