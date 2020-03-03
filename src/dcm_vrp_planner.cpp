@@ -223,7 +223,7 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     current_step_location_local_ = world_M_local_.actInv(tmp);
 
     // dcm nominal
-    dcm_nominal_ = (com_vel / omega_ + com - current_step_location) * tau_nom_;//Lhum !!!!!!!!!!!!!!
+    dcm_nominal_ = (com_vel / omega_ + com - current_step_location) * tau_nom_;
     dcm_nominal_(2) = 0.0;
 
     // Quadratic cost matrix is constant
