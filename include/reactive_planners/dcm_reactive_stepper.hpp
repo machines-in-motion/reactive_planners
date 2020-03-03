@@ -105,9 +105,12 @@ public:
 
     /** @brief Set the costs of x, y, z axes, and hessian regularization.
     *
+    * @param cost_x
+    * @param cost_y
+    * @param cost_z
     * @param hess_regularization
     */
-    void set_costs(double cost_x, double cost_y, double cost_z, double hess_regularization){
+    void set_end_eff_traj_costs(double cost_x, double cost_y, double cost_z, double hess_regularization){
         end_eff_traj3d_.set_costs(cost_x, cost_y, cost_z, hess_regularization);
     }
 

@@ -52,6 +52,6 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
         // Setters
         .def("set_desired_com_velocity",
              &DcmReactiveStepper::set_desired_com_velocity)
-        .def("set_costs",
-             &DcmReactiveStepper::set_costs);
+        .def("set_end_eff_traj_costs",
+             &DcmReactiveStepper::set_end_eff_traj_costs);
 }

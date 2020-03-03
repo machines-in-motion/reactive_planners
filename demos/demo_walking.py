@@ -22,7 +22,7 @@ if __name__ == "__main__":
                                               mid_air_foot_height=.05, control_period=0.001,
                                               previous_support_foot=[[0.], [-0.075], [0.]],
                                               current_support_foot=[[0.], [0.075], [0.]])
-    dcm_reactive_stepper.set_costs(1e1, 1e1, 1e0, 1e-6)
+    dcm_reactive_stepper.set_end_eff_traj_costs(1e1, 1e1, 1e0, 1e-6)
     v_des = np.zeros((3, 1)); v_des[:] = [[.0], [.0], [.0]]
     dcm_reactive_stepper.set_des_com_vel(v_des)
     x_com = np.zeros((3, 1)); x_com[:] = [[.0], [.0], [.26487417]]

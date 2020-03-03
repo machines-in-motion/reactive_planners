@@ -83,7 +83,7 @@ if __name__ == "__main__":
                                     weight, mid_air_foot_height, control_period, x_des_local[:3], x_des_local[3:])
     #previous_support_foot=[[0.0], [-0.075], [0.]],
     #current_support_foot=[[0.0], [0.075], [0.]]
-    dcm_reactive_stepper.set_costs(1e1, 1e1, 1e0, 1e-9)
+    dcm_reactive_stepper.set_end_eff_traj_costs(1e1, 1e1, 1e0, 1e-9)
     v_des = [0., .0, .0]
     dcm_reactive_stepper.set_desired_com_velocity(v_des)
 

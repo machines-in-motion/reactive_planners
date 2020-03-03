@@ -56,7 +56,7 @@ class DcmReactiveStepper(object):
         self.left_foot_acceleration = np.zeros((3, 1))
         self.feasible_velocity = np.zeros((3, 1))
 
-    def set_costs(self, cost_x, cost_y, cost_z, hess_regularization):
+    def set_end_eff_traj_costs(self, cost_x, cost_y, cost_z, hess_regularization):
         self.end_eff_traj3d.set_costs(cost_x, cost_y, cost_z, hess_regularization)
 
     def set_des_com_vel(self, des_com_vel):
