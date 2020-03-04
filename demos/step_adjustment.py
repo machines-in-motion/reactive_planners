@@ -50,11 +50,11 @@ class StepAdjustment:
         for i in range(1000):
             print(i)
             t += 0.001
-            if i is not 0 and t > self.dcm_vrp_planner.get_duration_before_step_landing:
+            if i is not 0 and t > self.dcm_vrp_planner.get_duration_before_step_landing():
                 self.time_step.append(i)
                 last_x_com = x_com
                 last_xd_com = xd_com
-                u_current_step = self.dcm_vrp_planner.get_next_step_location.copy()
+                u_current_step = self.dcm_vrp_planner.get_next_step_location().copy()
                 t = 0.
                 self.is_left_leg_in_contact = not self.is_left_leg_in_contact
 
@@ -72,33 +72,32 @@ class StepAdjustment:
                      (self.omega * 0.5 * (last_x_com - u_current_step - (last_xd_com / self.omega)) *
                       pow(np.e, (-self.omega * t)))
 
-            # if i == 300:
-            #     xd_com += 10
-
             self.update_planner(u_current_step, t * 1.0, v_des, x_com, xd_com, 0)
 
             self.xPhHistory.append(xPh.copy())
             self.xdPhHistory.append(xdPh.copy())
             self.x_com_history.append(x_com.copy())
             self.xd_com_history.append(xd_com.copy())
-            self.t_nom.append(self.dcm_vrp_planner.get_t_nom)
-            self.tau_nom.append(self.dcm_vrp_planner.get_tau_nom)
-            self.l_nom.append(self.dcm_vrp_planner.get_l_nom)
-            self.w_nom.append(self.dcm_vrp_planner.get_w_nom)
-            self.bx_nom.append(self.dcm_vrp_planner.get_bx_nom)
-            self.by_nom.append(self.dcm_vrp_planner.get_by_nom)
-            self.dcm_local.append(self.dcm_vrp_planner.get_dcm_local.copy())
-            self.current_step_location_local.append(self.dcm_vrp_planner.get_current_step_location_local.copy())
-            self.dcm_nominal.append(self.dcm_vrp_planner.get_dcm_nominal.copy())
-            self.next_step_location.append(self.dcm_vrp_planner.get_next_step_location.copy())
+            self.t_nom.append(self.dcm_vrp_planner.get_t_nom())
+            self.tau_nom.append(self.dcm_vrp_planner.get_tau_nom())
+            self.l_nom.append(self.dcm_vrp_planner.get_l_nom())
+            self.w_nom.append(self.dcm_vrp_planner.get_w_nom())
+            self.bx_nom.append(self.dcm_vrp_planner.get_bx_nom())
+            self.by_nom.append(self.dcm_vrp_planner.get_by_nom())
+            self.dcm_local.append(self.dcm_vrp_planner.get_dcm_local().copy())
+            self.current_step_location_local.append(self.dcm_vrp_planner.get_current_step_location_local().copy())
+            self.dcm_nominal.append(self.dcm_vrp_planner.get_dcm_nominal().copy())
+            self.next_step_location.append(self.dcm_vrp_planner.get_next_step_location().copy())
             self.current_step_location.append(u_current_step.copy())
-            self.duration_before_step_landing.append(self.dcm_vrp_planner.get_duration_before_step_landing)
+            self.duration_before_step_landing.append(self.dcm_vrp_planner.get_duration_before_step_landing())
             self.last_x_com_history.append(last_x_com)
             self.last_xd_com_history.append(last_xd_com)
 
         self.plot()
 
-
+    def update_planner(self, u_current_step, t, v_des, x_com, xd_com, yaw):
+        self.dcm_vrp_planner.update(u_current_step, t, self.is_left_leg_in_contact, v_des, x_com, xd_com, yaw)
+        self.dcm_vrp_planner.solve()
 
     def plot(self):
         fig1, ax1 = plt.subplots(1, 1)
@@ -141,3 +140,11 @@ class StepAdjustment:
             if v == 1:
                 gain[3 * i:3 * (i + 1)] = 0.
         return gain
+
+
+if __name__ == "__main__":
+    planner = StepAdjustment(is_left_leg_in_contact=True, l_min=-0.5, l_max=0.5, w_min=-0.5, w_max=0.5, t_min=0.1,
+                             t_max=0.2, l_p=0.1235 * 2, com_height=0.26487417,
+                             weight=[1, 1, 5, 100, 100, 100, 100, 100, 100])
+    planner.simulator(u_current_step=np.array([.0, 0.1235, .0]), v_des=np.array([.0, .0, .0]),
+                      x_com=np.array([.0, .0, .2]), xd_com=np.array([.0, .0, .0]))

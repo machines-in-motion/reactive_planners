@@ -48,7 +48,9 @@ void DcmReactiveStepper::initialize(const bool &is_left_leg_in_contact,
                                     const double &com_height,
                                     const Eigen::Vector9d &weight,
                                     const double &mid_air_foot_height,
-                                    const double &control_period)
+                                    const double &control_period,
+                                    Eigen::Ref<const Eigen::Vector3d> left_foot_position,
+                                    Eigen::Ref<const Eigen::Vector3d> right_foot_position)
 {
     // Initialize the dcm vrp planner and initialize it.
     dcm_vrp_planner_.initialize(
@@ -66,12 +68,20 @@ void DcmReactiveStepper::initialize(const bool &is_left_leg_in_contact,
     next_support_foot_position_.setZero();
     desired_com_velocity_.setZero();
     right_foot_position_.setZero();
+    right_foot_position_ = right_foot_position;
     right_foot_velocity_.setZero();
     right_foot_acceleration_.setZero();
     left_foot_position_.setZero();
+    left_foot_position_ = left_foot_position;
     left_foot_velocity_.setZero();
     left_foot_acceleration_.setZero();
     feasible_com_velocity_.setZero();
+    if(is_left_leg_in_contact_){
+        stepper_head_.set_support_feet_pos(right_foot_position, left_foot_position);
+    }
+    else{
+        stepper_head_.set_support_feet_pos(left_foot_position, right_foot_position);
+    }
     running_ = false;
 }
 
@@ -123,13 +133,19 @@ bool DcmReactiveStepper::walk(
         stepper_head_.run(step_duration_, left_foot_position, time);
     }
     // Extract the usefull informations.
+    is_left_leg_in_contact_ = stepper_head_.get_is_left_leg_in_contact();
+    if(is_left_leg_in_contact_){
+        stepper_head_.set_support_foot_pos(left_foot_position);
+    }
+    else{
+        stepper_head_.set_support_foot_pos(right_foot_position);
+    }
     time_from_last_step_touchdown_ =
         stepper_head_.get_time_from_last_step_touchdown();
     current_support_foot_position_ =
         stepper_head_.get_current_support_location();
     previous_support_foot_position_ =
         stepper_head_.get_previous_support_location();
-    is_left_leg_in_contact_ = stepper_head_.get_is_left_leg_in_contact();
 
     // Run the DcmVrpPlanner to get the next foot step location.
     dcm_vrp_planner_.update(current_support_foot_position_,

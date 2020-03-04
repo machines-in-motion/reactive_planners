@@ -23,6 +23,7 @@ void bind_end_effector_trajectory_3d(pybind11::module &module) {
       .def("get_mid_air_height", &EndEffectorTrajectory3D::get_mid_air_height)
       .def("print_solver", &EndEffectorTrajectory3D::print_solver)
       .def("set_mid_air_height", &EndEffectorTrajectory3D::set_mid_air_height)
+      .def("set_costs", &EndEffectorTrajectory3D::set_costs)
 
       // String representation of the sovler.
       .def("__repr__", [](const EndEffectorTrajectory3D &planner) {
