@@ -71,6 +71,24 @@ public:
              Eigen::Ref<const Eigen::Vector3d> com_position,
              Eigen::Ref<const Eigen::Vector3d> com_velocity,
              const double &base_yaw);
+    /**
+     * @brief
+     *
+     * @param time
+     * @param current_flying_foot_position
+     * @param com_position
+     * @param com_velocity
+     * @param world_M_base
+     *
+     * @return bool, true upon success.
+     */
+    bool run(double time,
+             Eigen::Ref<const Eigen::Vector3d> left_foot_position,
+             Eigen::Ref<const Eigen::Vector3d> right_foot_position,
+             Eigen::Ref<const Eigen::Vector3d> com_position,
+             Eigen::Ref<const Eigen::Vector3d> com_velocity,
+             const pinocchio::SE3 &world_M_base);
+
 
     /**
      * @brief Start the stepping.
@@ -262,6 +280,56 @@ public:
             return left_foot_position_;
         }
     }
+    /**
+     * @brief Get the local foot position.
+     *
+     * @return const Eigen::Vector3d&
+     */
+    const Eigen::Vector3d &get_local_right_foot_position() const
+    {
+        return local_right_foot_position_;
+    }
+
+    /**
+     * @brief Get the local right foot velocity.
+     *
+     * @return const Eigen::Vector3d&
+     */
+    const Eigen::Vector3d &get_local_right_foot_velocity() const
+    {
+        return local_right_foot_velocity_;
+    }
+
+    /**
+     * @brief Get the local foot position.
+     *
+     * @return const Eigen::Vector3d&
+     */
+    const Eigen::Vector3d &get_local_left_foot_position() const
+    {
+        return local_left_foot_position_;
+    }
+
+    /**
+     * @brief Get the local left foot velocity.
+     *
+     * @return const Eigen::Vector3d&
+     */
+    const Eigen::Vector3d &get_local_left_foot_velocity() const
+    {
+        return local_left_foot_velocity_;
+    }
+
+    /**
+     * @brief Get the local frame.
+     *
+     * @return const pinocchio::SE3&
+     */
+    const pinocchio::SE3 &get_local_frame()
+    {
+        return local_frame_;
+    }
+
     /*
      * Private methods
      */
@@ -282,7 +350,7 @@ private:
               Eigen::Ref<const Eigen::Vector3d> right_foot_position,
               Eigen::Ref<const Eigen::Vector3d> com_position,
               Eigen::Ref<const Eigen::Vector3d> com_velocity,
-              const double &base_yaw);
+              const pinocchio::SE3 &local_frame);
 
     /**
      * @brief Makes the robot stand still.
@@ -353,8 +421,36 @@ private:
     /** @brief The left foot 3d acceleration. */
     Eigen::Vector3d left_foot_acceleration_;
 
+    /** @brief The right foot 3d position with respect to the base in frame
+     * parallele to the world frame with the base yaw orientation. */
+    Eigen::Vector3d local_right_foot_position_;
+
+    /** @brief The right foot 3d velocity with respect to the base in frame
+     * parallele to the world frame with the base yaw orientation. */
+    Eigen::Vector3d local_right_foot_velocity_;
+
+    /** @brief The left foot position with respect to the base in frame
+     * parallele to the world frame with the base yaw orientation. */
+    Eigen::Vector3d local_left_foot_position_;
+
+    /** @brief The left foot 3d velocity with respect to the base in frame
+     * parallele to the world frame with the base yaw orientation. */
+    Eigen::Vector3d local_left_foot_velocity_;
+
     /** @brief The feasible center of mass velocity achievable by the robot. */
     Eigen::Vector3d feasible_com_velocity_;
+
+    /** @brief This frame is located at a the constant CoM height, and at the
+     * current CoM XY position. The roll and pitch are null and the yaw comes
+     * from the current robot base yaw orientation.
+     */
+    pinocchio::SE3 local_frame_;
+
+    /** @brief base height - CoM height. */
+    double com_base_height_difference_;
+
+    /** @brief True only unit the first iteration is past. */
+    bool first_iteration_;
 
     /** @brief Define if we compute a solution or stay still. */
     bool running_;

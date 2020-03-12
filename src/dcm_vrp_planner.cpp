@@ -136,6 +136,7 @@ void DcmVrpPlanner::compute_nominal_step_values(
         t_upper_bound = max_or_min_time.minCoeff();
     }
     t_nom_ = (t_lower_bound + t_upper_bound) * 0.5;
+    std::cout << "t " << t_lower_bound << "!!!!!" << t_upper_bound << std::endl;
     tau_nom_ = exp(omega_ * t_nom_);
     l_nom_ = v_des_local(0) * t_nom_;
     if(is_left_leg_in_contact)
@@ -201,16 +202,27 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     double ground_height = 0.0;
 
     // Local frame parallel to the world frame and aligned with the base yaw.
+    std::cout << "Debug world_M_local_.rotation2 " << world_M_local_.rotation() << std::endl;
     world_M_local_.translation() << world_M_base.translation()(0),
         world_M_base.translation()(1), ground_height;
     Eigen::Vector3d rpy = world_M_base.rotation().eulerAngles(0, 1, 2);
-    world_M_local_.rotation() =
-        Eigen::AngleAxisd(rpy[2], Eigen::Vector3d::UnitZ());
+    std::cout << "Debug world_M_local_.rotation3 " << world_M_local_.rotation() << std::endl;
+    std::cout << "Lhum3 " << world_M_base.rotation()(0) << " " << world_M_base.rotation()(2) << " " << acos(world_M_base.rotation()(0) / cos(asin(world_M_base.rotation()(2)))) << std::endl;
+    std::cout << "Debug rpy                                     " << rpy[2] << std::endl;
+    world_M_local_.rotation() = world_M_base.rotation();//Eigen::AngleAxisd(rpy[2], Eigen::Vector3d::UnitZ());
+    std::cout << "Lhum5 second: " << world_M_local_.rotation() << std::endl;
+    std::cout << "Lhum5 " << rpy[0] << " " << rpy[1] << " " << rpy[2] << std::endl;
+
 
     // Compute the DCM in the local frame.
     dcm_local_.head<2>() = com_vel.head<2>() / omega_ + com.head<2>();
     dcm_local_(2) = ground_height;
+    std::cout << "dcm_local: " << dcm_local_ << std::endl;
     dcm_local_ = world_M_local_.actInv(dcm_local_);
+    std::cout << "dcm_local2: " << dcm_local_ << std::endl;
+    std::cout << "com" << com_vel.head<2>() << "!!!!!!" << com.head<2>() << std::endl;
+    if(world_M_base.rotation() != world_M_local_.rotation())
+        std::cout << "Lhum5  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
 
     // Express the desired velocity in the local frame.
     v_des_local_ = v_des;
@@ -223,7 +235,7 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     current_step_location_local_ = world_M_local_.actInv(tmp);
 
     // dcm nominal
-    dcm_nominal_ = (com_vel / omega_ + com - current_step_location) * tau_nom_;//Lhum !!!!!!!!!!!!!!
+    dcm_nominal_ = (com_vel / omega_ + com - current_step_location) * tau_nom_;
     dcm_nominal_(2) = 0.0;
 
     // Quadratic cost matrix is constant
