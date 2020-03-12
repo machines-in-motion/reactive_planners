@@ -94,7 +94,7 @@ macro(add_unit_test src_file)
 endmacro()
 
 add_unit_test(dcm_vrp_planner_ut)
-
+add_unit_test(end_effector_trajectory_3d_ut)
 
 ####################
 # Demo executables #

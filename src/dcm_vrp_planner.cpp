@@ -203,8 +203,8 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
 
     // Local frame parallel to the world frame and aligned with the base yaw.
     world_M_local_.translation() << world_M_base.translation()(0),
-        world_M_base.translation()(1), ground_height;
-    Eigen::Vector3d rpy = world_M_base.rotation().eulerAngles(0, 1, 2);
+        world_M_base.translation()(1), ht_;
+    Eigen::Vector3d rpy = world_M_base.rotation().eulerAngles(2, 1, 0).reverse();
     world_M_local_.rotation() =
         Eigen::AngleAxisd(rpy[2], Eigen::Vector3d::UnitZ());
 

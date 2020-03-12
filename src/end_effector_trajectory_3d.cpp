@@ -102,7 +102,7 @@ bool EndEffectorTrajectory3D::compute(
 
   // Do not compute the QP if the solution is trivial or too close to the end of
   // the trajectory.
-  if (current_time_ < start_time_ || local_current_time >= 0.7) {
+  if (current_time_ < start_time_ - 1e-4 || local_current_time >= 0.7) {
     return true;
   } else {
     last_end_time_seen_ = end_time;
@@ -257,7 +257,7 @@ void EndEffectorTrajectory3D::get_next_state(
   double duration = (last_end_time_seen_ - start_time_);
   double local_current_time = (next_time - start_time_) / duration;
 
-  if (current_time_ < start_time_) {
+  if (current_time_ < start_time_ - 1e-4) {
     next_pose = start_pose_;
     next_velocity.setZero();
     next_acceleration.setZero();
@@ -288,16 +288,13 @@ void EndEffectorTrajectory3D::get_next_state(
     ddt_vec(local_current_time, time_vec_z_);
     next_acceleration << x_opt_.head(nb_var_x_).transpose() * time_vec_x_,
         x_opt_.segment(nb_var_x_, nb_var_y_).transpose() * time_vec_y_,
-        x_opt_.tail(nb_var_z_).transpose() * time_vec_z_;
+        x_opt_.tail(nb_var_z_).transpose() * time_vec_z_;    
 
     // Rescale to non-local time.
     next_velocity = next_velocity / duration;
     next_acceleration = next_acceleration / (duration * duration);
   }
   previous_solution_pose_ = next_pose;
-
-  next_velocity *= duration;
-  next_acceleration *= duration * duration;
 }
 
 std::string EndEffectorTrajectory3D::to_string() const {
