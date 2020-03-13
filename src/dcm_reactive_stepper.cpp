@@ -170,11 +170,10 @@ bool DcmReactiveStepper::run(
 
 //    local_right_foot_position_ =
 //        right_foot_position_ - local_frame_.translation();
-    std::cout << "Lhumvel " << com_velocity << std::endl;
-//    right_foot_velocity_ = right_foot_velocity_ - com_velocity;
+//    local_right_foot_velocity_ = right_foot_velocity_ - com_velocity;
 //    local_left_foot_position_ =
 //        left_foot_position_ - local_frame_.translation();
-//    left_foot_velocity_ = left_foot_velocity_ - com_velocity;
+//    local_left_foot_velocity_ = left_foot_velocity_ - com_velocity;
 
     return succeed;
 }

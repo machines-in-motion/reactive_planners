@@ -264,6 +264,8 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     by_max = -by_max_out_;
     by_min = -by_max_in_;
   }
+  std::cout << "Lhumb" << is_left_leg_in_contact << " " << bx_nom_ << " " << by_nom_ << std::endl;
+  std::cout << "LhumW_nom" << is_left_leg_in_contact << " " << w_nom_ << std::endl;
     // clang-format off
   B_ineq_ <<  l_max_,                // 0
               w_max_local,           // 1
@@ -325,6 +327,7 @@ bool DcmVrpPlanner::solve()
     {
         // Extract the information from the solution.
         x_opt_ = qp_solver_.result();
+        std::cout << "Lhumx_opt" << x_opt_ << std::endl;
         next_step_location_ =
             current_step_location_local_ +
             (Eigen::Vector3d() << x_opt_(0), x_opt_(1), 0.0).finished();
