@@ -18,10 +18,10 @@ EndEffectorTrajectory3D::EndEffectorTrajectory3D() {
   nb_var_x_ = 6; // Polynome order 5
   nb_var_y_ = 6; // Polynome order 5
   nb_var_z_ = 9; // Polynome order 7
-  cost_x_ = 1e0; /** @todo EndEffectorTrajectory3D::cost_x_ to be tuned. */
-  cost_y_ = 1e0; /** @todo EndEffectorTrajectory3D::cost_y_ to be tuned. */
+  cost_x_ = 1e1; /** @todo EndEffectorTrajectory3D::cost_x_ to be tuned. */
+  cost_y_ = 1e1; /** @todo EndEffectorTrajectory3D::cost_y_ to be tuned. */
   cost_z_ = 1e0; /** @todo EndEffectorTrajectory3D::cost_z_ to be tuned. */
-  double hess_regul = 1e-6;
+  double hess_regul = 1e-9;
 
   // Variable parameters.
   // clang-format off

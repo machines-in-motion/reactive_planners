@@ -45,7 +45,7 @@ if __name__ == "__main__":
     # Create a robot instance. This initializes the simulator as well.
     robot = BoltRobot()
     tau = np.zeros(6)
-    p.resetDebugVisualizerCamera(1.7, 135, -30, (0, 0, 0.1))
+    p.resetDebugVisualizerCamera(1.2, 50, -35, (0., 0., 0.))
     p.setTimeStep(0.001)
     # p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "turnRight.mp4")
 
@@ -55,14 +55,14 @@ if __name__ == "__main__":
     total_mass = 1.13  # sum([i.mass for i in robot.pin_robot.model.inertias[1:]])
     warmup = 10
     kp = np.array([150., 150., 150., 150., 150., 150.])
-    kd = [5., 5., 5., 5., 5., 5.]
+    kd = [15., 15., 15., 15., 15., 15.]
     kp_joint = np.array([2., 2., 2., 2., 2., 2.])
     kd_joint = [.1, .01, .01, .1, .01, .01]
     x_ori = [0., 0., 0., 1.]
     x_angvel = [0., 0., 0]
     bolt_leg_ctrl = BoltImpedanceController(robot)
     centr_controller = BoltCentroidalController(robot.pin_robot, total_mass, mu=1, kp=[0, 0, 100], kd=[0, 0, 10],
-                                                kpa=[100, 100, 100], kda=[0., 0, 0], eff_ids=robot.pinocchio_endeff_ids)
+                                                kpa=[100, 100, 100], kda=[10., 10, 10], eff_ids=robot.pinocchio_endeff_ids)
 
     sim = LipmSimpulator(.2)
     dcm_reactive_stepper = DcmReactiveStepper()
@@ -70,15 +70,15 @@ if __name__ == "__main__":
     l_min = -0.12
     l_max = 0.12
     w_min = -0.1
-    w_max = 0.2
-    t_min = 0.1
-    t_max = 0.2
+    w_max = 0.3
+    t_min = 0.2
+    t_max = 0.5
     l_p = 0.1235 * 1
     com_height = 0.26487417
     weight = [1, 1, 5, 1000, 1000, 100000, 100000, 100000, 100000]
     mid_air_foot_height = .05
     control_period = 0.001
-    x_des_local = [0., 0.075, 0., 0., -0.075, 0.]
+    x_des_local = [0., 0.01, 0., 0., -0.01, 0.]
     dcm_reactive_stepper.initialize(is_left_leg_in_contact, l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height,
                                     weight, mid_air_foot_height, control_period, x_des_local[:3], x_des_local[3:])
     #previous_support_foot=[[0.0], [-0.075], [0.]],
@@ -113,6 +113,7 @@ if __name__ == "__main__":
     plt_dcm_local = []
     plt_left_eef_real_pos = []
     plt_right_eef_real_pos = []
+    plt_r = []
     plt_is_left_in_contact = []
     plt_pos_des_local = []
     plt_q_com = []
@@ -127,7 +128,7 @@ if __name__ == "__main__":
     plt_next_step_location = []
 
     dcm_reactive_stepper.start()
-    for i in range(30000):
+    for i in range(3000):
         q, qdot = robot.get_state()
         robot.pin_robot.com(q, qdot)
         x_com = robot.pin_robot.com(q, qdot)[0]
@@ -188,6 +189,8 @@ if __name__ == "__main__":
 
         for j in range(2):
             imp = bolt_leg_ctrl.imps[j]
+            print("LhumImp", j, " ", np.array(imp.pin_robot.data.oMf[imp.frame_root_idx].translation).\
+                                                       reshape(-1))
             x_des_local[3 * j:3 * (j + 1)] -= np.array(imp.pin_robot.data.oMf[imp.frame_root_idx].translation).\
                                                        reshape(-1)
             if j == 0:
@@ -205,10 +208,16 @@ if __name__ == "__main__":
 
         F = centr_controller.compute_force_qp(q, qdot, cnt_array, w_com)
         # torque = joint_controller(q, desired_q, qdot, desired_qdot, kp_joint, kd_joint, cnt_array)
-        tau = bolt_leg_ctrl.return_joint_torques(q.copy(), qdot.copy(), zero_cnt_gain(kp, cnt_array),
+        print("$$$$$$$$$$$$$")
+        print([qdot[0].item(), qdot[1].item(), qdot[2].item()])
+        print(dcm_reactive_stepper.get_left_foot_velocity() - [qdot[0].item(), qdot[1].item(), qdot[2].item()])
+        des_vel = np.concatenate((dcm_reactive_stepper.get_left_foot_velocity() -[qdot[0].item(), qdot[1].item(), qdot[2].item()],
+                                  dcm_reactive_stepper.get_right_foot_velocity() - [qdot[0].item(), qdot[1].item(), qdot[2].item()]))
+        print(dcm_reactive_stepper.get_left_foot_velocity() + dcm_reactive_stepper.get_right_foot_velocity())
+        tau, r = bolt_leg_ctrl.return_joint_torques(q.copy(), qdot.copy(), zero_cnt_gain(kp, cnt_array),
                                                  zero_cnt_gain(kd, cnt_array),
-                                                 x_des_local.copy(), [0.0, 0.0, 0.0, 0.0, 0.0, 0.0],F)
-
+                                                 x_des_local, des_vel, F)
+        plt_r.append(r)
         plt_F.append(F)
         plt_x.append(x_des_local)
         plt_tau.append(tau)
@@ -226,7 +235,7 @@ if __name__ == "__main__":
         robot.send_joint_command(tau)
         p.stepSimulation()
         # Time.sleep(0.01)
-
+    print(plt_step_time)
     dcm_reactive_stepper.stop()
     # p.stopStateLogging()
 
@@ -291,9 +300,9 @@ if __name__ == "__main__":
     for time in plt_step_time:
         plt.axvline(time / 1000)
 
-    # plt.figure("tau")
-    # plt.plot(plt_time[:], np.array(plt_tau)[warmup:, :, 0], label="tau")
-    # plt.legend()
+    plt.figure("tau")
+    plt.plot(plt_time[:], np.array(plt_tau)[warmup:, :, 0], label="tau")
+    plt.legend()
 
     plt.figure("z")
     plt.plot(plt_time, np.array(plt_left_foot_position)[:, 2], label="left")
@@ -328,10 +337,11 @@ if __name__ == "__main__":
     # plt.plot(plt_time, np.array(plt_current_support_foot)[:,1])
     # plt.plot(plt_time, np.array(plt_current_support_foot)[:,2])
 
-    # plt.figure("warmup2")
+    plt.figure("warmup2")
     # plt.plot(np.array(plt_x)[:, :], label="des")
-    # plt.plot(np.array(plt_r)[:, :], label = "real")
-    # plt.legend()
+    # plt.plot(np.array(plt_r)[warmup:, 2, 0], label = "real")
+    plt.plot(np.array(plt_F)[warmup:, :], label = "Force")
+    plt.legend()
     #
     # plt.figure("warm up")
     # plt.plot(np.array(plt_left_eef_real_pos)[1:, :], label="left_eef_real_pos")
