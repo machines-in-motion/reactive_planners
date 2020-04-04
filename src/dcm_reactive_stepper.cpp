@@ -53,8 +53,6 @@ void DcmReactiveStepper::initialize(const bool &is_left_leg_in_contact,
                                     Eigen::Ref<const Eigen::Vector3d> left_foot_position,
                                     Eigen::Ref<const Eigen::Vector3d> right_foot_position)
 {
-    std::cout << "initialize!!!!!!!!!!!!!!!!!!!\n";
-    std::cout << "L&R position1  " << left_foot_position << " " << right_foot_position << std::endl;
     // Initialize the dcm vrp planner and initialize it.
     dcm_vrp_planner_.initialize(
         l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight);
@@ -136,18 +134,11 @@ bool DcmReactiveStepper::run(
     //     first_iteration_ = false;
     // }
     local_frame_ = world_M_base;
-    std::cout << "Lhum5 first: " << world_M_base.rotation() << std::endl;
 //    local_frame_.translation()(2) =
 //        dcm_vrp_planner_.get_com_height() + com_base_height_difference_;
 //    local_frame_.rotation() =
 //        Eigen::AngleAxisd(world_M_base.rotation().eulerAngles(2, 1, 0)(2),
 //                          Eigen::Vector3d::UnitZ());
-    std::cout << "Debug eulerAngles " << world_M_base.rotation().eulerAngles(2, 1, 0)(0) << "\n"
-                                      << world_M_base.rotation().eulerAngles(2, 1, 0)(1) << "\n"
-                                      << world_M_base.rotation().eulerAngles(2, 1, 0)(2) << "\n";
-    std::cout << "Debug world_M_local_.rotation0.7 " << local_frame_.rotation() << std::endl;
-
-
     bool succeed = true;
     if (running_ ||
         (!running_ && time_from_last_step_touchdown_ + control_period_ +
@@ -186,7 +177,6 @@ bool DcmReactiveStepper::walk(
     Eigen::Ref<const Eigen::Vector3d> com_velocity,
     const pinocchio::SE3 &local_frame)
 {
-    std::cout << "L&R position2  " << left_foot_position_ << " " << right_foot_position_ << std::endl;
     bool succeed = true;
 
     // Run the scheduler of the planner.
@@ -279,7 +269,6 @@ bool DcmReactiveStepper::walk(
     feasible_com_velocity_ =
         (next_support_foot_position_ - previous_support_foot_position_) * 0.5;
     feasible_com_velocity_[2] = 0.0;
-    std::cout << "L&R position3  " << left_foot_position_ << " " << right_foot_position_ << std::endl;
     return succeed;
 }
 
