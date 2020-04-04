@@ -401,7 +401,7 @@ private:
     double t_max_;
 
     /** @brief Nominal step time. */
-    double t_nom_;
+    double t_nom_ = 0.1;
 
     /** @brief Minimum step time in logarithmic scale:
      * \f$ e^{\omega t_{nom}} \f$*/
