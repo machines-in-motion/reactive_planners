@@ -26,7 +26,8 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
                                            Eigen::Ref<const Eigen::Vector3d>,
                                            Eigen::Ref<const Eigen::Vector3d>,
                                            Eigen::Ref<const Eigen::Vector3d>,
-                                           const double &)) &
+                                           const double &,
+                                           Eigen::Ref<const Eigen::Vector2d>)) &
                  DcmReactiveStepper::run)
         .def("run",
              (bool (DcmReactiveStepper::*)(double,
@@ -34,11 +35,22 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
                                            Eigen::Ref<const Eigen::Vector3d>,
                                            Eigen::Ref<const Eigen::Vector3d>,
                                            Eigen::Ref<const Eigen::Vector3d>,
-                                           const pinocchio::SE3 &)) &
+                                           const pinocchio::SE3 &,
+                                           Eigen::Ref<const Eigen::Vector2d>)) &
                  DcmReactiveStepper::run)
 
         .def("start", &DcmReactiveStepper::start)
         .def("stop", &DcmReactiveStepper::stop)
+        // Setters.
+        .def("set_right_foot_position",
+             &DcmReactiveStepper::set_right_foot_position)
+        .def("set_right_foot_velocity",
+             &DcmReactiveStepper::set_right_foot_velocity)
+        .def("set_left_foot_position",
+             &DcmReactiveStepper::set_left_foot_position)
+        .def("set_left_foot_velocity",
+             &DcmReactiveStepper::set_left_foot_velocity)
+
         // Getters.
         .def("get_right_foot_position",
              &DcmReactiveStepper::get_right_foot_position)
@@ -65,9 +77,11 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
              &DcmReactiveStepper::get_flying_foot_position)
         .def("get_is_left_leg_in_contact",
              &DcmReactiveStepper::get_is_left_leg_in_contact)
+        .def("get_forces",
+             &DcmReactiveStepper::get_forces)
         // Setters
         .def("set_desired_com_velocity",
-             &DcmReactiveStepper::set_desired_com_velocity)
-        .def("set_end_eff_traj_costs",
-             &DcmReactiveStepper::set_end_eff_traj_costs);
+             &DcmReactiveStepper::set_desired_com_velocity);
+//        .def("set_end_eff_traj_costs",
+//             &DcmReactiveStepper::set_end_eff_traj_costs);
 }

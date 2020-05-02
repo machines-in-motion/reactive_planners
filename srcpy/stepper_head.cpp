@@ -19,7 +19,7 @@ void bind_stepper_head(pybind11::module &module)
         .def(pybind11::init<>())
 
         // public methods
-        .def("run", &StepperHead::run)
+        //.def("run", &StepperHead::run)
         .def("get_time_from_last_step_touchdown",
              &StepperHead::get_time_from_last_step_touchdown)
         .def("get_is_left_leg_in_contact",

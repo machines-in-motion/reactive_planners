@@ -192,10 +192,10 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
 
     // Do not update after t_min_ for stability of the flying foot trajectory
     // reasons.
-    if (time_from_last_step_touchdown_ > 0.7 * t_nom_)
-    {
-        return;
-    }
+//    if (time_from_last_step_touchdown_ > 0.7 * t_nom_)
+//    {
+//        return;
+//    } Lhum 70
 
     // Ground height.
     double ground_height = 0.0;
@@ -252,6 +252,7 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     by_max = -by_max_out_;
     by_min = -by_max_in_;
   }
+  //tau_min_ = exp(omega_ * std::max(t_min_, time_from_last_step_touchdown_ + 0.001));
     // clang-format off
   B_ineq_ <<  l_max_,                // 0
               w_max_local,           // 1
@@ -284,10 +285,10 @@ bool DcmVrpPlanner::solve()
 {
     /* Here we stop optimizing after t_min because the foot trajectory does
     not follow up and the controller becomes unstable. */
-    if (time_from_last_step_touchdown_ > 0.7 * t_nom_)
-    {
-        return true;
-    }
+//    if (time_from_last_step_touchdown_ > 0.7 * t_nom_)
+//    {
+//        return true;
+//    } Lhum 70
 
     bool failure = false;
     if (!internal_checks())
@@ -376,9 +377,9 @@ bool DcmVrpPlanner::internal_checks()
     assert_DcmVrpPlanner(A_ineq_.rows() == 10);
     assert_DcmVrpPlanner(A_ineq_.cols() == x_opt_.size());
     assert_DcmVrpPlanner(B_ineq_.size() == 10);
-    assert_DcmVrpPlanner((t_min_ - log(tau_min_) / omega_) *
-                             (t_min_ - log(tau_min_) / omega_) <
-                         1e-8);
+//    assert_DcmVrpPlanner((t_min_ - log(tau_min_) / omega_) *
+//                             (t_min_ - log(tau_min_) / omega_) <
+//                         1e-8);
     assert_DcmVrpPlanner((t_max_ - log(tau_max_) / omega_) *
                              (t_max_ - log(tau_max_) / omega_) <
                          1e-8);

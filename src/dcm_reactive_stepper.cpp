@@ -8,7 +8,6 @@
  */
 
 #include "reactive_planners/dcm_reactive_stepper.hpp"
-#include <iostream>
 
 namespace reactive_planners
 {
@@ -93,6 +92,7 @@ void DcmReactiveStepper::initialize(const bool &is_left_leg_in_contact,
         current_support_foot_position_ = right_foot_position;
         previous_support_foot_position_ = left_foot_position_;
     }
+    forces_.resize(ceil(t_max * 1000) * 3);
     running_ = false;
 }
 
@@ -102,7 +102,8 @@ bool DcmReactiveStepper::run(
     Eigen::Ref<const Eigen::Vector3d> right_foot_position,
     Eigen::Ref<const Eigen::Vector3d> com_position,
     Eigen::Ref<const Eigen::Vector3d> com_velocity,
-    const double &base_yaw)
+    const double &base_yaw,
+    Eigen::Ref<const Eigen::Vector2d> contact)
 {
     Eigen::Vector3d base_pose;
     base_pose << 0, 0, dcm_vrp_planner_.get_com_height();
@@ -116,7 +117,8 @@ bool DcmReactiveStepper::run(
                right_foot_position,
                com_position,
                com_velocity,
-               world_M_base);
+               world_M_base,
+               contact);
 }
 
 bool DcmReactiveStepper::run(
@@ -125,7 +127,8 @@ bool DcmReactiveStepper::run(
     Eigen::Ref<const Eigen::Vector3d> right_foot_position,
     Eigen::Ref<const Eigen::Vector3d> com_position,
     Eigen::Ref<const Eigen::Vector3d> com_velocity,
-    const pinocchio::SE3 &world_M_base)
+    const pinocchio::SE3 &world_M_base,
+    Eigen::Ref<const Eigen::Vector2d> contact)
 {
     // if (first_iteration_)
     // {
@@ -150,7 +153,8 @@ bool DcmReactiveStepper::run(
              right_foot_position,
              com_position,
              com_velocity,
-             local_frame_);
+             local_frame_,
+             contact);
     }
     else
     {
@@ -175,18 +179,32 @@ bool DcmReactiveStepper::walk(
     Eigen::Ref<const Eigen::Vector3d> right_foot_position,
     Eigen::Ref<const Eigen::Vector3d> com_position,
     Eigen::Ref<const Eigen::Vector3d> com_velocity,
-    const pinocchio::SE3 &local_frame)
+    const pinocchio::SE3 &local_frame,
+    Eigen::Ref<const Eigen::Vector2d> contact)
 {
+    std::cout << "Lhum walk" << std::endl;
     bool succeed = true;
 
     // Run the scheduler of the planner.
-    if (is_left_leg_in_contact_)
-    {
-        stepper_head_.run(step_duration_, right_foot_position, time);
+    if(contact[0] == 0 && contact[1] == 0){
+        if (is_left_leg_in_contact_)
+        {
+            stepper_head_.run(step_duration_, right_foot_position, time);
+        }
+        else
+        {
+            stepper_head_.run(step_duration_, left_foot_position, time);
+        }
     }
-    else
-    {
-        stepper_head_.run(step_duration_, left_foot_position, time);
+    else{
+        if (is_left_leg_in_contact_)
+        {
+            stepper_head_.run(step_duration_, right_foot_position, time, contact[1]);
+        }
+        else
+        {
+            stepper_head_.run(step_duration_, left_foot_position, time, contact[0]);
+        }
     }
     // Extract the usefull informations.
     is_left_leg_in_contact_ = stepper_head_.get_is_left_leg_in_contact();
@@ -196,6 +214,7 @@ bool DcmReactiveStepper::walk(
     else{
         stepper_head_.set_support_foot_pos(right_foot_position);
     }
+    std::cout << "Lhum if" << std::endl;
     time_from_last_step_touchdown_ =
         stepper_head_.get_time_from_last_step_touchdown();
     current_support_foot_position_ =
@@ -204,6 +223,7 @@ bool DcmReactiveStepper::walk(
         stepper_head_.get_previous_support_location();
 
     // Run the DcmVrpPlanner to get the next foot step location.
+    std::cout << "Lhum update" << std::endl;
     dcm_vrp_planner_.update(current_support_foot_position_,
                             time_from_last_step_touchdown_,
                             is_left_leg_in_contact_,
@@ -211,6 +231,7 @@ bool DcmReactiveStepper::walk(
                             com_position,
                             com_velocity,
                             local_frame);
+    std::cout << "Lhum update end" << std::endl;
     succeed += succeed && dcm_vrp_planner_.solve();
     // Extract the usefull informations.
     step_duration_ = dcm_vrp_planner_.get_duration_before_step_landing();
@@ -219,6 +240,7 @@ bool DcmReactiveStepper::walk(
     double current_time = stepper_head_.get_time_from_last_step_touchdown();
     double end_time = dcm_vrp_planner_.get_duration_before_step_landing();
 
+    std::cout << "Lhum get" << std::endl;
     // Compute the flying foot trajectory.
     if (is_left_leg_in_contact_)  // check which foot is in contact
     {
@@ -232,11 +254,13 @@ bool DcmReactiveStepper::walk(
                                                start_time,
                                                current_time,
                                                end_time);
-
-        end_eff_traj3d_.get_next_state(current_time + control_period_,
+        std::cout << "Lhum compute" << std::endl;
+        nb_force_ = end_eff_traj3d_.get_forces(forces_,
                                        right_foot_position_,
                                        right_foot_velocity_,
                                        right_foot_acceleration_);
+        std::cout << "Lhum right pos " << right_foot_position_ << std::endl;
+        std::cout << "Lhum get_forces for right" << std::endl;
         // The current support foot does not move
         left_foot_position_ = current_support_foot_position_;
         left_foot_velocity_.setZero();
@@ -254,11 +278,13 @@ bool DcmReactiveStepper::walk(
                                                start_time,
                                                current_time,
                                                end_time);
-
-        end_eff_traj3d_.get_next_state(current_time + control_period_,
+        std::cout << "Lhum compute" << std::endl;
+        nb_force_ = end_eff_traj3d_.get_forces(forces_,
                                        left_foot_position_,
                                        left_foot_velocity_,
                                        left_foot_acceleration_);
+        std::cout << "Lhum left pos " << left_foot_position_ << std::endl;
+        std::cout << "Lhum get_forces for left" << std::endl;
         // The current support foot does not move
         right_foot_position_ = current_support_foot_position_;
         right_foot_velocity_.setZero();

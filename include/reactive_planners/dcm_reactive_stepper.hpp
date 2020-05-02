@@ -11,8 +11,9 @@
 #pragma once
 
 #include "reactive_planners/dcm_vrp_planner.hpp"
-#include "reactive_planners/end_effector_trajectory_3d.hpp"
+#include "reactive_planners/new_end_effector_trajectory_3d.hpp"
 #include "reactive_planners/stepper_head.hpp"
+#include <iostream>
 
 namespace reactive_planners
 {
@@ -70,7 +71,8 @@ public:
              Eigen::Ref<const Eigen::Vector3d> right_foot_position,
              Eigen::Ref<const Eigen::Vector3d> com_position,
              Eigen::Ref<const Eigen::Vector3d> com_velocity,
-             const double &base_yaw);
+             const double &base_yaw,
+             Eigen::Ref<const Eigen::Vector2d> contact);
     /**
      * @brief
      *
@@ -87,7 +89,8 @@ public:
              Eigen::Ref<const Eigen::Vector3d> right_foot_position,
              Eigen::Ref<const Eigen::Vector3d> com_position,
              Eigen::Ref<const Eigen::Vector3d> com_velocity,
-             const pinocchio::SE3 &world_M_base);
+             const pinocchio::SE3 &world_M_base,
+             Eigen::Ref<const Eigen::Vector2d> contact);
 
 
     /**
@@ -128,8 +131,48 @@ public:
     * @param cost_z
     * @param hess_regularization
     */
-    void set_end_eff_traj_costs(double cost_x, double cost_y, double cost_z, double hess_regularization){
-        end_eff_traj3d_.set_costs(cost_x, cost_y, cost_z, hess_regularization);
+//    void set_end_eff_traj_costs(double cost_x, double cost_y, double cost_z, double hess_regularization){
+//        end_eff_traj3d_.set_costs(cost_x, cost_y, cost_z, hess_regularization);
+//    }
+
+    /**
+     * @brief Set the right foot 3d position.
+     *
+     * @return const Eigen::Vector3d&
+     */
+    void set_right_foot_position(Eigen::Vector3d right_foot_position)
+    {
+        right_foot_position_ = right_foot_position;
+    }
+
+    /**
+     * @brief Set the right foot 3d velocity.
+     *
+     * @return const Eigen::Vector3d&
+     */
+    void set_right_foot_velocity(Eigen::Vector3d right_foot_velocity)
+    {
+        right_foot_velocity_= right_foot_velocity;
+    }
+
+    /**
+     * @brief Set the left foot 3d position.
+     *
+     * @return const Eigen::Vector3d&
+     */
+    void set_left_foot_position(Eigen::Vector3d left_foot_position)
+    {
+        left_foot_position_ = left_foot_position;
+    }
+
+    /**
+     * @brief Set the left foot 3d velocity.
+     *
+     * @return const Eigen::Vector3d&
+     */
+    void set_left_foot_velocity(Eigen::Vector3d left_foot_velocity)
+    {
+        left_foot_velocity_ = left_foot_velocity;
     }
 
     /*
@@ -332,6 +375,15 @@ public:
     {
         return local_frame_;
     }
+    /**
+     * @brief Get forces until the foot land.
+     *
+     * @return const Eigen::Vector3d&
+     */
+    const Eigen::Ref<const Eigen::VectorXd> get_forces()
+    {
+        return forces_.col(0).head(nb_force_);
+    }
 
     /*
      * Private methods
@@ -353,7 +405,8 @@ private:
               Eigen::Ref<const Eigen::Vector3d> right_foot_position,
               Eigen::Ref<const Eigen::Vector3d> com_position,
               Eigen::Ref<const Eigen::Vector3d> com_velocity,
-              const pinocchio::SE3 &local_frame);
+              const pinocchio::SE3 &local_frame,
+              Eigen::Ref<const Eigen::Vector2d> contact);
 
     /**
      * @brief Makes the robot stand still.
@@ -383,7 +436,7 @@ private:
     DcmVrpPlanner dcm_vrp_planner_;
 
     /** @brief Computes the end-effector flying trajectory. */
-    EndEffectorTrajectory3D end_eff_traj3d_;
+    NewEndEffectorTrajectory3D end_eff_traj3d_;
 
     /** @brief Is the left foot in contact? otherwize the right foot is. */
     bool is_left_leg_in_contact_;
@@ -443,6 +496,9 @@ private:
     /** @brief The feasible center of mass velocity achievable by the robot. */
     Eigen::Vector3d feasible_com_velocity_;
 
+    /** @brief All of forces calculated until the next contact. */
+    Eigen::VectorXd forces_;
+
     /** @brief This frame is located at a the constant CoM height, and at the
      * current CoM XY position. The roll and pitch are null and the yaw comes
      * from the current robot base yaw orientation.
@@ -457,6 +513,9 @@ private:
 
     /** @brief Define if we compute a solution or stay still. */
     bool running_;
+
+    /** @brief The number of acceptable force at forces_. */
+    int nb_force_;
 };
 
 }  // namespace reactive_planners
