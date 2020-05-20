@@ -23,7 +23,11 @@ NewEndEffectorTrajectory3D::NewEndEffectorTrajectory3D() {
 //  cost_z_ = 1e0;
 //  double hess_regul = 1e-9;
     cost_ = 1;
-    cost_epsilon_ = 10000000;
+    cost_epsilon_z_mid_ = 1e7;
+    cost_epsilon_x_ = 1e7;
+    cost_epsilon_y_ = 1e7;
+    cost_epsilon_z_ = 1e9;
+    cost_epsilon_vel_ = 1e11;
 
   // Variable parameters.
   // clang-format off
@@ -44,10 +48,10 @@ NewEndEffectorTrajectory3D::NewEndEffectorTrajectory3D() {
 
   // QP parameter.
   nb_sampling_time = 10;
-  nb_var_ = 3 * nb_sampling_time + 1;
+  nb_var_ = 3 * nb_sampling_time + 7;
   nb_var_axis_ = nb_sampling_time;
   // number of sampling time nodes for the z_min < z(t) < z_max.
-  nb_ineq_ = nb_sampling_time * 2;
+  nb_ineq_ = nb_sampling_time * 2 + (nb_var_ - 7) * 2;
   // current and final conditions
   nb_eq_ = 3 * 2 + 2;//xn=0,vn=0,an[2]=0,xn/2[2]=xd
   resize_matrices();
@@ -98,15 +102,17 @@ bool NewEndEffectorTrajectory3D::compute(
   nb_sampling_time = ceil(step_duration / sampling_time);
   double nb_local_sampling_time = ceil(duration / sampling_time);
   int nb_mid_sampling_time = nb_local_sampling_time - (nb_sampling_time / 2);
-  nb_var_ = 3 * nb_local_sampling_time + 1;
+  nb_var_ = 3 * nb_local_sampling_time + 7;
   nb_var_axis_ = nb_local_sampling_time;
-  nb_ineq_ = nb_local_sampling_time * 2;
+  nb_ineq_ = nb_local_sampling_time * 2 + (nb_var_ - 7) * 2;
   std::cout << "Lhum step_duration " << step_duration <<
                "\nLhum duration " << duration <<
                "\nLhum local_sampling_list " <<  sampling_time <<
                "\nLhum nb_sampling_time " << nb_sampling_time <<
                "\nLhum nb_local_sampling_time " << nb_local_sampling_time <<
-               "\nLhum nb_mid_sampling_time " <<  nb_mid_sampling_time << std::endl;
+               "\nLhum nb_mid_sampling_time " <<  nb_mid_sampling_time <<
+               "\nLhum nb_var_ " <<  nb_var_ <<
+               "\nLhum nb_ineq_ " <<  nb_ineq_ << std::endl;
   // save args:
   start_pose_ = start_pose;
   current_pose_ = current_pose;
@@ -145,7 +151,13 @@ bool NewEndEffectorTrajectory3D::compute(
   // Q_z
   Q_.block(nb_var_axis_ * 2, nb_var_axis_ * 2, nb_var_axis_, nb_var_axis_) = sub_Q;
   // Q_epsilon
-  Q_(nb_var_axis_ * 3, nb_var_axis_ * 3) = 1 * cost_epsilon_;
+  Q_(nb_var_axis_ * 3, nb_var_axis_ * 3) = 1 * cost_epsilon_z_mid_;
+  Q_(nb_var_axis_ * 3 + 1, nb_var_axis_ * 3 + 1) = 1 * cost_epsilon_x_;
+  Q_(nb_var_axis_ * 3 + 2, nb_var_axis_ * 3 + 2) = 1 * cost_epsilon_y_;
+  Q_(nb_var_axis_ * 3 + 3, nb_var_axis_ * 3 + 3) = 1 * cost_epsilon_z_;
+  Q_(nb_var_axis_ * 3 + 4, nb_var_axis_ * 3 + 4) = 1 * cost_epsilon_vel_;
+  Q_(nb_var_axis_ * 3 + 5, nb_var_axis_ * 3 + 5) = 1 * cost_epsilon_vel_;
+  Q_(nb_var_axis_ * 3 + 6, nb_var_axis_ * 3 + 6) = 1 * cost_epsilon_vel_;
   // Q_regul
 //  Q_ += Q_regul_;
 
@@ -156,7 +168,7 @@ bool NewEndEffectorTrajectory3D::compute(
   A_eq_.setZero();
   Eigen::VectorXd acc;
   Eigen::VectorXd acc_ep;
-  acc.resize(nb_var_ - 1);
+  acc.resize(nb_var_ - 7);
   acc.setZero();
   acc_ep.resize(nb_var_);
   acc_ep.setZero();
@@ -164,73 +176,81 @@ bool NewEndEffectorTrajectory3D::compute(
   std::cout << "Lhum end current start " << end_time_ << " " << current_time_ << " " << start_time_ << std::endl;
   std::cout << "Lhumlocal_ST " << nb_local_sampling_time << std::endl;
   std::cout << "mid " << nb_mid_sampling_time << std::endl;
-  for(int i = 0; i < nb_var_ - 1; i++)
-    acc[i] = 0;
   Eigen::MatrixXd x;
   x.resize(6, 3);
   x = B_;
   for(int i = nb_local_sampling_time - 1 ; i >= 0; i--){
-    acc[i] = x(0, 0) * M_inv_(0, 0) + x(0, 1) * M_inv_(1, 0) + x(0, 2) * M_inv_(2, 0);
-    acc[i + nb_var_axis_] = x(0, 0) * M_inv_(0, 1) + x(0, 1) * M_inv_(1, 1) + x(0, 2) * M_inv_(2, 1);
-    acc[i + 2 * nb_var_axis_] = x(0, 0) * M_inv_(0, 2) + x(0, 1) * M_inv_(1, 2) + x(0, 2) * M_inv_(2, 2);
+    acc_ep[i] = x(0, 0) * M_inv_(0, 0) + x(0, 1) * M_inv_(1, 0) + x(0, 2) * M_inv_(2, 0);
+    acc_ep[i + nb_var_axis_] = x(0, 0) * M_inv_(0, 1) + x(0, 1) * M_inv_(1, 1) + x(0, 2) * M_inv_(2, 1);
+    acc_ep[i + 2 * nb_var_axis_] = x(0, 0) * M_inv_(0, 2) + x(0, 1) * M_inv_(1, 2) + x(0, 2) * M_inv_(2, 2);
     x = A_ * x;
   }
-  A_eq_.row(0).head(nb_var_  - 1) = acc;//xn[0]
+  acc_ep[nb_var_ - 6] = -1;//epsilon_x
+  A_eq_.row(0).head(nb_var_) = acc_ep;//xn[0]
+  acc_ep[nb_var_ - 6] = 0;//delete epsilon_x
   x = B_;
   for(int i = nb_local_sampling_time - 1 ; i >= 0; i--){
-    acc[i] = x(2, 0) * M_inv_(0, 0) + x(2, 1) * M_inv_(1, 0) + x(2, 2) * M_inv_(2, 0);
-    acc[i + nb_var_axis_] = x(2, 0) * M_inv_(0, 1) + x(2, 1) * M_inv_(1, 1) + x(2, 2) * M_inv_(2, 1);
-    acc[i + 2 * nb_var_axis_] = x(2, 0) * M_inv_(0, 2) + x(2, 1) * M_inv_(1, 2) + x(2, 2) * M_inv_(2, 2);
+    acc_ep[i] = x(2, 0) * M_inv_(0, 0) + x(2, 1) * M_inv_(1, 0) + x(2, 2) * M_inv_(2, 0);
+    acc_ep[i + nb_var_axis_] = x(2, 0) * M_inv_(0, 1) + x(2, 1) * M_inv_(1, 1) + x(2, 2) * M_inv_(2, 1);
+    acc_ep[i + 2 * nb_var_axis_] = x(2, 0) * M_inv_(0, 2) + x(2, 1) * M_inv_(1, 2) + x(2, 2) * M_inv_(2, 2);
     x = A_ * x;
   }
-  A_eq_.row(1).head(nb_var_ - 1) = acc;//xn[1]
+  acc_ep[nb_var_ - 5] = -1;//epsilon_y
+  A_eq_.row(1).head(nb_var_) = acc_ep;//xn[1]
+  acc_ep[nb_var_ - 5] = 0;//delete epsilon_y
   x = B_;
   for(int i = nb_local_sampling_time - 1 ; i >= 0; i--){
-    acc[i] = x(4, 0) * M_inv_(0, 0) + x(4, 1) * M_inv_(1, 0) + x(4, 2) * M_inv_(2, 0);
-    acc[i + nb_var_axis_] = x(4, 0) * M_inv_(0, 1) + x(4, 1) * M_inv_(1, 1) + x(4, 2) * M_inv_(2, 1);
-    acc[i + 2 * nb_var_axis_] = x(4, 0) * M_inv_(0, 2) + x(4, 1) * M_inv_(1, 2) + x(4, 2) * M_inv_(2, 2);
+    acc_ep[i] = x(4, 0) * M_inv_(0, 0) + x(4, 1) * M_inv_(1, 0) + x(4, 2) * M_inv_(2, 0);
+    acc_ep[i + nb_var_axis_] = x(4, 0) * M_inv_(0, 1) + x(4, 1) * M_inv_(1, 1) + x(4, 2) * M_inv_(2, 1);
+    acc_ep[i + 2 * nb_var_axis_] = x(4, 0) * M_inv_(0, 2) + x(4, 1) * M_inv_(1, 2) + x(4, 2) * M_inv_(2, 2);
     x = A_ * x;
   }
-  A_eq_.row(2).head(nb_var_ - 1) = acc;//xn[2]
+  acc_ep[nb_var_ - 4] = -1;//epsilon_z
+  A_eq_.row(2).head(nb_var_) = acc_ep;//xn[2]
+  acc_ep[nb_var_ - 4] = 0;//delete epsilon_z
 
   // V end constraints
   if(nb_local_sampling_time != 1){
-      for(int i = 0; i < nb_var_ - 1; i++)
-        acc[i] = 0;
       x = B_;
       for(int i = nb_local_sampling_time - 2 ; i >= 0; i--){
-        acc[i] = x(0, 0) * M_inv_(0, 0) + x(0, 1) * M_inv_(1, 0) + x(0, 2) * M_inv_(2, 0);
-        acc[i + nb_var_axis_] = x(0, 0) * M_inv_(0, 1) + x(0, 1) * M_inv_(1, 1) + x(0, 2) * M_inv_(2, 1);
-        acc[i + 2 * nb_var_axis_] = x(0, 0) * M_inv_(0, 2) + x(0, 1) * M_inv_(1, 2) + x(0, 2) * M_inv_(2, 2);
+        acc_ep[i] = x(0, 0) * M_inv_(0, 0) + x(0, 1) * M_inv_(1, 0) + x(0, 2) * M_inv_(2, 0);
+        acc_ep[i + nb_var_axis_] = x(0, 0) * M_inv_(0, 1) + x(0, 1) * M_inv_(1, 1) + x(0, 2) * M_inv_(2, 1);
+        acc_ep[i + 2 * nb_var_axis_] = x(0, 0) * M_inv_(0, 2) + x(0, 1) * M_inv_(1, 2) + x(0, 2) * M_inv_(2, 2);
         x = A_ * x;
       }
-      A_eq_.row(3).head(nb_var_ - 1) = acc;//vn[0]
+      acc_ep[nb_var_ - 3] = -1;//epsilon_vel
+      A_eq_.row(3).head(nb_var_) = acc_ep;//vn[0]
+      acc_ep[nb_var_ - 3] = 0;//delete epsilon_vel
       x = B_;
       for(int i = nb_local_sampling_time - 2 ; i >= 0; i--){
-        acc[i] = x(2, 0) * M_inv_(0, 0) + x(2, 1) * M_inv_(1, 0) + x(2, 2) * M_inv_(2, 0);
-        acc[i + nb_var_axis_] = x(2, 0) * M_inv_(0, 1) + x(2, 1) * M_inv_(1, 1) + x(2, 2) * M_inv_(2, 1);
-        acc[i + 2 * nb_var_axis_] = x(2, 0) * M_inv_(0, 2) + x(2, 1) * M_inv_(1, 2) + x(2, 2) * M_inv_(2, 2);
+        acc_ep[i] = x(2, 0) * M_inv_(0, 0) + x(2, 1) * M_inv_(1, 0) + x(2, 2) * M_inv_(2, 0);
+        acc_ep[i + nb_var_axis_] = x(2, 0) * M_inv_(0, 1) + x(2, 1) * M_inv_(1, 1) + x(2, 2) * M_inv_(2, 1);
+        acc_ep[i + 2 * nb_var_axis_] = x(2, 0) * M_inv_(0, 2) + x(2, 1) * M_inv_(1, 2) + x(2, 2) * M_inv_(2, 2);
         x = A_ * x;
       }
-      A_eq_.row(4).head(nb_var_ - 1) = acc;//vn[1]
+      acc_ep[nb_var_ - 2] = -1;//epsilon_vel
+      A_eq_.row(4).head(nb_var_) = acc_ep;//vn[1]
+      acc_ep[nb_var_ - 2] = 0;//delete epsilon_vel
       x = B_;
       for(int i = nb_local_sampling_time - 2 ; i >= 0; i--){
-        acc[i] = x(4, 0) * M_inv_(0, 0) + x(4, 1) * M_inv_(1, 0) + x(4, 2) * M_inv_(2, 0);
-        acc[i + nb_var_axis_] = x(4, 0) * M_inv_(0, 1) + x(4, 1) * M_inv_(1, 1) + x(4, 2) * M_inv_(2, 1);
-        acc[i + 2 * nb_var_axis_] = x(4, 0) * M_inv_(0, 2) + x(4, 1) * M_inv_(1, 2) + x(4, 2) * M_inv_(2, 2);
+        acc_ep[i] = x(4, 0) * M_inv_(0, 0) + x(4, 1) * M_inv_(1, 0) + x(4, 2) * M_inv_(2, 0);
+        acc_ep[i + nb_var_axis_] = x(4, 0) * M_inv_(0, 1) + x(4, 1) * M_inv_(1, 1) + x(4, 2) * M_inv_(2, 1);
+        acc_ep[i + 2 * nb_var_axis_] = x(4, 0) * M_inv_(0, 2) + x(4, 1) * M_inv_(1, 2) + x(4, 2) * M_inv_(2, 2);
         x = A_ * x;
       }
-      A_eq_.row(5).head(nb_var_ - 1) = acc;//vn[2]
+      acc_ep[nb_var_ - 1] = -1;//epsilon_vel
+      A_eq_.row(5).head(nb_var_) = acc_ep;//vn[2]
+      acc_ep[nb_var_ - 1] = 0;//delete epsilon_vel
   }
 
-  for(int i = 0; i < nb_var_ - 1; i++)
+  for(int i = 0; i < nb_var_ - 7; i++)
     acc[i] = 0;
   acc[nb_local_sampling_time - 1] = M_inv_(0, 2);
   acc[nb_local_sampling_time - 1 + nb_var_axis_] = M_inv_(1, 2);
   acc[nb_local_sampling_time - 1 + 2 * nb_var_axis_] = M_inv_(2, 2);
-//  A_eq_.row(6).head(nb_var_ - 1) = acc;//an[2]
+//  A_eq_.row(6).head(nb_var_ - 7) = acc;//an[2]
 
-  for(int i = 0; i < nb_var_ - 1; i++)
+  for(int i = 0; i < nb_var_; i++)
     acc_ep[i] = 0;
   x = B_;
   for(int i = nb_mid_sampling_time - 1 ; i >= 0; i--){
@@ -239,7 +259,7 @@ bool NewEndEffectorTrajectory3D::compute(
     acc_ep[i + 2 * nb_var_axis_] = x(4, 0) * M_inv_(0, 2) + x(4, 1) * M_inv_(1, 2) + x(4, 2) * M_inv_(2, 2);
     x = A_ * x;
   }
-  acc_ep[nb_var_ - 1] = -1;//epsilon
+  acc_ep[nb_var_ - 7] = -1;//epsilon_z_mid
   A_eq_.row(7).head(nb_var_) = acc_ep;//xn/2[2]
 
   int flag = nb_local_sampling_time != 1 ? 1: 0;
@@ -259,7 +279,7 @@ bool NewEndEffectorTrajectory3D::compute(
    * Inequality constraints
    */
 
-  for(int i = 0; i < nb_var_ - 1; i++)
+  for(int i = 0; i < nb_var_ - 7; i++)
     acc[i] = 0;
   for (int i = 1; i <= nb_local_sampling_time; ++i) {
     // z >= zmin   =>   -z <= -z_min
@@ -270,16 +290,23 @@ bool NewEndEffectorTrajectory3D::compute(
       acc[j + 2 * nb_var_axis_] = x(4, 0) * M_inv_(0, 2) + x(4, 1) * M_inv_(1, 2) + x(4, 2) * M_inv_(2, 2);
       x = A_ * x;
     }
-//    A_ineq_.row(i - 1).head(nb_var_ - 1) = -acc;
-//    B_ineq_(i - 1) = -std::min(start_pose(2), target_pose(2)) + 0.0001 + current_velocity_(2) * sampling_time * i;
+//    A_ineq_.row(i - 1).head(nb_var_ - 7) = -acc;
+//    B_ineq_(i - 1) = -std::min(startو_pose(2), target_pose(2)) + 0.0001 + current_velocity_(2) * sampling_time * i;
 //
 //    // z <= z_max
-//    A_ineq_.row(i - 1 + nb_local_sampling_time).head(nb_var_ - 1) = acc;
+//    A_ineq_.row(i - 1 + nb_local_sampling_time).head(nb_var_ - 7) = acc;
 //    B_ineq_(i - 1 + nb_local_sampling_time) =
 //        std::max(start_pose(2), target_pose(2)) + mid_air_height_ - current_velocity_(2) * sampling_time * i;
   }
 //  B_ineq_(nb_local_sampling_time - 1) = -std::min(start_pose(2), target_pose(2));
-
+  std::cout << "Lhum before\n" << nb_var_ << std::endl;;
+  for(int i = 0; i < nb_var_ - 7; i++){
+    A_ineq_(nb_local_sampling_time * 2 + i, i) = 1;
+    B_ineq_(nb_local_sampling_time * 2 + i) = 20;
+    A_ineq_(nb_local_sampling_time * 2 + nb_var_ - 7 + i, i) = -1;
+    B_ineq_(nb_local_sampling_time * 2 + nb_var_ - 7  + i) = 20;
+  }
+  std::cout << "Lhum after\n";
   bool failure = false;
   if (!failure) {
     if (!qp_solver_.solve(Q_, q_, A_eq_, B_eq_, A_ineq_, B_ineq_)) {
@@ -305,7 +332,8 @@ bool NewEndEffectorTrajectory3D::compute(
           << std::endl;
     }
   }
-//  print_solver();
+  if(nb_var_ <= 13)
+    print_solver();
   return !failure;
 }
 
@@ -313,14 +341,18 @@ int NewEndEffectorTrajectory3D::get_forces(
     Eigen::Ref<Eigen::VectorXd> forces, Eigen::Ref<Eigen::Vector3d> next_pose,
     Eigen::Ref<Eigen::Vector3d> next_velocity, Eigen::Ref<Eigen::Vector3d> next_acceleration) {
   if (current_time_ < start_time_) {
+    std::cout << "zero1" << std::endl;
     forces.setZero();
   } else if (current_time_ >= last_end_time_seen_ - 1e-4) {
+    std::cout << "zero2" << current_time_ << " " << last_end_time_seen_ << std::endl;
     forces.setZero();
   } else {
     // Extract the information from the solution.
+    std::cout <<"non zero\n" << x_opt_ << std::endl;
+    std::cout << "%%%" << x_opt_ << std::endl;
     x_opt_.resize(nb_var_);
     x_opt_ = qp_solver_.result();
-    for(int i = 0 ; i < nb_var_ / 3; i++){
+    for(int i = 0 ; i < nb_var_ / 3 - 2 ; i++){
         forces(i * 3) = x_opt_[i];
         forces(i * 3 + 1) = x_opt_[nb_var_axis_ + i];
         forces(i * 3 + 2) = x_opt_[2 * nb_var_axis_ + i];
@@ -342,7 +374,7 @@ int NewEndEffectorTrajectory3D::get_forces(
                current_velocity_(2) * sampling_time + current_pose_(2);
   std::cout << "Lhum pos" << next_pose << std::endl;
 
-  return nb_var_ - 1;
+  return nb_var_ - 7;
 }
 
 std::string NewEndEffectorTrajectory3D::to_string() const {

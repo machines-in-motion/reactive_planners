@@ -50,6 +50,8 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
              &DcmReactiveStepper::set_left_foot_position)
         .def("set_left_foot_velocity",
              &DcmReactiveStepper::set_left_foot_velocity)
+        .def("dcm_vrp_planner_initialization",
+             &DcmReactiveStepper::dcm_vrp_planner_initialization)
 
         // Getters.
         .def("get_right_foot_position",

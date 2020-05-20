@@ -123,6 +123,23 @@ public:
     {
         desired_com_velocity_ = desired_com_velocity;
     }
+    /**
+     * @brief Set the desired center of mass velocity.
+     *
+     * @param desired_com_velocity
+     */
+    void dcm_vrp_planner_initialization(const double &l_min,
+                    const double &l_max,
+                    const double &w_min,
+                    const double &w_max,
+                    const double &t_min,
+                    const double &t_max,
+                    const double &l_p,
+                    const double &com_height,
+                    const Eigen::Vector9d &weight)
+    {
+        dcm_vrp_planner_.initialize(l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight);
+    }
 
     /** @brief Set the costs of x, y, z axes, and hessian regularization.
     *

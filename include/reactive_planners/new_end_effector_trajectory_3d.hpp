@@ -185,8 +185,20 @@ private:
   /** @brief Cost weights for forces. */
   double cost_;
 
-  /** @brief Cost weights for the epsilon. */
-  double cost_epsilon_;
+  /** @brief Cost weights for the epsilon_z_mid. */
+  double cost_epsilon_z_mid_;
+
+  /** @brief Cost weights for the epsilon_x. */
+  double cost_epsilon_x_;
+
+  /** @brief Cost weights for the epsilon_y. */
+  double cost_epsilon_y_;
+
+  /** @brief Cost weights for the epsilon_z. */
+  double cost_epsilon_z_;
+
+  /** @brief Cost weights for the epsilon_z. */
+  double cost_epsilon_vel_;
 
   /** @brief Linear term of the quadratic cost.
    * @see NewEndEffectorTrajectory3D */

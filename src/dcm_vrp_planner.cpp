@@ -58,8 +58,7 @@ void DcmVrpPlanner::initialize(
     // Equation 7 and 9 in the paper.
     bx_max_ = l_max_ / (tau_min_ - 1);
     bx_min_ = l_min_ / (tau_min_ - 1);
-    by_max_out_ = l_p_ / (1 + tau_min_) +
-                  (w_max_ - w_min_ * tau_min_) / (1 - exp(2 * omega_ * t_min_));
+    by_max_out_ =   - w_min_ * tau_min_) / (1 - exp(2 * omega_ * t_min_));//Lhum new changes
     by_max_in_ = l_p_ / (1 + tau_min_) +
                  (w_min_ - w_max_ * tau_min_) / (1 - exp(2 * omega_ * t_min_));
 
@@ -252,7 +251,7 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     by_max = -by_max_out_;
     by_min = -by_max_in_;
   }
-  //tau_min_ = exp(omega_ * std::max(t_min_, time_from_last_step_touchdown_ + 0.001));
+  tau_min_ = exp(omega_ * std::max(t_min_, time_from_last_step_touchdown_ + 0.00099));//Lhum new changes
     // clang-format off
   B_ineq_ <<  l_max_,                // 0
               w_max_local,           // 1
@@ -379,7 +378,7 @@ bool DcmVrpPlanner::internal_checks()
     assert_DcmVrpPlanner(B_ineq_.size() == 10);
 //    assert_DcmVrpPlanner((t_min_ - log(tau_min_) / omega_) *
 //                             (t_min_ - log(tau_min_) / omega_) <
-//                         1e-8);
+//                         1e-8); Lhum TODO
     assert_DcmVrpPlanner((t_max_ - log(tau_max_) / omega_) *
                              (t_max_ - log(tau_max_) / omega_) <
                          1e-8);
