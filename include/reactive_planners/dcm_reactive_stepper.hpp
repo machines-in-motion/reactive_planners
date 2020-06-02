@@ -53,7 +53,8 @@ public:
                     const double &mid_air_foot_height,
                     const double &control_period,
                     Eigen::Ref<const Eigen::Vector3d> left_foot_position,
-                    Eigen::Ref<const Eigen::Vector3d> right_foot_position);
+                    Eigen::Ref<const Eigen::Vector3d> right_foot_position,
+                    Eigen::Ref<const Eigen::Vector3d> v_des);
 
     /**
      * @brief
@@ -533,6 +534,9 @@ private:
 
     /** @brief The number of acceptable force at forces_. */
     int nb_force_;
+
+    /** @brief Default step width. */
+    double l_p_;
 };
 
 }  // namespace reactive_planners

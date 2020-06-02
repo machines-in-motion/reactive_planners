@@ -15,6 +15,10 @@
 #include <eigen-quadprog/QuadProg.h>
 #include <iostream>
 #include <limits>
+#include <chrono>
+#define RESET   "\033[0m"
+#define RED     "\033[31m"      /* Red */
+#define MAX_VAR 500
 
 namespace reactive_planners {
 
@@ -37,7 +41,26 @@ public:
                Eigen::Ref<const Eigen::Vector3d> current_velocity,
                Eigen::Ref<const Eigen::Vector3d> current_acceleration,
                Eigen::Ref<const Eigen::Vector3d> target_pose, const double &start_time,
-               const double &current_time, const double &end_time);
+               const double &current_time, const double &end_time,
+               Eigen::Ref<const Eigen::Vector3d> com_pos,
+               Eigen::Ref<const Eigen::Vector3d> com_vel,
+               Eigen::Ref<const Eigen::Vector3d> current_support_foot_location,
+               const bool& is_left_leg_in_contact);
+
+  void init_calculate_dcm(
+          Eigen::Ref<const Eigen::Vector3d> v_des,
+          const double& ht,
+          const double& l_p,
+          const double& t_lower_bound,
+          const double& t_upper_bound);
+
+  void calculate_dcm(
+          Eigen::Ref<const Eigen::Vector3d> com,
+          Eigen::Ref<const Eigen::Vector3d> com_vel,
+          Eigen::Ref<const Eigen::Vector3d> current_support_foot_location,
+          const double &time,
+          const double& current_time,
+          const bool& is_left_leg_in_contact);
 
   /** @brief Get all the forces until landing foot. Returns the number of forces.*/
   int get_forces(Eigen::Ref<Eigen::VectorXd> forces, Eigen::Ref<Eigen::Vector3d> next_pose,
@@ -94,6 +117,12 @@ private:
       B_ineq_.setZero();
       qp_solver_.problem(nb_var_, nb_eq_, nb_ineq_);
   }
+
+  void calculate_acceleration();
+
+  Eigen::MatrixXd acceleration_x_;
+  Eigen::MatrixXd acceleration_y_;
+  Eigen::MatrixXd acceleration_z_;
 
   /*
    * Constant problem parameters.
@@ -199,6 +228,11 @@ private:
 
   /** @brief Cost weights for the epsilon_z. */
   double cost_epsilon_vel_;
+  /** @brief Cost weights for the x[i]. */
+
+  double cost_epsilon_x_i_;
+  /** @brief Cost weights for the y[i]. */
+  double cost_epsilon_y_i_;
 
   /** @brief Linear term of the quadratic cost.
    * @see NewEndEffectorTrajectory3D */
@@ -227,6 +261,38 @@ private:
   /** @brief Quadratic term of the quadratic cost.
    * @see NewEndEffectorTrajectory3D */
   Eigen::MatrixXd B_;
+
+  /** @brief Natural frequency of the pendulum: \f$ \omega =
+   * \sqrt{\frac{g}{z_0}} \f$. */
+  double omega_;
+
+  /** @brief Nominal step time. */
+  double t_nom_ = 0.1;
+
+  /** @brief Nominal step time in logarithmic scale:
+   * \f$ e^{\omega t_{nom}} \f$*/
+  double tau_nom_;
+
+  /** @brief Nominal step length in the x direction (in the direction of
+   * forward motion). */
+  double l_nom_;
+
+  /** @brief Nominal DCM offset along the Y-axis. */
+  double bx_nom_;
+
+  /** @brief Nominal DCM offset along the Y-axis. */
+  double by_nom_;
+
+  /** @brief Average desired height of the com above the ground. */
+  double ht_;
+
+  /** @brief Default step width. */
+  double l_p_;
+
+  /** @brief Desired velocity. */
+  Eigen::Vector3d v_des_;
+
+  Eigen::Vector3d u_;
 };
 
 } // namespace reactive_planners

@@ -50,27 +50,15 @@ void DcmReactiveStepper::initialize(const bool &is_left_leg_in_contact,
                                     const double &mid_air_foot_height,
                                     const double &control_period,
                                     Eigen::Ref<const Eigen::Vector3d> left_foot_position,
-                                    Eigen::Ref<const Eigen::Vector3d> right_foot_position)
+                                    Eigen::Ref<const Eigen::Vector3d> right_foot_position,
+                                    Eigen::Ref<const Eigen::Vector3d> v_des)
 {
-    std::cout << is_left_leg_in_contact << " " <<
-                 l_min << " " <<
-                 l_max << " " <<
-                 w_min << " " <<
-                 w_max << " " <<
-                 t_min << " " <<
-                 t_max << " " <<
-                 l_p << " " <<
-                 com_height << " " <<
-                 weight << " " <<
-                 mid_air_foot_height << " " <<
-                 control_period << " " <<
-                 left_foot_position << " " <<
-                 right_foot_position << std::endl;
     // Initialize the dcm vrp planner and initialize it.
     dcm_vrp_planner_.initialize(
         l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight);
     // Initialize the end-effector trajecotry generator.
     end_eff_traj3d_.set_mid_air_height(mid_air_foot_height);
+    end_eff_traj3d_.init_calculate_dcm(v_des, com_height, l_p, t_min, t_max);
 
     com_base_height_difference_ = 0.053;
 
@@ -96,6 +84,7 @@ void DcmReactiveStepper::initialize(const bool &is_left_leg_in_contact,
     local_left_foot_position_.setZero();
     local_left_foot_velocity_.setZero();
     feasible_com_velocity_.setZero();
+    l_p_ = l_p;
     if(is_left_leg_in_contact_){
         stepper_head_.set_support_feet_pos(right_foot_position, left_foot_position);
         current_support_foot_position_ = left_foot_position_;
@@ -120,7 +109,10 @@ bool DcmReactiveStepper::run(
     Eigen::Ref<const Eigen::Vector2d> contact)
 {
     Eigen::Vector3d base_pose;
-    base_pose << 0, 0, dcm_vrp_planner_.get_com_height();
+    if(is_left_leg_in_contact_)
+        base_pose << left_foot_position(0), left_foot_position(1), dcm_vrp_planner_.get_com_height();
+    else
+        base_pose << right_foot_position(0), right_foot_position(1), dcm_vrp_planner_.get_com_height();
     pinocchio::SE3 world_M_base(
         Eigen::AngleAxisd(base_yaw, Eigen::Vector3d::UnitZ())
             .toRotationMatrix(),
@@ -202,7 +194,7 @@ bool DcmReactiveStepper::walk(
     std::cout << "Lhum walk" << std::endl;
     bool succeed = true;
     double previous_end_time = dcm_vrp_planner_.get_duration_before_step_landing();
-    Eigen::Vector3d previous_next_support_foot_position_ = next_support_foot_position_;//Lhum new changes
+    Eigen::Vector3d previous_next_support_foot_position_ = next_support_foot_position_;
     // Run the scheduler of the planner.
     if(contact[0] == 0 && contact[1] == 0){
         if (is_left_leg_in_contact_)
@@ -264,7 +256,7 @@ bool DcmReactiveStepper::walk(
     if(previous_end_time != end_time && current_time >= previous_end_time - 0.001){
         //next_support_foot_position_ = previous_next_support_foot_position_;
         std::cout <<"%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << next_support_foot_position_ << "\n";
-        next_support_foot_position_[2] = previous_next_support_foot_position_[2] - 0.0001;//Lhum new changes
+        next_support_foot_position_[2] = previous_next_support_foot_position_[2] - 0.0001;
     }
     std::cout << "Lhum nextSFP" << next_support_foot_position_ << std::endl;
     // Compute the flying foot trajectory.
@@ -284,7 +276,11 @@ bool DcmReactiveStepper::walk(
                                                next_support_foot_position_,
                                                start_time,
                                                current_time,
-                                               end_time);
+                                               end_time,
+                                               com_position,
+                                               com_velocity,
+                                               current_support_foot_position_,
+                                               is_left_leg_in_contact_);
         std::cout << "Lhum compute" << std::endl;
         nb_force_ = end_eff_traj3d_.get_forces(forces_,
                                        right_foot_position_,
@@ -311,7 +307,11 @@ bool DcmReactiveStepper::walk(
                                                next_support_foot_position_,
                                                start_time,
                                                current_time,
-                                               end_time);
+                                               end_time,
+                                               com_position,
+                                               com_velocity,
+                                               current_support_foot_position_,
+                                               is_left_leg_in_contact_);
         nb_force_ = end_eff_traj3d_.get_forces(forces_,
                                        left_foot_position_,
                                        left_foot_velocity_,

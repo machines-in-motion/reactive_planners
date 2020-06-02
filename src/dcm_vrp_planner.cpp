@@ -58,7 +58,8 @@ void DcmVrpPlanner::initialize(
     // Equation 7 and 9 in the paper.
     bx_max_ = l_max_ / (tau_min_ - 1);
     bx_min_ = l_min_ / (tau_min_ - 1);
-    by_max_out_ =   - w_min_ * tau_min_) / (1 - exp(2 * omega_ * t_min_));//Lhum new changes
+    by_max_out_ = l_p_ / (1 + tau_min_) +
+                  (w_max_ - w_min_ * tau_min_) / (1 - exp(2 * omega_ * t_min_));
     by_max_in_ = l_p_ / (1 + tau_min_) +
                  (w_min_ - w_max_ * tau_min_) / (1 - exp(2 * omega_ * t_min_));
 
@@ -251,7 +252,7 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     by_max = -by_max_out_;
     by_min = -by_max_in_;
   }
-  tau_min_ = exp(omega_ * std::max(t_min_, time_from_last_step_touchdown_ + 0.00099));//Lhum new changes
+  tau_min_ = exp(omega_ * std::max(t_min_, time_from_last_step_touchdown_ + 0.00099));
     // clang-format off
   B_ineq_ <<  l_max_,                // 0
               w_max_local,           // 1
@@ -266,6 +267,7 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     // clang-format on
 
     // Equality constraints
+    std::cout << "bx!" << bx_nom_ << " " << by_nom_ << std::endl;
     double tmp0 = (dcm_local_(0) - current_step_location_local_[0]) *
                   exp(-1.0 * omega_ * time_from_last_step_touchdown);
     double tmp1 = (dcm_local_(1) - current_step_location_local_[1]) *
@@ -319,6 +321,9 @@ bool DcmVrpPlanner::solve()
         next_step_location_ = world_M_local_.act(next_step_location_);
         duration_before_step_landing_ = log(x_opt_(2)) / omega_;
         slack_variables_ = x_opt_.tail<4>();
+        std::cout << "slack" << x_opt_  << " " << log(x_opt_(2)) / omega_<< std::endl;
+        std::cout << l_nom_ << " " << w_nom_ << " " << t_nom_ << " " << bx_nom_ << " " <<  by_nom_ << std::endl;
+        std::cout << "time" << t_nom_ << duration_before_step_landing_ << std::endl;
     }
     else
     {
