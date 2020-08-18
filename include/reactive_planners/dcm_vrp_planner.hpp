@@ -14,6 +14,10 @@
 #include <eigen-quadprog/QuadProg.h>
 #include <Eigen/Eigen>
 #include <pinocchio/spatial/se3.hpp>
+#include <iostream>
+#include <cmath>
+#include <sstream>
+#include <stdexcept>
 
 namespace Eigen
 {
@@ -124,6 +128,7 @@ public:
      * frame.
      */
     void update(Eigen::Ref<const Eigen::Vector3d> current_step_location,
+                Eigen::Ref<const Eigen::Vector3d> current_swing_foot_location,
                 const double& time_from_last_step_touchdown,
                 const bool& is_left_leg_in_contact,
                 Eigen::Ref<const Eigen::Vector3d> v_des,
@@ -157,6 +162,7 @@ public:
      * @param yaw
      */
     void update(Eigen::Ref<const Eigen::Vector3d> current_step_location,
+                Eigen::Ref<const Eigen::Vector3d> current_swing_foot_location,
                 const double& time_from_last_step_touchdown,
                 const bool& is_left_leg_in_contact,
                 Eigen::Ref<const Eigen::Vector3d> v_des,
@@ -169,7 +175,7 @@ public:
      * DcmVrpPlanner::get_next_step_location() and
      * DcmVrpPlanner::get_duration_before_step_landing() to acces the results.
      */
-    bool solve();
+    bool solve(double time, double x, double y);
 
     /**
      * @brief Perform an internal checks on the solver matrices. A warning
@@ -344,6 +350,26 @@ public:
     const double& get_com_height() const
     {
         return ht_;
+    }
+
+    /**
+     * @brief return cost.
+     *
+     * @return double
+     */
+    double cost()
+    {
+//        std::cout << "Lhum cost: vrp" << x_opt_ << " " << Q_ << " " << q_ << std::endl;
+        return (0.5 * x_opt_.transpose() * Q_ * x_opt_ + q_.transpose() * x_opt_)(0, 0);
+    }
+
+    /**
+     * @brief add time equation for fixing tau.
+     */
+    void add_t_eq(double time)
+    {
+        A_eq_(2, 2) = 1;
+        B_eq_(2) = exp(omega_ * time);
     }
 
 

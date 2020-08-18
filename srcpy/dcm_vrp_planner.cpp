@@ -24,6 +24,7 @@ void bind_dcm_vrp_planner(pybind11::module &module)
         .def("print_solver", &DcmVrpPlanner::print_solver)
         .def("update",
              (void (DcmVrpPlanner::*)(Eigen::Ref<const Eigen::Vector3d>,
+                                      Eigen::Ref<const Eigen::Vector3d>,
                                       const double &,
                                       const bool &,
                                       Eigen::Ref<const Eigen::Vector3d>,
@@ -33,6 +34,7 @@ void bind_dcm_vrp_planner(pybind11::module &module)
                  DcmVrpPlanner::update)
         .def("update",
              (void (DcmVrpPlanner::*)(Eigen::Ref<const Eigen::Vector3d>,
+                                      Eigen::Ref<const Eigen::Vector3d>,
                                       const double &,
                                       const bool &,
                                       Eigen::Ref<const Eigen::Vector3d>,

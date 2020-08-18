@@ -62,12 +62,20 @@ class DcmReactiveStepper(object):
     def set_des_com_vel(self, des_com_vel):
         self.des_com_vel = des_com_vel
 
-    def run(self, time, current_flying_foot_position, current_support_foot_position, com_position, com_velocity, base_yaw):
+    def run(self, time, current_flying_foot_position, current_support_foot_position, com_position, com_velocity, base_yaw, contact):
         if current_support_foot_position is not None:
             self.stepper_head.set_support_feet_pos(self.stepper_head.get_previous_support_location(),
                                            current_support_foot_position)
-        self.stepper_head.run(
-            self.duration_before_step_landing, current_flying_foot_position, time)
+        if not contact[0] and not contact[1]:
+            self.stepper_head.run(
+                self.duration_before_step_landing, current_flying_foot_position, time)
+
+        elif self.is_left_leg_in_contact:
+            self.stepper_head.run(
+                self.duration_before_step_landing, current_flying_foot_position, time, contact[1])
+        else:
+            self.stepper_head.run(
+                self.duration_before_step_landing, current_flying_foot_position, time, contact[0])
 
         self.time_from_last_step_touchdown = self.stepper_head.get_time_from_last_step_touchdown()
         self.current_support_foot[:] = self.stepper_head.get_current_support_location().reshape((3, 1))

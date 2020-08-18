@@ -18,7 +18,9 @@
 #include <chrono>
 #define RESET   "\033[0m"
 #define RED     "\033[31m"      /* Red */
+#define BLUE     "\033[34m"      /* Red */
 #define MAX_VAR 500
+#define EPSION 0.00498
 
 namespace reactive_planners {
 
@@ -62,7 +64,11 @@ public:
           const double& current_time,
           const bool& is_left_leg_in_contact);
 
-  /** @brief Get all the forces until landing foot. Returns the number of forces.*/
+
+  void update_robot_status(Eigen::Ref<Eigen::Vector3d> next_pose,
+    Eigen::Ref<Eigen::Vector3d> next_velocity, Eigen::Ref<Eigen::Vector3d> next_acceleration);
+
+    /** @brief Get all the forces until landing foot. Returns the number of forces.*/
   int get_forces(Eigen::Ref<Eigen::VectorXd> forces, Eigen::Ref<Eigen::Vector3d> next_pose,
     Eigen::Ref<Eigen::Vector3d> next_velocity, Eigen::Ref<Eigen::Vector3d> next_acceleration);
 
@@ -94,9 +100,33 @@ public:
   void set_mid_air_height(double mid_air_height) {
     mid_air_height_ = mid_air_height;
   }
-  /*
-   * Private methods
+
+  /**
+   * @brief return cost.
+   *
+   * @return double
    */
+  double cost()
+  {
+    x_opt_.resize(nb_var_);
+    x_opt_ = qp_solver_.result();
+    std::cout << "x_opt" << x_opt_ << std::endl;
+//    std::cout << "Lhum cost: traj" << (0.5 * x_opt_.transpose() * Q_ * x_opt_)(0, 0) << std::endl;
+//    std::cout << "Lhum cost: traj" << " " << x_opt_.size() << std::endl;
+
+    return (0.5 * x_opt_.transpose() * Q_ * x_opt_ + q_.transpose() * x_opt_)(0, 0);
+  }
+
+    /**
+     * @brief Return the slack values from the last solution.
+     **/
+    const Eigen::Vector3d& get_slack_variables() const
+    {
+        return slack_variables_;
+    }
+    /*
+     * Private methods
+     */
 private:
   /** @brief resize QP variable at each step.
    */
@@ -293,6 +323,8 @@ private:
   Eigen::Vector3d v_des_;
 
   Eigen::Vector3d u_;
+
+  Eigen::Vector3d slack_variables_;
 };
 
 } // namespace reactive_planners

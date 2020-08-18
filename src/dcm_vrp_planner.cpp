@@ -8,10 +8,6 @@
  */
 
 #include "reactive_planners/dcm_vrp_planner.hpp"
-#include <cmath>
-#include <iostream>
-#include <sstream>
-#include <stdexcept>
 
 namespace reactive_planners
 {
@@ -79,7 +75,7 @@ void DcmVrpPlanner::initialize(
     q_.resize(nb_var_);
     q_.setZero();
 
-    nb_eq_ = 2;
+    nb_eq_ = 3;
     A_eq_.resize(nb_eq_, nb_var_);
     A_eq_.setZero();
     B_eq_.resize(nb_eq_);
@@ -151,6 +147,7 @@ void DcmVrpPlanner::compute_nominal_step_values(
 #define dbg_dump(var) std::cout << "  " << #var << ": " << var << std::endl
 
 void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_location,
+                           Eigen::Ref<const Eigen::Vector3d> current_swing_foot_location,
                            const double& time_from_last_step_touchdown,
                            const bool& is_left_leg_in_contact,
                            Eigen::Ref<const Eigen::Vector3d> v_des,
@@ -162,6 +159,7 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
         Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix(),
         Eigen::Vector3d::Zero());
     update(current_step_location,
+           current_swing_foot_location,
            time_from_last_step_touchdown,
            is_left_leg_in_contact,
            v_des,
@@ -171,6 +169,7 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
 }
 
 void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_location,
+                           Eigen::Ref<const Eigen::Vector3d> current_swing_foot_location,
                            const double& time_from_last_step_touchdown,
                            const bool& is_left_leg_in_contact,
                            Eigen::Ref<const Eigen::Vector3d> v_des,
@@ -192,10 +191,10 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
 
     // Do not update after t_min_ for stability of the flying foot trajectory
     // reasons.
-//    if (time_from_last_step_touchdown_ > 0.7 * t_nom_)
-//    {
-//        return;
-//    } Lhum 70
+    if (time_from_last_step_touchdown_ > 0.7 * t_nom_)
+    {
+        return;
+    }// Lhum 70 Lhum_new_
 
     // Ground height.
     double ground_height = 0.0;
@@ -227,7 +226,7 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     dcm_nominal_(2) = 0.0;
 
     // Quadratic cost matrix is constant
-    // Q_ = cost_weights_local_.diagonal();
+    Q_.diagonal() = cost_weights_local_;
 
     // Quadratic cost Vector
     q_(0) = -cost_weights_local_(0) * l_nom_;
@@ -252,7 +251,9 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     by_max = -by_max_out_;
     by_min = -by_max_in_;
   }
-  tau_min_ = exp(omega_ * std::max(t_min_, time_from_last_step_touchdown_ + 0.00099));
+  double alpha = 30 * 18.;
+//  std::cout << "sqrt " << sqrt(2. * current_swing_foot_location(2) / alpha) << std::endl;
+  tau_min_ = exp(omega_ * std::max(t_min_, time_from_last_step_touchdown_ + std::max(0.00099, sqrt(2. * current_swing_foot_location(2) / alpha))));
     // clang-format off
   B_ineq_ <<  l_max_,                // 0
               w_max_local,           // 1
@@ -267,7 +268,6 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     // clang-format on
 
     // Equality constraints
-    std::cout << "bx!" << bx_nom_ << " " << by_nom_ << std::endl;
     double tmp0 = (dcm_local_(0) - current_step_location_local_[0]) *
                   exp(-1.0 * omega_ * time_from_last_step_touchdown);
     double tmp1 = (dcm_local_(1) - current_step_location_local_[1]) *
@@ -275,14 +275,16 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
 
     // clang-format off
   A_eq_ << 1.0, 0.0, -1.0 * tmp0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-           0.0, 1.0, -1.0 * tmp1, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0;
+           0.0, 1.0, -1.0 * tmp1, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+           0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
 
   B_eq_ << 0.0,
+           0.0,
            0.0;
     // clang-format on
 }
 
-bool DcmVrpPlanner::solve()
+bool DcmVrpPlanner::solve(double time, double x, double y)
 {
     /* Here we stop optimizing after t_min because the foot trajectory does
     not follow up and the controller becomes unstable. */
@@ -290,7 +292,26 @@ bool DcmVrpPlanner::solve()
 //    {
 //        return true;
 //    } Lhum 70
-
+//    Eigen::Vector3d tmp;
+//    if(time != 0){
+//        std::cout << "Lhum second solve" << std::endl;
+//        std::cout << "x " << x << " y " << y << std::endl;
+//        std::cout << "Q1 " << Q_(0,0) << " " << Q_(1,1) << std::endl;
+//        Q_(0,0) = 100 * cost_weights_local_(0);
+//        Q_(1,1) = 100 * cost_weights_local_(1);
+//        std::cout << "Q2 " << Q_(0,0) << " " << Q_(1,1) << std::endl;
+////        Q_(2,2) = 10 * cost_weights_local_(2);
+//        tmp << x, y, 0.;
+//        tmp = world_M_local_.actInv(tmp);
+//        tmp -= current_step_location_local_;
+//        std::cout << "q " << q_(0) << " " << q_(1) << std::endl;
+//        std::cout << "x_opt " << x_opt_(0) << " " << x_opt_(1) << std::endl;
+//        std::cout << "tmp " << tmp(0) << " " << tmp(1) << std::endl;
+//        q_(0) = -100 * cost_weights_local_(0) * tmp(0);
+//        q_(1) = -100 * cost_weights_local_(1) * tmp(1);
+//        std::cout << "q " << q_(0) << " " << q_(1) << std::endl;
+////        q_(2) = -10 * cost_weights_local_(2) * exp(omega_ * time);
+//    }
     bool failure = false;
     if (!internal_checks())
     {
@@ -315,15 +336,17 @@ bool DcmVrpPlanner::solve()
     {
         // Extract the information from the solution.
         x_opt_ = qp_solver_.result();
+        std::cout << "x_opt " << x_opt_(0) << " " << x_opt_(1) << std::endl;
+        std::cout << "current step location local " << current_step_location_local_ << std::endl;
+        std::cout << "act " << world_M_local_.act((Eigen::Vector3d() << x_opt_(0), x_opt_(1), 0.0).finished()) << std::endl;
         next_step_location_ =
             current_step_location_local_ +
             (Eigen::Vector3d() << x_opt_(0), x_opt_(1), 0.0).finished();
         next_step_location_ = world_M_local_.act(next_step_location_);
         duration_before_step_landing_ = log(x_opt_(2)) / omega_;
         slack_variables_ = x_opt_.tail<4>();
-        std::cout << "slack" << x_opt_  << " " << log(x_opt_(2)) / omega_<< std::endl;
-        std::cout << l_nom_ << " " << w_nom_ << " " << t_nom_ << " " << bx_nom_ << " " <<  by_nom_ << std::endl;
-        std::cout << "time" << t_nom_ << duration_before_step_landing_ << std::endl;
+        std::cout << "\nnext_step_location " << next_step_location_ <<
+                     "\nduration_before_step_landing " << duration_before_step_landing_ << std::endl;
     }
     else
     {
@@ -375,9 +398,9 @@ bool DcmVrpPlanner::internal_checks()
     assert_DcmVrpPlanner(Q_.rows() == x_opt_.size());
     assert_DcmVrpPlanner(Q_.cols() == x_opt_.size());
     assert_DcmVrpPlanner(q_.size() == x_opt_.size());
-    assert_DcmVrpPlanner(A_eq_.rows() == 2);
+    assert_DcmVrpPlanner(A_eq_.rows() == 3);
     assert_DcmVrpPlanner(A_eq_.cols() == x_opt_.size());
-    assert_DcmVrpPlanner(B_eq_.size() == 2);
+    assert_DcmVrpPlanner(B_eq_.size() == 3);
     assert_DcmVrpPlanner(A_ineq_.rows() == 10);
     assert_DcmVrpPlanner(A_ineq_.cols() == x_opt_.size());
     assert_DcmVrpPlanner(B_ineq_.size() == 10);

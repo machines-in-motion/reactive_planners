@@ -11,6 +11,7 @@
 #pragma once
 
 #include "reactive_planners/dcm_vrp_planner.hpp"
+#include "reactive_planners/end_effector_trajectory_3d.hpp"
 #include "reactive_planners/new_end_effector_trajectory_3d.hpp"
 #include "reactive_planners/stepper_head.hpp"
 #include <iostream>
@@ -453,8 +454,10 @@ private:
      * tracking at best a reference CoM velocity. */
     DcmVrpPlanner dcm_vrp_planner_;
 
+    bool new_ = true;
     /** @brief Computes the end-effector flying trajectory. */
-    NewEndEffectorTrajectory3D end_eff_traj3d_;
+    EndEffectorTrajectory3D end_eff_traj3d_;
+    NewEndEffectorTrajectory3D new_end_eff_traj3d_;
 
     /** @brief Is the left foot in contact? otherwize the right foot is. */
     bool is_left_leg_in_contact_;
@@ -537,6 +540,8 @@ private:
 
     /** @brief Default step width. */
     double l_p_;
+
+    int nb_usage_of_force_;
 };
 
 }  // namespace reactive_planners

@@ -102,6 +102,7 @@ bool EndEffectorTrajectory3D::compute(
 
   // Do not compute the QP if the solution is trivial or too close to the end of
   // the trajectory.
+  std::cout << current_time << " " << start_time << local_current_time << std::endl;
   if (current_time_ < start_time_ || local_current_time >= 0.7) {
     return true;
   } else {

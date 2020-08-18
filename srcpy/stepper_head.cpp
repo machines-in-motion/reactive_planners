@@ -19,8 +19,20 @@ void bind_stepper_head(pybind11::module &module)
         .def(pybind11::init<>())
 
         // public methods
-        //.def("run", &StepperHead::run)
-        .def("get_time_from_last_step_touchdown",
+        .def("run",
+             (void (StepperHead::*)(const double&,
+                                    const Eigen::Vector3d&,
+                                    const double&,
+                                    bool)) &
+                     StepperHead::run)
+
+       .def("run",
+             (void (StepperHead::*)(const double&,
+                                    const Eigen::Vector3d&,
+                                    const double&)) &
+                     StepperHead::run)
+
+    .def("get_time_from_last_step_touchdown",
              &StepperHead::get_time_from_last_step_touchdown)
         .def("get_is_left_leg_in_contact",
              &StepperHead::get_is_left_leg_in_contact)
