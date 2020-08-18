@@ -125,6 +125,15 @@ public:
     {
         desired_com_velocity_ = desired_com_velocity;
     }
+
+    set_feet_pos(
+            Eigen::Ref<const Eigen::Vector3d> left_foot_position,
+            Eigen::Ref<const Eigen::Vector3d> right_foot_position)
+    {
+        left_foot_position_ = left_foot_position;
+        right_foot_position_ = right_foot_position;
+    }
+
     /**
      * @brief Set the desired center of mass velocity.
      *
@@ -394,6 +403,17 @@ public:
     {
         return local_frame_;
     }
+
+    /**
+     * @brief Get dcm.
+     *
+     * @return Eigen::Ref<const Eigen::Vector3d>
+     */
+    Eigen::Ref<const Eigen::Vector3d> &get_dcm() const
+    {
+        return dcm_;
+    }
+
     /**
      * @brief Get forces until the foot land.
      *
@@ -542,6 +562,10 @@ private:
     double l_p_;
 
     int nb_usage_of_force_;
+
+    /** @brief Nominal DCM computed from the CoM estimation and nominal time. */
+    Eigen::Vector3d dcm_;
+
 };
 
 }  // namespace reactive_planners

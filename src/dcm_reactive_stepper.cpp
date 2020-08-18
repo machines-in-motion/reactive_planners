@@ -290,7 +290,7 @@ bool DcmReactiveStepper::walk(
     next_support_foot_position_ = dcm_vrp_planner_.get_next_step_location();
     double start_time = 0.0;
     double current_time = stepper_head_.get_time_from_last_step_touchdown();
-    double end_time = dcm_vrp_planner_.get_duration_before_step_landing();
+    double end_time = dcm_vrp_planner_.get_duration_before_step_landing();// + step_local_duration_;////////////////////////////////
 
 //    if(previous_end_time != end_time && current_time >= previous_end_time - 0.001){
 //        //next_support_foot_position_ = previous_next_support_foot_position_;
@@ -709,6 +709,7 @@ bool DcmReactiveStepper::walk(
     feasible_com_velocity_ =
         (next_support_foot_position_ - previous_support_foot_position_) * 0.5;
     feasible_com_velocity_[2] = 0.0;
+    dcm = dcm_vrp_planner_.get_dcm_local();
     return succeed;
 }
 

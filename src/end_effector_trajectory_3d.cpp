@@ -21,7 +21,7 @@ EndEffectorTrajectory3D::EndEffectorTrajectory3D() {
   cost_x_ = 1e1;
   cost_y_ = 1e1;
   cost_z_ = 1e0;
-  double hess_regul = 1e-9;
+  double hess_regul = 1e-6;
 
   // Variable parameters.
   // clang-format off
@@ -103,7 +103,7 @@ bool EndEffectorTrajectory3D::compute(
   // Do not compute the QP if the solution is trivial or too close to the end of
   // the trajectory.
   std::cout << current_time << " " << start_time << local_current_time << std::endl;
-  if (current_time_ < start_time_ || local_current_time >= 0.7) {
+  if (current_time_ < start_time_ || local_current_time >= 0.8) {//Lhum time
     return true;
   } else {
     last_end_time_seen_ = end_time;

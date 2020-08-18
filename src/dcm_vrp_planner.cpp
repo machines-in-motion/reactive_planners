@@ -131,7 +131,7 @@ void DcmVrpPlanner::compute_nominal_step_values(
         max_or_min_time << fabs_l_max / fabs(v_des_local(0)), fabs_w_max / fabs(v_des_local(1)), t_max_;
         t_upper_bound = max_or_min_time.minCoeff();
     }
-    t_nom_ = (t_lower_bound + t_upper_bound) * 0.5;
+    t_nom_ = t_upper_bound - 0.01;//(t_lower_bound + t_upper_bound) * 0.5;
     tau_nom_ = exp(omega_ * t_nom_);
     l_nom_ = v_des_local(0) * t_nom_;
     if(is_left_leg_in_contact)
@@ -139,9 +139,9 @@ void DcmVrpPlanner::compute_nominal_step_values(
     else
         w_nom_ = v_des_local(1) * t_nom_ + l_p_;
 
-    bx_nom_ = l_nom_ / (tau_nom_ - 1);
-    by_nom_ = (pow(-1, contact_switcher) * (l_p_ / (1 + tau_nom_))) -
-              v_des_local(1) * t_nom_ / (1 - tau_nom_);
+    bx_nom_ = 0;//l_nom_ / (tau_nom_ - 1);
+    by_nom_ = 0;//(pow(-1, contact_switcher) * (l_p_ / (1 + tau_nom_))) -
+              //v_des_local(1) * t_nom_ / (1 - tau_nom_);
 }
 
 #define dbg_dump(var) std::cout << "  " << #var << ": " << var << std::endl
@@ -189,13 +189,6 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     // store some arguments
     time_from_last_step_touchdown_ = time_from_last_step_touchdown;
 
-    // Do not update after t_min_ for stability of the flying foot trajectory
-    // reasons.
-    if (time_from_last_step_touchdown_ > 0.7 * t_nom_)
-    {
-        return;
-    }// Lhum 70 Lhum_new_
-
     // Ground height.
     double ground_height = 0.0;
 
@@ -210,6 +203,13 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     dcm_local_.head<2>() = com_vel.head<2>() / omega_ + com.head<2>();
     dcm_local_(2) = ground_height;
     dcm_local_ = world_M_local_.actInv(dcm_local_);
+
+//    // Do not update after t_min_ for stability of the flying foot trajectory
+//    // reasons.
+//    if (time_from_last_step_touchdown_ > 0.8 * t_nom_)//Lhum time
+//    {
+//        return;
+//    }// Lhum 70 Lhum_new_
 
     // Express the desired velocity in the local frame.
     v_des_local_ = v_des;
@@ -288,10 +288,10 @@ bool DcmVrpPlanner::solve(double time, double x, double y)
 {
     /* Here we stop optimizing after t_min because the foot trajectory does
     not follow up and the controller becomes unstable. */
-//    if (time_from_last_step_touchdown_ > 0.7 * t_nom_)
+//    if (time_from_last_step_touchdown_ > 0.8 * t_nom_)
 //    {
 //        return true;
-//    } Lhum 70
+//    } Lhum 70 Lhum new_
 //    Eigen::Vector3d tmp;
 //    if(time != 0){
 //        std::cout << "Lhum second solve" << std::endl;
