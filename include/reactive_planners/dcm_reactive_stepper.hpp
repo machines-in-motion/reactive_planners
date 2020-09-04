@@ -126,7 +126,7 @@ public:
         desired_com_velocity_ = desired_com_velocity;
     }
 
-    set_feet_pos(
+    void set_feet_pos(
             Eigen::Ref<const Eigen::Vector3d> left_foot_position,
             Eigen::Ref<const Eigen::Vector3d> right_foot_position)
     {
@@ -409,7 +409,7 @@ public:
      *
      * @return Eigen::Ref<const Eigen::Vector3d>
      */
-    Eigen::Ref<const Eigen::Vector3d> &get_dcm() const
+    Eigen::Ref<const Eigen::Vector3d> get_dcm() const
     {
         return dcm_;
     }
@@ -417,11 +417,29 @@ public:
     /**
      * @brief Get forces until the foot land.
      *
-     * @return const Eigen::Vector3d&
+     * @return const Eigen::VectorXd&
      */
     const Eigen::Ref<const Eigen::VectorXd> get_forces()
     {
         return forces_.col(0).head(nb_force_);
+    }
+
+    /**
+     * @brief Get force until the foot land.
+     * Don't ues it for non biped robot.
+     *
+     * @return const Eigen::Matrix12,1d&
+     */
+    const Eigen::Ref<const Eigen::Matrix<double, 12, 1>> get_force()
+    {
+        Eigen::Matrix<double, 12, 1> force;
+        std::cout << std::endl;
+        if(is_left_leg_in_contact_)
+            force << 0, 0, 0, 0, 0, 0, forces_.head(3), 0, 0, 0;
+        else
+            force << forces_.head(3), 0, 0, 0, 0, 0, 0, 0, 0, 0;
+//        std::cout << "dcm_" << force << std::endl;
+        return force;
     }
 
     /*

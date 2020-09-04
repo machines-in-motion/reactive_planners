@@ -110,7 +110,6 @@ public:
   {
     x_opt_.resize(nb_var_);
     x_opt_ = qp_solver_.result();
-    std::cout << "x_opt" << x_opt_ << std::endl;
 //    std::cout << "Lhum cost: traj" << (0.5 * x_opt_.transpose() * Q_ * x_opt_)(0, 0) << std::endl;
 //    std::cout << "Lhum cost: traj" << " " << x_opt_.size() << std::endl;
 
@@ -150,9 +149,14 @@ private:
 
   void calculate_acceleration();
 
-  Eigen::MatrixXd acceleration_x_;
-  Eigen::MatrixXd acceleration_y_;
-  Eigen::MatrixXd acceleration_z_;
+  Eigen::MatrixXd acceleration_terms_x_;
+  Eigen::MatrixXd acceleration_terms_y_;
+  Eigen::MatrixXd acceleration_terms_z_;
+
+  Eigen::MatrixXd velocity_terms_x_;
+  Eigen::MatrixXd velocity_terms_y_;
+  Eigen::MatrixXd velocity_terms_z_;
+
 
   /*
    * Constant problem parameters.
@@ -199,8 +203,11 @@ private:
   /** @brief Last end time register when we computed the QP. */
   double last_end_time_seen_;
 
-  /** @brief Last end time register when we computed the QP. */
+  /** @brief Sampling time. */
   double sampling_time;
+
+  /** @brief Control loop. */
+  double control_loop;
 
   /*
    * QP variables
@@ -236,11 +243,11 @@ private:
    * @see NewEndEffectorTrajectory3D */
   Eigen::MatrixXd M_inv_;
 
-//  /** @brief Quadratic term added to the quadratic cost in order regularize the
-//   * system.
-//   * @see NewEndEffectorTrajectory3D */
-//  Eigen::MatrixXd Q_regul_;
-//
+  /** @brief Quadratic term added to the quadratic cost in order regularize the
+   * system.
+   * @see NewEndEffectorTrajectory3D */
+  Eigen::MatrixXd Q_regul_;
+
   /** @brief Cost weights for forces. */
   double cost_;
 
@@ -258,11 +265,15 @@ private:
 
   /** @brief Cost weights for the epsilon_z. */
   double cost_epsilon_vel_;
-  /** @brief Cost weights for the x[i]. */
 
+  /** @brief Cost weights for the desired x[i]. */
   double cost_epsilon_x_i_;
-  /** @brief Cost weights for the y[i]. */
-  double cost_epsilon_y_i_;
+
+  /** @brief Cost weights for the dcm x[i]. */
+  double cost_dcm_epsilon_x_i_;
+
+  /** @brief Cost weights for the dcm y[i]. */
+  double cost_dcm_epsilon_y_i_;
 
   /** @brief Linear term of the quadratic cost.
    * @see NewEndEffectorTrajectory3D */
@@ -283,14 +294,6 @@ private:
   /** @brief Linear inequality vector.
    * @see NewEndEffectorTrajectory3D */
   Eigen::VectorXd B_ineq_;
-
-  /** @brief Quadratic term of the quadratic cost.
-   * @see NewEndEffectorTrajectory3D */
-  Eigen::MatrixXd A_;
-
-  /** @brief Quadratic term of the quadratic cost.
-   * @see NewEndEffectorTrajectory3D */
-  Eigen::MatrixXd B_;
 
   /** @brief Natural frequency of the pendulum: \f$ \omega =
    * \sqrt{\frac{g}{z_0}} \f$. */

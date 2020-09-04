@@ -35,6 +35,7 @@ set(catkin_INCLUDE_DIRS ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS})
 
 # Depend on eigen-quadprog
 catkin_add_required_dependency("eigen-quadprog >= 1.0.0")
+set(catkin_LIBRARIES ${catkin_LIBRARIES} eigen-quadprog)
 catkin_add_required_dependency("pinocchio >= 2.0.0")
 
 ################

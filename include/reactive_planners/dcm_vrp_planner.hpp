@@ -74,7 +74,8 @@ public:
                   const double& t_max,
                   const double& l_p,
                   const double& ht,
-                  Eigen::Ref<const Eigen::Vector9d> cost_weights_local);
+                  Eigen::Ref<const Eigen::Vector9d> cost_weights_local,
+                  const bool is_new);
 
     /**
      * @brief Construct a new DcmVrpPlanner object with some default parameters.
@@ -558,6 +559,8 @@ private:
     /** @brief Linear inequality vector.
      * @see DcmVrpPlanner::compute_adapted_step_locations. */
     Eigen::VectorXd B_ineq_;
+
+    bool new_;
 };
 
 }  // namespace reactive_planners

@@ -21,15 +21,15 @@ NewEndEffectorTrajectory3D::NewEndEffectorTrajectory3D() {
 //  cost_x_ = 1e1;
 //  cost_y_ = 1e1;
 //  cost_z_ = 1e0;
-//  double hess_regul = 1e-9;
-    cost_ = 1;
-    cost_epsilon_z_mid_ = 1e5;
-    cost_epsilon_x_ = 1e9;
-    cost_epsilon_y_ = 1e9;
-    cost_epsilon_z_ = 1e9;
-    cost_epsilon_vel_ = 1e11;
-    cost_epsilon_x_i_ = 1e5;
-    cost_epsilon_y_i_ = 1e5;
+  cost_ = 1;
+  cost_epsilon_z_mid_ = 1e5;
+  cost_epsilon_x_ = 1e9;
+  cost_epsilon_y_ = 1e9;
+  cost_epsilon_z_ = 1e9;
+  cost_epsilon_vel_ = 1e11;
+  cost_dcm_epsilon_x_i_ = 1e5;
+  cost_dcm_epsilon_y_i_ = 1e5;
+  cost_epsilon_x_i_ = 1e7;
 
   // Variable parameters.
   // clang-format off
@@ -46,7 +46,8 @@ NewEndEffectorTrajectory3D::NewEndEffectorTrajectory3D() {
   current_time_ = 0.0;
   end_time_ = 0.0;
   previous_solution_pose_.setZero();
-  sampling_time = 0.005;
+  sampling_time = 0.010;
+  control_loop =0.001;
 
   // QP parameter.
   nb_sampling_time = 10;
@@ -59,12 +60,13 @@ NewEndEffectorTrajectory3D::NewEndEffectorTrajectory3D() {
   resize_matrices();
 
   /*
-   * variables: 3 * nb_local_sampling_time
-   * F_x[0] F_y[0] F_z[0] ... F_x[nb_local_sampling_time] F_y[nb_local_sampling_time] F_z[nb_local_sampling_time]
+   * variables: 4 * nb_local_sampling_time - 1
+   * F_x[0]  ... F_x[nb_local_sampling_time - 1] F_y[0] ... F_y[nb_local_sampling_time - 1] F_z[0] ... F_z[nb_local_sampling_time - 1]
    * slack variables: 7 + 2 * (nb_local_sampling_time - start_mid + 1)
-   * x[nb_local_sampling_time] y[nb_local_sampling_time] ... x[start_mid] y[start_mid] //DCM \.
-   * mid_z x[nb_local_sampling_time] y[nb_local_sampling_time] z[nb_local_sampling_time]\.
-   * v_x[nb_local_sampling_time] v_y[nb_local_sampling_time] v_z[nb_local_sampling_time]
+   * x[0] ... x[nb_local_sampling_time - 2]\.
+   * x[nb_local_sampling_time - 1] y[nb_local_sampling_time - 1] ... x[start_mid] y[start_mid] //DCM \.
+   * mid_z x[nb_local_sampling_time - 1] y[nb_local_sampling_time - 1] z[nb_local_sampling_time - 1]\.
+   * v_x[nb_local_sampling_time - 1] v_y[nb_local_sampling_time - 1] v_z[nb_local_sampling_time - 1]
    * // Lhum: Delete two first slack variables
    */
   x_opt_.resize(nb_var_);
@@ -72,14 +74,15 @@ NewEndEffectorTrajectory3D::NewEndEffectorTrajectory3D() {
   /*
    * equation:
    * x y z v_x v_y v_z a_z z_mid \.
-   * x_dcm[start_mid] y_dcm[start_mid] ... x_dcm[nb_local_sampling_time] y_dcm[nb_local_sampling_time]
+   * x_dcm[start_mid] y_dcm[start_mid] ... x_dcm[nb_local_sampling_time - 1] y_dcm[nb_local_sampling_time - 1]\.
+   * x[0] ... x[nb_local_sampling_time - 2]  //x_des
    *
    * inequation:
-   * z_min[1] ... z_min[nb_local_sampling_time] z_max[1] ... z_max[nb_local_sampling_time] \.
+   * z_min[1] ... z_min[nb_local_sampling_time - 1] z_max[1] ... z_max[nb_local_sampling_time - 1] \.
    * F_x_min[0] F_y_min[0] F_z_min[0] ... \.
-   * F_x_min[nb_local_sampling_time] F_y_min[nb_local_sampling_time] F_z_min[nb_local_sampling_time] \.
+   * F_x_min[nb_local_sampling_time - 1] F_y_min[nb_local_sampling_time - 1] F_z_min[nb_local_sampling_time - 1] \.
    * F_x_max[0] F_y_max[0] F_z_max[0] ... \.
-   * F_x_max[nb_local_sampling_time] F_y_max[nb_local_sampling_time] F_z_max[nb_local_sampling_time]
+   * F_x_max[nb_local_sampling_time - 1] F_y_max[nb_local_sampling_time - 1] F_z_max[nb_local_sampling_time - 1]
    *
    */
 
@@ -92,8 +95,35 @@ NewEndEffectorTrajectory3D::NewEndEffectorTrajectory3D() {
   M_inv_ << 0.045, -0.002, 0.037,
            -0.002, 0.042, 0.0,
            0.037, 0.0, 0.065;
+//  M_inv_ << 0.045, -0.0, 0.0,
+//           -0.0, 0.042, 0.0,
+//           0.0, 0.0, 0.065;
   M_inv_ = M_inv_.inverse();
 
+  v_des_.setZero();
+
+//  Q_regul_ = Eigen::MatrixXd::Identity(nb_var_, nb_var_) * hess_regul;
+    calculate_acceleration();
+}
+
+NewEndEffectorTrajectory3D::~NewEndEffectorTrajectory3D() {}
+
+void NewEndEffectorTrajectory3D::calculate_acceleration(){
+  acceleration_terms_x_.setZero();
+  acceleration_terms_x_.resize(MAX_VAR, 3 * MAX_VAR);
+  acceleration_terms_y_.setZero();
+  acceleration_terms_y_.resize(MAX_VAR, 3 * MAX_VAR);
+  acceleration_terms_z_.setZero();
+  acceleration_terms_z_.resize(MAX_VAR, 3 * MAX_VAR);
+  velocity_terms_x_.setZero();
+  velocity_terms_x_.resize(MAX_VAR, 3 * MAX_VAR);
+  velocity_terms_y_.setZero();
+  velocity_terms_y_.resize(MAX_VAR, 3 * MAX_VAR);
+  velocity_terms_z_.setZero();
+  velocity_terms_z_.resize(MAX_VAR, 3 * MAX_VAR);
+
+  Eigen::MatrixXd A_;
+  Eigen::MatrixXd B_;
   A_.resize(6, 6);
   A_ << 1., sampling_time, 0., 0., 0., 0.,
         0., 1., 0., 0., 0., 0.,
@@ -110,46 +140,35 @@ NewEndEffectorTrajectory3D::NewEndEffectorTrajectory3D() {
         0., 0., sampling_time * sampling_time / 2,
         0., 0., sampling_time;
 
-  v_des_.setZero();
-
-//  Q_regul_ = Eigen::MatrixXd::Identity(nb_var_, nb_var_) * hess_regul;
-
-    calculate_acceleration();
-}
-
-NewEndEffectorTrajectory3D::~NewEndEffectorTrajectory3D() {}
-
-void NewEndEffectorTrajectory3D::calculate_acceleration(){
-  acceleration_x_.setZero();
-  acceleration_x_.resize(MAX_VAR, 3 * MAX_VAR);
-  acceleration_y_.setZero();
-  acceleration_y_.resize(MAX_VAR, 3 * MAX_VAR);
-  acceleration_z_.setZero();
-  acceleration_z_.resize(MAX_VAR, 3 * MAX_VAR);
   Eigen::MatrixXd x;
   x.resize(6, 3);
+
   for (int i = 0; i < MAX_VAR ; ++i) {
       x = B_;
       for (int j = i - 1; j >= 0; j--) {
-          acceleration_x_(i, j) = x(0, 0) * M_inv_(0, 0) + x(0, 1) * M_inv_(1, 0) + x(0, 2) * M_inv_(2, 0);
-          acceleration_x_(i, j + MAX_VAR) = x(0, 0) * M_inv_(0, 1) + x(0, 1) * M_inv_(1, 1) + x(0, 2) * M_inv_(2, 1);
-          acceleration_x_(i, j + 2 * MAX_VAR) = x(0, 0) * M_inv_(0, 2) + x(0, 1) * M_inv_(1, 2) + x(0, 2) * M_inv_(2, 2);
-          x = A_ * x;
-      }
+          acceleration_terms_x_(i, j) = x(0, 0) * M_inv_(0, 0) + x(0, 1) * M_inv_(1, 0) + x(0, 2) * M_inv_(2, 0);
+          acceleration_terms_x_(i, j + MAX_VAR) = x(0, 0) * M_inv_(0, 1) + x(0, 1) * M_inv_(1, 1) + x(0, 2) * M_inv_(2, 1);
+          acceleration_terms_x_(i, j + 2 * MAX_VAR) = x(0, 0) * M_inv_(0, 2) + x(0, 1) * M_inv_(1, 2) + x(0, 2) * M_inv_(2, 2);
 
-      x = B_;
-      for (int j = i - 1; j >= 0; j--) {
-          acceleration_y_(i, j) = x(2, 0) * M_inv_(0, 0) + x(2, 1) * M_inv_(1, 0) + x(2, 2) * M_inv_(2, 0);
-          acceleration_y_(i, j + MAX_VAR) = x(2, 0) * M_inv_(0, 1) + x(2, 1) * M_inv_(1, 1) + x(2, 2) * M_inv_(2, 1);
-          acceleration_y_(i, j + 2 * MAX_VAR) = x(2, 0) * M_inv_(0, 2) + x(2, 1) * M_inv_(1, 2) + x(2, 2) * M_inv_(2, 2);
-          x = A_ * x;
-      }
+          acceleration_terms_y_(i, j) = x(2, 0) * M_inv_(0, 0) + x(2, 1) * M_inv_(1, 0) + x(2, 2) * M_inv_(2, 0);
+          acceleration_terms_y_(i, j + MAX_VAR) = x(2, 0) * M_inv_(0, 1) + x(2, 1) * M_inv_(1, 1) + x(2, 2) * M_inv_(2, 1);
+          acceleration_terms_y_(i, j + 2 * MAX_VAR) = x(2, 0) * M_inv_(0, 2) + x(2, 1) * M_inv_(1, 2) + x(2, 2) * M_inv_(2, 2);
 
-      x = B_;
-      for (int j = i - 1; j >= 0; j--) {
-          acceleration_z_(i, j) = x(4, 0) * M_inv_(0, 0) + x(4, 1) * M_inv_(1, 0) + x(4, 2) * M_inv_(2, 0);
-          acceleration_z_(i, j + MAX_VAR) = x(4, 0) * M_inv_(0, 1) + x(4, 1) * M_inv_(1, 1) + x(4, 2) * M_inv_(2, 1);
-          acceleration_z_(i, j + 2 * MAX_VAR) = x(4, 0) * M_inv_(0, 2) + x(4, 1) * M_inv_(1, 2) + x(4, 2) * M_inv_(2, 2);
+          acceleration_terms_z_(i, j) = x(4, 0) * M_inv_(0, 0) + x(4, 1) * M_inv_(1, 0) + x(4, 2) * M_inv_(2, 0);
+          acceleration_terms_z_(i, j + MAX_VAR) = x(4, 0) * M_inv_(0, 1) + x(4, 1) * M_inv_(1, 1) + x(4, 2) * M_inv_(2, 1);
+          acceleration_terms_z_(i, j + 2 * MAX_VAR) = x(4, 0) * M_inv_(0, 2) + x(4, 1) * M_inv_(1, 2) + x(4, 2) * M_inv_(2, 2);
+
+          velocity_terms_x_(i, j) = x(1, 0) * M_inv_(0, 0) + x(1, 1) * M_inv_(1, 0) + x(1, 2) * M_inv_(2, 0);
+          velocity_terms_x_(i, j + MAX_VAR) = x(1, 0) * M_inv_(0, 1) + x(1, 1) * M_inv_(1, 1) + x(1, 2) * M_inv_(2, 1);
+          velocity_terms_x_(i, j + 2 * MAX_VAR) = x(1, 0) * M_inv_(0, 2) + x(1, 1) * M_inv_(1, 2) + x(1, 2) * M_inv_(2, 2);
+
+          velocity_terms_y_(i, j) = x(3, 0) * M_inv_(0, 0) + x(3, 1) * M_inv_(1, 0) + x(3, 2) * M_inv_(2, 0);
+          velocity_terms_y_(i, j + MAX_VAR) = x(3, 0) * M_inv_(0, 1) + x(3, 1) * M_inv_(1, 1) + x(3, 2) * M_inv_(2, 1);
+          velocity_terms_y_(i, j + 2 * MAX_VAR) = x(3, 0) * M_inv_(0, 2) + x(3, 1) * M_inv_(1, 2) + x(3, 2) * M_inv_(2, 2);
+
+          velocity_terms_z_(i, j) = x(5, 0) * M_inv_(0, 0) + x(5, 1) * M_inv_(1, 0) + x(5, 2) * M_inv_(2, 0);
+          velocity_terms_z_(i, j + MAX_VAR) = x(5, 0) * M_inv_(0, 1) + x(5, 1) * M_inv_(1, 1) + x(5, 2) * M_inv_(2, 1);
+          velocity_terms_z_(i, j + 2 * MAX_VAR) = x(5, 0) * M_inv_(0, 2) + x(5, 1) * M_inv_(1, 2) + x(5, 2) * M_inv_(2, 2);
           x = A_ * x;
       }
   }
@@ -212,7 +231,6 @@ bool NewEndEffectorTrajectory3D::compute(
     Eigen::Ref<const Eigen::Vector3d> com_vel,
     Eigen::Ref<const Eigen::Vector3d> current_support_foot_location,
     const bool& is_left_leg_in_contact) {
-  auto start = std::chrono::high_resolution_clock::now();
   // scaling the problem
   double step_duration = end_time - start_time;
   double duration = end_time - current_time;
@@ -222,9 +240,9 @@ bool NewEndEffectorTrajectory3D::compute(
 //  double nb_local_sampling_time = round((duration + EPSION) / sampling_time);
   int nb_mid_sampling_time = nb_local_sampling_time - (nb_sampling_time / 2);
   int start_mid = std::max(0, nb_mid_sampling_time + 1);
-  nb_var_ = 3 * nb_local_sampling_time + 7 + 2 * (nb_local_sampling_time - start_mid + 1);
+  nb_var_ = 3 * nb_local_sampling_time + 7 + 2 * (nb_local_sampling_time - start_mid + 1) + (nb_local_sampling_time - 1);
   nb_var_axis_ = nb_local_sampling_time;
-  nb_eq_ = 3 * 2 + 2 + (nb_local_sampling_time - start_mid + 1) * 2 + 1;//xn=0,vn=0,an[2]=0,xn/2[2]=xd
+  nb_eq_ = 3 * 2 + 2 + (nb_local_sampling_time - start_mid + 1) * 2 + (nb_local_sampling_time - 1);//xn=0,vn=0,an[2]=0,xn/2[2]=xd
   nb_ineq_ = nb_local_sampling_time * 2 + nb_local_sampling_time * 3 * 2;
 //  std::cout << "Lhum cost " << step_duration << " " << duration << " " << sampling_time << " " << nb_sampling_time << " " <<
 //            nb_sampling_time << " " << nb_local_sampling_time << " " << nb_mid_sampling_time << " " << nb_var_ << " " << nb_ineq_ << std::endl;
@@ -237,7 +255,6 @@ bool NewEndEffectorTrajectory3D::compute(
 //               "\nLhum nb_var_ " <<  nb_var_ <<
 //               "\nLhum nb_ineq_ " <<  nb_ineq_ << std::endl;
   // save args:
-  std::cout << step_duration << " " << nb_sampling_time << " " << nb_local_sampling_time << std::endl;
   start_pose_ = start_pose;
   current_pose_ = current_pose;
   current_velocity_ = current_velocity;
@@ -269,18 +286,26 @@ bool NewEndEffectorTrajectory3D::compute(
 //    sub_Q(i + 1, i) = -1  * cost_;
 //    sub_Q(i, i + 1) = -1  * cost_;
 //  }
-  for(int i = 0 ; i < nb_var_axis_ ; i++)
-    sub_Q(i, i) = 1 * cost_;
-  Q_.block(0, 0, nb_var_axis_, nb_var_axis_) = sub_Q;
-  // Q_y
-  Q_.block(nb_var_axis_, nb_var_axis_, nb_var_axis_, nb_var_axis_) = sub_Q;
-  // Q_z
-  Q_.block(nb_var_axis_ * 2, nb_var_axis_ * 2, nb_var_axis_, nb_var_axis_) = sub_Q;
+  // Q_x
+  for(int i = 0 ; i < nb_var_axis_ ; i++){
+      Q_(i, i) = cost_;
+//      std::cout << 2. * cost_ * i / nb_var_axis_ << std::endl;
+      // Q_y
+      Q_(nb_var_axis_ + i,  nb_var_axis_ + i) = cost_;
+      // Q_z
+      Q_(2 * nb_var_axis_ + i, 2 * nb_var_axis_ + i) = cost_;
+  }
+//  Q_.block(0, 0, nb_var_axis_, nb_var_axis_) = sub_Q;
+//  Q_.block(nb_var_axis_, nb_var_axis_, nb_var_axis_, nb_var_axis_) = sub_Q;
+//  Q_.block(nb_var_axis_ * 2, nb_var_axis_ * 2, nb_var_axis_, nb_var_axis_) = sub_Q;
   // Q_epsilon
+  for(int i = 0; i < nb_local_sampling_time; i++) {
+      Q_(3 * nb_var_axis_ + i, 3 * nb_var_axis_ + i) = cost_epsilon_x_i_ * 1;
+  }
   for(int i = start_mid; i <= nb_local_sampling_time; i++){
 //    std::cout << "Q" << nb_var_ - 2 * (i - start_mid) - 8 << " " << nb_var_ - 2 * (i - start_mid) - 8 - 1 << std::endl;
-    Q_(nb_var_ - 2 * (i - start_mid) - 8, nb_var_ - 2 * (i - start_mid) - 8) = cost_epsilon_x_i_;
-    Q_(nb_var_ - 2 * (i - start_mid) - 1 - 8, nb_var_ - 2 * (i - start_mid) - 1 - 8) = cost_epsilon_y_i_;
+    Q_(nb_var_ - 2 * (i - start_mid) - 8, nb_var_ - 2 * (i - start_mid) - 8) = cost_dcm_epsilon_x_i_;
+    Q_(nb_var_ - 2 * (i - start_mid) - 1 - 8, nb_var_ - 2 * (i - start_mid) - 1 - 8) = cost_dcm_epsilon_y_i_;
   }
   Q_(nb_var_ - 7, nb_var_ - 7) = 1 * cost_epsilon_z_mid_;
   Q_(nb_var_ - 6, nb_var_ - 6) = 1 * cost_epsilon_x_;
@@ -290,7 +315,9 @@ bool NewEndEffectorTrajectory3D::compute(
   Q_(nb_var_ - 2, nb_var_ - 2) = 1 * cost_epsilon_vel_;
   Q_(nb_var_ - 1, nb_var_ - 1) = 1 * cost_epsilon_vel_;
   // Q_regul
-//  Q_ += Q_regul_;
+  double hess_regul = 1e-9;
+  Q_regul_ = Eigen::MatrixXd::Identity(nb_var_, nb_var_) * hess_regul;
+  Q_ += Q_regul_;
 
   /*
    * Equality constraints.
@@ -315,9 +342,9 @@ bool NewEndEffectorTrajectory3D::compute(
 //  }
 //  acc_ep[nb_var_ - 6] = -1;//epsilon_x
 //  A_eq_.row(0).head(nb_var_) = acc_ep;//xn[0]
-  A_eq_.row(0).head(nb_var_axis_) = acceleration_x_.row(nb_local_sampling_time).head(nb_var_axis_);//xn[0]
-  A_eq_.row(0).segment(nb_var_axis_, nb_var_axis_) = acceleration_x_.row(nb_local_sampling_time).segment(MAX_VAR, nb_var_axis_);//xn[0]
-  A_eq_.row(0).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_x_.row(nb_local_sampling_time).segment(2 * MAX_VAR, nb_var_axis_);//xn[0]
+  A_eq_.row(0).head(nb_var_axis_) = acceleration_terms_x_.row(nb_local_sampling_time).head(nb_var_axis_);//xn[0]
+  A_eq_.row(0).segment(nb_var_axis_, nb_var_axis_) = acceleration_terms_x_.row(nb_local_sampling_time).segment(MAX_VAR, nb_var_axis_);//xn[0]
+  A_eq_.row(0).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_terms_x_.row(nb_local_sampling_time).segment(2 * MAX_VAR, nb_var_axis_);//xn[0]
   A_eq_(0, nb_var_ - 6) = -1;
 //  acc_ep[nb_var_ - 6] = 0;//delete epsilon_x
 //  x = B_;
@@ -329,9 +356,9 @@ bool NewEndEffectorTrajectory3D::compute(
 //  }
 //  acc_ep[nb_var_ - 5] = -1;//epsilon_y
 //  A_eq_.row(1).head(nb_var_) = acc_ep;//xn[1]
-  A_eq_.row(1).head(nb_var_axis_) = acceleration_y_.row(nb_local_sampling_time).head(nb_var_axis_);//xn[1]
-  A_eq_.row(1).segment(nb_var_axis_, nb_var_axis_) = acceleration_y_.row(nb_local_sampling_time).segment(MAX_VAR, nb_var_axis_);//xn[1]
-  A_eq_.row(1).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_y_.row(nb_local_sampling_time).segment(2 * MAX_VAR, nb_var_axis_);//xn[1]
+  A_eq_.row(1).head(nb_var_axis_) = acceleration_terms_y_.row(nb_local_sampling_time).head(nb_var_axis_);//xn[1]
+  A_eq_.row(1).segment(nb_var_axis_, nb_var_axis_) = acceleration_terms_y_.row(nb_local_sampling_time).segment(MAX_VAR, nb_var_axis_);//xn[1]
+  A_eq_.row(1).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_terms_y_.row(nb_local_sampling_time).segment(2 * MAX_VAR, nb_var_axis_);//xn[1]
   A_eq_(1, nb_var_ - 5) = -1;
 //  acc_ep[nb_var_ - 5] = 0;//delete epsilon_y
 //  x = B_;
@@ -342,9 +369,9 @@ bool NewEndEffectorTrajectory3D::compute(
 //    x = A_ * x;
 //  }
 //  acc_ep[nb_var_ - 4] = -1;//epsilon_z
-  A_eq_.row(2).head(nb_var_axis_) = acceleration_z_.row(nb_local_sampling_time).head(nb_var_axis_);//xn[2]
-  A_eq_.row(2).segment(nb_var_axis_, nb_var_axis_) = acceleration_z_.row(nb_local_sampling_time).segment(MAX_VAR, nb_var_axis_);//xn[2]
-  A_eq_.row(2).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_z_.row(nb_local_sampling_time).segment(2 * MAX_VAR, nb_var_axis_);//xn[2]
+  A_eq_.row(2).head(nb_var_axis_) = acceleration_terms_z_.row(nb_local_sampling_time).head(nb_var_axis_);//xn[2]
+  A_eq_.row(2).segment(nb_var_axis_, nb_var_axis_) = acceleration_terms_z_.row(nb_local_sampling_time).segment(MAX_VAR, nb_var_axis_);//xn[2]
+  A_eq_.row(2).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_terms_z_.row(nb_local_sampling_time).segment(2 * MAX_VAR, nb_var_axis_);//xn[2]
 //  A_eq_(2, nb_var_ - 4) = -1;
 //  acc_ep[nb_var_ - 4] = 0;//delete epsilon_z
 
@@ -362,9 +389,9 @@ bool NewEndEffectorTrajectory3D::compute(
 //      }
 //      acc_ep[nb_var_ - 3] = -1;//epsilon_vel
 //      A_eq_.row(3).head(nb_var_) = acc_ep;//vn[0]
-      A_eq_.row(3).head(nb_var_axis_) = acceleration_x_.row(nb_local_sampling_time - 1).head(nb_var_axis_);//vn[0]
-      A_eq_.row(3).segment(nb_var_axis_, nb_var_axis_) = acceleration_x_.row(nb_local_sampling_time - 1).segment(MAX_VAR, nb_var_axis_);//vn[0]
-      A_eq_.row(3).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_x_.row(nb_local_sampling_time - 1).segment(2 * MAX_VAR, nb_var_axis_);//vn[0]
+      A_eq_.row(3).head(nb_var_axis_) = acceleration_terms_x_.row(nb_local_sampling_time - 1).head(nb_var_axis_);//vn[0]
+      A_eq_.row(3).segment(nb_var_axis_, nb_var_axis_) = acceleration_terms_x_.row(nb_local_sampling_time - 1).segment(MAX_VAR, nb_var_axis_);//vn[0]
+      A_eq_.row(3).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_terms_x_.row(nb_local_sampling_time - 1).segment(2 * MAX_VAR, nb_var_axis_);//vn[0]
       A_eq_(3, nb_var_ - 6) = -1;
       A_eq_(3, nb_var_ - 3) = -1;
 //      acc_ep[nb_var_ - 3] = 0;//delete epsilon_vel
@@ -377,9 +404,9 @@ bool NewEndEffectorTrajectory3D::compute(
 //      }
 //      acc_ep[nb_var_ - 2] = -1;//epsilon_vel
 //      A_eq_.row(4).head(nb_var_) = acc_ep;//vn[1]
-      A_eq_.row(4).head(nb_var_axis_) = acceleration_y_.row(nb_local_sampling_time - 1).head(nb_var_axis_);//vn[1]
-      A_eq_.row(4).segment(nb_var_axis_, nb_var_axis_) = acceleration_y_.row(nb_local_sampling_time - 1).segment(MAX_VAR, nb_var_axis_);//vn[1]
-      A_eq_.row(4).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_y_.row(nb_local_sampling_time - 1).segment(2 * MAX_VAR, nb_var_axis_);//vn[1]
+      A_eq_.row(4).head(nb_var_axis_) = acceleration_terms_y_.row(nb_local_sampling_time - 1).head(nb_var_axis_);//vn[1]
+      A_eq_.row(4).segment(nb_var_axis_, nb_var_axis_) = acceleration_terms_y_.row(nb_local_sampling_time - 1).segment(MAX_VAR, nb_var_axis_);//vn[1]
+      A_eq_.row(4).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_terms_y_.row(nb_local_sampling_time - 1).segment(2 * MAX_VAR, nb_var_axis_);//vn[1]
       A_eq_(4, nb_var_ - 5) = -1;
       A_eq_(4, nb_var_ - 2) = -1;
 //      acc_ep[nb_var_ - 2] = 0;//delete epsilon_vel
@@ -392,9 +419,9 @@ bool NewEndEffectorTrajectory3D::compute(
 //      }
 //      acc_ep[nb_var_ - 1] = -1;//epsilon_vel
 //      A_eq_.row(5).head(nb_var_) = acc_ep;//vn[2]
-      A_eq_.row(5).head(nb_var_axis_) = acceleration_z_.row(nb_local_sampling_time - 1).head(nb_var_axis_);//vn[2]
-      A_eq_.row(5).segment(nb_var_axis_, nb_var_axis_) = acceleration_z_.row(nb_local_sampling_time - 1).segment(MAX_VAR, nb_var_axis_);//vn[2]
-      A_eq_.row(5).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_z_.row(nb_local_sampling_time - 1).segment(2 * MAX_VAR, nb_var_axis_);//vn[2]
+      A_eq_.row(5).head(nb_var_axis_) = acceleration_terms_z_.row(nb_local_sampling_time - 1).head(nb_var_axis_);//vn[2]
+      A_eq_.row(5).segment(nb_var_axis_, nb_var_axis_) = acceleration_terms_z_.row(nb_local_sampling_time - 1).segment(MAX_VAR, nb_var_axis_);//vn[2]
+      A_eq_.row(5).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_terms_z_.row(nb_local_sampling_time - 1).segment(2 * MAX_VAR, nb_var_axis_);//vn[2]
 //      A_eq_(5, nb_var_ - 4) = -1;
 //      acc_ep[nb_var_ - 1] = 0;//delete epsilon_vel
   }
@@ -418,9 +445,9 @@ bool NewEndEffectorTrajectory3D::compute(
 //  acc_ep[nb_var_ - 7] = -1;//epsilon_z_mid
 //  A_eq_.row(7).head(nb_var_) = acc_ep;//xn/2[2]
   if(nb_mid_sampling_time >= 0) {
-    A_eq_.row(7).head(nb_var_axis_) = acceleration_z_.row(nb_mid_sampling_time).head(nb_var_axis_);//xn/2[2]
-    A_eq_.row(7).segment(nb_var_axis_, nb_var_axis_) = acceleration_z_.row(nb_mid_sampling_time).segment(MAX_VAR, nb_var_axis_);//xn/2[2]
-    A_eq_.row(7).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_z_.row(nb_mid_sampling_time).segment(2 * MAX_VAR, nb_var_axis_);//xn/2[2]
+    A_eq_.row(7).head(nb_var_axis_) = acceleration_terms_z_.row(nb_mid_sampling_time).head(nb_var_axis_);//xn/2[2]
+    A_eq_.row(7).segment(nb_var_axis_, nb_var_axis_) = acceleration_terms_z_.row(nb_mid_sampling_time).segment(MAX_VAR, nb_var_axis_);//xn/2[2]
+    A_eq_.row(7).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_terms_z_.row(nb_mid_sampling_time).segment(2 * MAX_VAR, nb_var_axis_);//xn/2[2]
   }
   A_eq_(7, nb_var_ - 7) = -1;
 //  acc_ep[nb_var_ - 7] = 0;//epsilon_z_mid
@@ -457,9 +484,9 @@ bool NewEndEffectorTrajectory3D::compute(
 ////    }
 ////    acc_ep[nb_var_ - 2 * (i - start_mid) - 8] = -1;//epsilon_x_i
 ////    A_eq_.row(8 + (i - start_mid) * 2).head(nb_var_) = acc_ep;
-//    A_eq_.row(8 + (i - start_mid) * 2).head(nb_var_axis_) = acceleration_x_.row(i).head(nb_var_axis_);//xi[0]
-//    A_eq_.row(8 + (i - start_mid) * 2).segment(nb_var_axis_, nb_var_axis_) = acceleration_x_.row(i).segment(MAX_VAR, nb_var_axis_);//xi[0]
-//    A_eq_.row(8 + (i - start_mid) * 2).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_x_.row(i).segment(2 * MAX_VAR, nb_var_axis_);//xi[0]
+//    A_eq_.row(8 + (i - start_mid) * 2).head(nb_var_axis_) = acceleration_terms_x_.row(i).head(nb_var_axis_);//xi[0]
+//    A_eq_.row(8 + (i - start_mid) * 2).segment(nb_var_axis_, nb_var_axis_) = acceleration_terms_x_.row(i).segment(MAX_VAR, nb_var_axis_);//xi[0]
+//    A_eq_.row(8 + (i - start_mid) * 2).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_terms_x_.row(i).segment(2 * MAX_VAR, nb_var_axis_);//xi[0]
 //    A_eq_(8 + (i - start_mid) * 2, nb_var_ - 2 * (i - start_mid) - 8) = -1;
 ////    acc_ep[nb_var_ - 2 * (i - start_mid) - 8] = 0;//epsilon_x_i
 //    B_eq_(8 + (i - start_mid)  * 2) = - current_pose_(0) + u_(0) - current_velocity_(0) * sampling_time * i;
@@ -473,9 +500,9 @@ bool NewEndEffectorTrajectory3D::compute(
 ////    }
 ////    acc_ep[nb_var_ - 2 * (i - start_mid) - 1 - 8] = -1;//epsilon_y_i
 ////    A_eq_.row(8 + (i - start_mid) * 2 + 1).head(nb_var_) = acc_ep;
-//    A_eq_.row(8 + (i - start_mid) * 2 + 1).head(nb_var_axis_) = acceleration_y_.row(i).head(nb_var_axis_);//xi[1]
-//    A_eq_.row(8 + (i - start_mid) * 2 + 1).segment(nb_var_axis_, nb_var_axis_) = acceleration_y_.row(i).segment(MAX_VAR, nb_var_axis_);//xi[1]
-//    A_eq_.row(8 + (i - start_mid) * 2 + 1).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_y_.row(i).segment(2 * MAX_VAR, nb_var_axis_);//xi[1]
+//    A_eq_.row(8 + (i - start_mid) * 2 + 1).head(nb_var_axis_) = acceleration_terms_y_.row(i).head(nb_var_axis_);//xi[1]
+//    A_eq_.row(8 + (i - start_mid) * 2 + 1).segment(nb_var_axis_, nb_var_axis_) = acceleration_terms_y_.row(i).segment(MAX_VAR, nb_var_axis_);//xi[1]
+//    A_eq_.row(8 + (i - start_mid) * 2 + 1).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_terms_y_.row(i).segment(2 * MAX_VAR, nb_var_axis_);//xi[1]
 ////    acc_ep[nb_var_ - 2 * (i - start_mid) - 1 - 8] = 0;//epsilon_y_i
 //    A_eq_(8 + (i - start_mid) * 2 + 1, nb_var_ - 2 * (i - start_mid) - 1 - 8) = -1;
 //    B_eq_(8 + (i - start_mid) * 2 + 1) = - current_pose_(1) + u_(1) - current_velocity_(1) * sampling_time * i;
@@ -487,6 +514,13 @@ bool NewEndEffectorTrajectory3D::compute(
 //  std::cout <<"final u" << " " << u_[0] << " " << u_[1] << " " << target_pose[0] << " " << target_pose[1] << std::endl;
 
 
+//  for (int i = 0; i < nb_local_sampling_time - 1 ; ++i) {//x[i]cost
+//      A_eq_.row(8 + (nb_local_sampling_time - start_mid + 1) * 2 + i).head(nb_var_axis_) = acceleration_terms_x_.row(i).head(nb_var_axis_);//xi[0]
+//      A_eq_.row(8 + (nb_local_sampling_time - start_mid + 1) * 2 + i).segment(nb_var_axis_, nb_var_axis_) = acceleration_terms_x_.row(i).segment(MAX_VAR, nb_var_axis_);//xi[0]
+//      A_eq_.row(8 + (nb_local_sampling_time - start_mid + 1) * 2 + i).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_terms_x_.row(i).segment(2 * MAX_VAR, nb_var_axis_);//xi[0]
+//      A_eq_(8 + (nb_local_sampling_time - start_mid + 1) * 2 + i, 3 * nb_var_axis_ + i) = -1;
+//      B_eq_(8 + (nb_local_sampling_time - start_mid + 1) * 2 + i) = -current_pose_(0) + target_pose_(0) - current_velocity_(0) * sampling_time * i;
+//  }
   // clang-format on
 
   /*
@@ -495,8 +529,9 @@ bool NewEndEffectorTrajectory3D::compute(
 
 //  for(int i = 0; i < nb_var_ - 7; i++)
 //    acc[i] = 0;
+//  std::cout << "ST" << nb_local_sampling_time  << std::endl;
   for (int i = 1; i < nb_local_sampling_time; ++i) {
-    // z >= zmin   =>   -z <= -z_min
+      // z >= zmin   =>   -z <= -z_min
 //    x = B_;
 //    for(int j = i - 1 ; j >= 0; j--){
 //      acc[j] = x(4, 0) * M_inv_(0, 0) + x(4, 1) * M_inv_(1, 0) + x(4, 2) * M_inv_(2, 0);
@@ -504,39 +539,26 @@ bool NewEndEffectorTrajectory3D::compute(
 //      acc[j + 2 * nb_var_axis_] = x(4, 0) * M_inv_(0, 2) + x(4, 1) * M_inv_(1, 2) + x(4, 2) * M_inv_(2, 2);
 //      x = A_ * x;
 //    }
-    A_ineq_.row(i - 1).head(nb_var_axis_) = -acceleration_z_.row(i).head(nb_var_axis_);
-    A_ineq_.row(i - 1).segment(nb_var_axis_, nb_var_axis_) = -acceleration_z_.row(i).segment(MAX_VAR, nb_var_axis_);
-    A_ineq_.row(i - 1).segment(2 * nb_var_axis_, nb_var_axis_) = -acceleration_z_.row(i).segment(2 * MAX_VAR, nb_var_axis_);
-////    A_ineq_.row(i - 1).head(nb_var_ - 7) = -acc;
-    B_ineq_(i - 1) = current_pose_(2) -std::min(start_pose(2), target_pose(2)) + 0.0001 + current_velocity_(2) * sampling_time * i;
-
-    // z <= z_max, i <= n/2 || z_i <= z_i - 1, i > n/2
+//    A_ineq_.row(i - 1).head(nb_var_ - 7) = -acc;
+      A_ineq_.row(i - 1).head(nb_var_axis_) = -acceleration_terms_z_.row(i).head(nb_var_axis_);
+      A_ineq_.row(i - 1).segment(nb_var_axis_, nb_var_axis_) = -acceleration_terms_z_.row(i).segment(MAX_VAR, nb_var_axis_);
+      A_ineq_.row(i - 1).segment(2 * nb_var_axis_, nb_var_axis_) = -acceleration_terms_z_.row(i).segment(2 * MAX_VAR, nb_var_axis_);
+      B_ineq_(i - 1) = current_pose_(2) - std::min(start_pose(2), target_pose(2)) + 0.0001 + current_velocity_(2) * sampling_time * i;
+      // z <= z_max, i <= n/2 || z_i <= z_i - 1, i > n/2
 //    A_ineq_.row(i - 1 + nb_local_sampling_time).head(nb_var_ - 7) = acc;
-    if(i <= nb_mid_sampling_time || i == nb_local_sampling_time - 1) {
-        A_ineq_.row(i - 1 + nb_local_sampling_time).head(nb_var_axis_) = acceleration_z_.row(i).head(nb_var_axis_);
-        A_ineq_.row(i - 1 + nb_local_sampling_time).segment(nb_var_axis_, nb_var_axis_) = acceleration_z_.row(
-                i).segment(MAX_VAR, nb_var_axis_);
-        A_ineq_.row(i - 1 + nb_local_sampling_time).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_z_.row(
-                i).segment(2 * MAX_VAR, nb_var_axis_);
-        B_ineq_(i - 1 + nb_local_sampling_time) =
-                -current_pose_(2) + std::max(start_pose(2), target_pose(2)) + mid_air_height_ -
-                current_velocity_(2) * sampling_time * i;
-    }
-    else{
-        A_ineq_.row(i - 1 + nb_local_sampling_time).head(nb_var_axis_) =
-                acceleration_z_.row(i).head(nb_var_axis_)
-                - acceleration_z_.row(i - 1).head(nb_var_axis_);
-        A_ineq_.row(i - 1 + nb_local_sampling_time).segment(nb_var_axis_, nb_var_axis_) =
-                acceleration_z_.row(i).segment(MAX_VAR, nb_var_axis_)
-                - acceleration_z_.row(i - 1).segment(MAX_VAR, nb_var_axis_);
-        A_ineq_.row(i - 1 + nb_local_sampling_time).segment(2 * nb_var_axis_, nb_var_axis_) =
-                acceleration_z_.row(i).segment(2 * MAX_VAR, nb_var_axis_)
-                - acceleration_z_.row(i - 1).segment(2 * MAX_VAR, nb_var_axis_);
-
-        B_ineq_(i - 1 + nb_local_sampling_time) = -current_velocity_(2) * sampling_time;
-    }
+      if (i <= nb_mid_sampling_time || i >= nb_local_sampling_time - 1 || true) {
+          A_ineq_.row(i - 1 + nb_local_sampling_time).head(nb_var_axis_) = acceleration_terms_z_.row(i).head(nb_var_axis_);
+          A_ineq_.row(i - 1 + nb_local_sampling_time).segment(nb_var_axis_, nb_var_axis_) = acceleration_terms_z_.row(i).segment(MAX_VAR, nb_var_axis_);
+          A_ineq_.row(i - 1 + nb_local_sampling_time).segment(2 * nb_var_axis_, nb_var_axis_) = acceleration_terms_z_.row(i).segment(2 * MAX_VAR, nb_var_axis_);
+          B_ineq_(i - 1 + nb_local_sampling_time) = -current_pose_(2) + std::max(start_pose(2), target_pose(2)) + mid_air_height_ - current_velocity_(2) * sampling_time * i;
+      } else {
+          A_ineq_.row(i - 1 + nb_local_sampling_time).head(nb_var_axis_) = velocity_terms_z_.row(i).head(nb_var_axis_);
+          A_ineq_.row(i - 1 + nb_local_sampling_time).segment(nb_var_axis_, nb_var_axis_) = velocity_terms_z_.row(i).segment(MAX_VAR, nb_var_axis_);
+          A_ineq_.row(i - 1 + nb_local_sampling_time).segment(2 * nb_var_axis_, nb_var_axis_) = velocity_terms_z_.row(i).segment(2 * MAX_VAR, nb_var_axis_);
+          B_ineq_(i - 1 + nb_local_sampling_time) = -current_velocity_(2);
+      }
   }
-  B_ineq_(nb_local_sampling_time - 1) = -std::min(start_pose(2), target_pose(2));
+//  B_ineq_(nb_local_sampling_time - 1) = -std::min(start_pose(2), target_pose(2));
   //Force
   for(int i = 0; i < nb_local_sampling_time * 3; i++){
 //    if(i % 3 != 2) {
@@ -546,10 +568,10 @@ bool NewEndEffectorTrajectory3D::compute(
         B_ineq_(nb_local_sampling_time * 2 + nb_local_sampling_time * 3 + i) = 18;
 //    }
   }
-  auto stop = std::chrono::high_resolution_clock::now();
-  auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+//  auto stop = std::chrono::high_resolution_clock::now();
+//  auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
 //  std::cout << "Lhum duration:      " << duration2.count() << std::endl;
-  start = std::chrono::high_resolution_clock::now();
+//  start = std::chrono::high_resolution_clock::now();
   bool failure = false;
   if (!failure) {
     if (!qp_solver_.solve(Q_, q_, A_eq_, B_eq_, A_ineq_, B_ineq_)) {
@@ -569,13 +591,12 @@ bool NewEndEffectorTrajectory3D::compute(
                    "solution!"
                 << RESET << std::endl;
     } else {
-      std::cout << "lhum fail"<< qp_solver_.fail() << std::endl;
       std::cout << RED << "NewEndEffectorTrajectory3D::compute -> problems with decomposing D!"
           << RESET << std::endl;
     }
   }
-  stop = std::chrono::high_resolution_clock::now();
-  duration2 = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+//  stop = std::chrono::high_resolution_clock::now();
+//  duration2 = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
 //  std::cout << "Lhum duration2:      " << duration2.count() << std::endl;
 //  if(nb_local_sampling_time == 6)
 //    print_solver();
@@ -585,22 +606,26 @@ bool NewEndEffectorTrajectory3D::compute(
 int NewEndEffectorTrajectory3D::get_forces(
     Eigen::Ref<Eigen::VectorXd> forces, Eigen::Ref<Eigen::Vector3d> next_pose,
     Eigen::Ref<Eigen::Vector3d> next_velocity, Eigen::Ref<Eigen::Vector3d> next_acceleration) {
-  double loop_time = 0.001;
   if (current_time_ < start_time_) {
     forces.setZero();
   } else if (current_time_ >= last_end_time_seen_ - 1e-4) {
     forces.setZero();
   } else {
-    // Extract the information from the solution.
-    x_opt_.resize(nb_var_);
-    x_opt_ = qp_solver_.result();
-//    std::cout << x_opt_ << std::endl;
-    for(int i = 0 ; i < nb_var_axis_ ; i++){
-        forces(i * 3) = x_opt_[i];
-        forces(i * 3 + 1) = x_opt_[nb_var_axis_ + i];
-        forces(i * 3 + 2) = x_opt_[2 * nb_var_axis_ + i];
+    if(!qp_solver_.solve(Q_, q_, A_eq_, B_eq_, A_ineq_, B_ineq_)) {
+        forces = forces.tail(forces.size() - 3);
     }
-    std::cout << "Lforces first run" << forces << std::endl;
+    else {
+        // Extract the information from the solution.
+        x_opt_.resize(nb_var_);
+        x_opt_ = qp_solver_.result();
+//     std::cout << x_opt_ << std::endl;
+        for (int i = 0; i < nb_var_axis_; i++) {
+            forces(i * 3) = x_opt_[i];
+            forces(i * 3 + 1) = x_opt_[nb_var_axis_ + i];
+            forces(i * 3 + 2) = x_opt_[2 * nb_var_axis_ + i];
+        }
+    }
+    std::cout << "FORCE" << forces[0] << " " << forces[1] << " " << forces[2] << std::endl;
     slack_variables_ << x_opt_(nb_var_ - 6), x_opt_(nb_var_ - 5), x_opt_(nb_var_ - 4);
     if(nb_var_axis_ == 16) {
 //        std::cout << "A_eq:" << std::endl << A_eq_ << std::endl;
@@ -612,30 +637,28 @@ int NewEndEffectorTrajectory3D::get_forces(
   }
 //  std::cout << "Slack in traj " << x_opt_(nb_var_ - 6) << " " << x_opt_(nb_var_ - 5) << " " << x_opt_(nb_var_ - 4)
 //            << " " << x_opt_(nb_var_ - 3) << " " << x_opt_(nb_var_ - 2) << " " << x_opt_(nb_var_ - 1) << std::endl;
-  std::cout << nb_var_axis_ << std::endl;
 //  if(nb_var_axis_ < 4)
 //      std::cout << forces << std::endl;
   next_acceleration << forces[0] * M_inv_(0, 0) + forces[1] * M_inv_(1, 0) + forces[2] * M_inv_(2, 0),
                        forces[0] * M_inv_(0, 1) + forces[1] * M_inv_(1, 1) + forces[2] * M_inv_(2, 1),
                        forces[0] * M_inv_(0, 2) + forces[1] * M_inv_(1, 2) + forces[2] * M_inv_(2, 2);
 
-  next_velocity << next_acceleration(0) * loop_time + current_velocity_(0),
-                   next_acceleration(1) * loop_time + current_velocity_(1),
-                   next_acceleration(2) * loop_time + current_velocity_(2);
+  next_velocity << next_acceleration(0) * control_loop + current_velocity_(0),
+                   next_acceleration(1) * control_loop + current_velocity_(1),
+                   next_acceleration(2) * control_loop + current_velocity_(2);
 
-  next_pose << 0.5 * next_acceleration(0) * loop_time * loop_time +
-               current_velocity_(0) * loop_time + current_pose_(0),
-               0.5 * next_acceleration(1) * loop_time * loop_time +
-               current_velocity_(1) * loop_time + current_pose_(1),
-               0.5 * next_acceleration(2) * loop_time * loop_time +
-               current_velocity_(2) * loop_time + current_pose_(2);
+  next_pose << 0.5 * next_acceleration(0) * control_loop * control_loop +
+               current_velocity_(0) * control_loop + current_pose_(0),
+               0.5 * next_acceleration(1) * control_loop * control_loop +
+               current_velocity_(1) * control_loop + current_pose_(1),
+               0.5 * next_acceleration(2) * control_loop * control_loop +
+               current_velocity_(2) * control_loop + current_pose_(2);
 
-  return nb_var_axis_ * 3;
+  return forces.size();
 }
 
 void NewEndEffectorTrajectory3D::update_robot_status(Eigen::Ref<Eigen::Vector3d> next_pose,
         Eigen::Ref<Eigen::Vector3d> next_velocity, Eigen::Ref<Eigen::Vector3d> next_acceleration) {
-    double loop_time = 0.001;
     if (current_time_ < start_time_) {
         return;
     }
@@ -644,23 +667,21 @@ void NewEndEffectorTrajectory3D::update_robot_status(Eigen::Ref<Eigen::Vector3d>
     Eigen::Vector3d forces;
     forces << x_opt_[0], x_opt_[nb_var_axis_], x_opt_[2 * nb_var_axis_];
 
-    std::cout << "Lforces other runs" << forces << std::endl;
 
     next_acceleration << forces[0] * M_inv_(0, 0) + forces[1] * M_inv_(1, 0) + forces[2] * M_inv_(2, 0),
             forces[0] * M_inv_(0, 1) + forces[1] * M_inv_(1, 1) + forces[2] * M_inv_(2, 1),
             forces[0] * M_inv_(0, 2) + forces[1] * M_inv_(1, 2) + forces[2] * M_inv_(2, 2);
 
-    next_velocity << next_acceleration(0) * loop_time + current_velocity_(0),
-            next_acceleration(1) * loop_time + current_velocity_(1),
-            next_acceleration(2) * loop_time + current_velocity_(2);
+    next_velocity << next_acceleration(0) * control_loop + current_velocity_(0),
+            next_acceleration(1) * control_loop + current_velocity_(1),
+            next_acceleration(2) * control_loop + current_velocity_(2);
 
-    next_pose << 0.5 * next_acceleration(0) * loop_time * loop_time +
-                 current_velocity_(0) * loop_time + current_pose_(0),
-            0.5 * next_acceleration(1) * loop_time * loop_time +
-            current_velocity_(1) * loop_time + current_pose_(1),
-            0.5 * next_acceleration(2) * loop_time * loop_time +
-            current_velocity_(2) * loop_time + current_pose_(2);
-    std::cout << next_acceleration << "!!!!!!!!!!!!" << next_velocity << "@@@@@@@@@@@@" << next_pose << std::endl;
+    next_pose << 0.5 * next_acceleration(0) * control_loop * control_loop +
+                 current_velocity_(0) * control_loop + current_pose_(0),
+            0.5 * next_acceleration(1) * control_loop * control_loop +
+            current_velocity_(1) * control_loop + current_pose_(1),
+            0.5 * next_acceleration(2) * control_loop * control_loop +
+            current_velocity_(2) * control_loop + current_pose_(2);
 }
 
 std::string NewEndEffectorTrajectory3D::to_string() const {

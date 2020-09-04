@@ -240,8 +240,7 @@ bool DcmReactiveStepper::walk(
     ///change solver loop time_step
     if(new_ && time_from_last_step_touchdown_ == 0.0)
         nb_usage_of_force_ = 0;
-    if(new_ && nb_usage_of_force_ % 5 != 0){//Lhum TODO update 10 automatically
-        std::cout << "Lhum !\n";
+    if(new_ && nb_usage_of_force_ % 10 != 0){//Lhum TODO update 10 automatically
         // Compute the flying foot trajectory.
         if (is_left_leg_in_contact_)  // check which foot is in contact
         {
@@ -268,7 +267,6 @@ bool DcmReactiveStepper::walk(
         nb_usage_of_force_ += 1;
         return true;
     }
-    std::cout << "Lhum @\n";
     nb_usage_of_force_ = 1;
     ///change solver loop time_step
 
@@ -567,7 +565,6 @@ bool DcmReactiveStepper::walk(
                                                        local_left_foot_velocity_,
                                                        local_left_foot_acceleration_);
             Eigen::Vector3d slack = new_end_eff_traj3d_.get_slack_variables();
-            std::cout << slack << std::endl;
 //            if(fabs(slack(0)) > .01 || fabs(slack(1)) > 0.01){
 //                std::cout << BLUE << "slack 1\n "  << std::endl;
 //                std::cout << slack << RESET << std::endl;
@@ -709,7 +706,7 @@ bool DcmReactiveStepper::walk(
     feasible_com_velocity_ =
         (next_support_foot_position_ - previous_support_foot_position_) * 0.5;
     feasible_com_velocity_[2] = 0.0;
-    dcm = dcm_vrp_planner_.get_dcm_local();
+    dcm_ = dcm_vrp_planner_.get_dcm_local();
     return succeed;
 }
 
