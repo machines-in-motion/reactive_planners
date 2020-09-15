@@ -430,15 +430,13 @@ public:
      *
      * @return const Eigen::Matrix12,1d&
      */
-    const Eigen::Ref<const Eigen::Matrix<double, 12, 1>> get_force()
+
+    const Eigen::Matrix<double, 12, 1> &get_force()
     {
-        Eigen::Matrix<double, 12, 1> force;
-        std::cout << std::endl;
         if(is_left_leg_in_contact_)
-            force << 0, 0, 0, 0, 0, 0, forces_.head(3), 0, 0, 0;
+            force << 0., 0., 0., 0., 0., 0., forces_.head(3), 0., 0., 0.;
         else
-            force << forces_.head(3), 0, 0, 0, 0, 0, 0, 0, 0, 0;
-//        std::cout << "dcm_" << force << std::endl;
+            force << forces_.head(3), 0., 0., 0., 0., 0., 0., 0., 0., 0.;
         return force;
     }
 
@@ -580,6 +578,9 @@ private:
     double l_p_;
 
     int nb_usage_of_force_;
+
+    /** @brief Force calculated until the next contact. */
+    Eigen::Matrix<double, 12, 1> force;
 
     /** @brief Nominal DCM computed from the CoM estimation and nominal time. */
     Eigen::Vector3d dcm_;
