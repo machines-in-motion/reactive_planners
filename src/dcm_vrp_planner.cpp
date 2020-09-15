@@ -141,9 +141,9 @@ void DcmVrpPlanner::compute_nominal_step_values(
     else
         w_nom_ = v_des_local(1) * t_nom_ + l_p_;
 
-    bx_nom_ = 0;//l_nom_ / (tau_nom_ - 1);
-    by_nom_ = 0;//(pow(-1, contact_switcher) * (l_p_ / (1 + tau_nom_))) -
-              //v_des_local(1) * t_nom_ / (1 - tau_nom_);
+    bx_nom_ = l_nom_ / (tau_nom_ - 1);
+    by_nom_ = (pow(-1, contact_switcher) * (l_p_ / (1 + tau_nom_))) -
+              v_des_local(1) * t_nom_ / (1 - tau_nom_);
 }
 
 #define dbg_dump(var) std::cout << "  " << #var << ": " << var << std::endl
@@ -208,10 +208,10 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
 
     // Do not update after t_min_ for stability of the flying foot trajectory
     // reasons.
-//    if (time_from_last_step_touchdown_ > 0.8 * t_nom_ && !new_)
-//    {
-//        return;
-//    }// Lhum 70
+    if (time_from_last_step_touchdown_ > 0.8 * t_nom_ && !new_)
+    {
+        return;
+    }
 
     // Express the desired velocity in the local frame.
     v_des_local_ = v_des;
@@ -254,8 +254,6 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     by_min = -by_max_in_;
   }
   double alpha = 30 * 18.;
-//  std::cout << "sqrt " << sqrt(2. * current_swing_foot_location(2) / alpha) << std::endl;
-//    std::cout << "Lhum CSFL" << current_swing_foot_location << std::endl;
   tau_min_ = exp(omega_ * std::max(t_min_, time_from_last_step_touchdown_ + std::max(0.00099, sqrt(2. * current_swing_foot_location(2) / alpha))));
     // clang-format off
   B_ineq_ <<  l_max_,                // 0
@@ -291,10 +289,10 @@ bool DcmVrpPlanner::solve(double time, double x, double y)
 {
     /* Here we stop optimizing after t_min because the foot trajectory does
     not follow up and the controller becomes unstable. */
-//    if (time_from_last_step_touchdown_ > 0.8 * t_nom_ && !new_)
-//    {
-//        return true;
-//    }// Lhum 70 Lhum new_ Lhum time
+    if (time_from_last_step_touchdown_ > 0.8 * t_nom_ && !new_)
+    {
+        return true;
+    }// Lhum 70 Lhum new_ Lhum time
 //    Eigen::Vector3d tmp;
 //    if(time != 0){
 //        std::cout << "Lhum second solve" << std::endl;
