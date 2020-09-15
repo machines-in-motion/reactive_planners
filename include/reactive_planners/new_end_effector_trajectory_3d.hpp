@@ -148,14 +148,13 @@ private:
   }
 
   void calculate_acceleration();
+  Eigen::MatrixXd *acceleration_terms_x_;
+  Eigen::MatrixXd *acceleration_terms_y_;
+  Eigen::MatrixXd *acceleration_terms_z_;
 
-  Eigen::MatrixXd acceleration_terms_x_;
-  Eigen::MatrixXd acceleration_terms_y_;
-  Eigen::MatrixXd acceleration_terms_z_;
-
-  Eigen::MatrixXd velocity_terms_x_;
-  Eigen::MatrixXd velocity_terms_y_;
-  Eigen::MatrixXd velocity_terms_z_;
+  Eigen::MatrixXd *velocity_terms_x_;
+  Eigen::MatrixXd *velocity_terms_y_;
+  Eigen::MatrixXd *velocity_terms_z_;
 
 
   /*
@@ -241,7 +240,9 @@ private:
 
   /** @brief inverse estimation of mass matrix.
    * @see NewEndEffectorTrajectory3D */
-  Eigen::MatrixXd M_inv_;
+  Eigen::MatrixXd *M_inv_;
+
+  bool is_left_leg_in_contact_;
 
   /** @brief Quadratic term added to the quadratic cost in order regularize the
    * system.
@@ -268,6 +269,9 @@ private:
 
   /** @brief Cost weights for the desired x[i]. */
   double cost_epsilon_x_i_;
+
+  /** @brief Cost weights for the desired x[i]. */
+  double cost_epsilon_y_i_;
 
   /** @brief Cost weights for the dcm x[i]. */
   double cost_dcm_epsilon_x_i_;
