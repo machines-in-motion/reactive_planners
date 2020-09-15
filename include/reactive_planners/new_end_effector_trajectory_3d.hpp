@@ -242,6 +242,7 @@ private:
    * @see NewEndEffectorTrajectory3D */
   Eigen::MatrixXd *M_inv_;
 
+  /** @brief Is the left foot in contact? otherwise the right foot is. */
   bool is_left_leg_in_contact_;
 
   /** @brief Quadratic term added to the quadratic cost in order regularize the
