@@ -133,7 +133,7 @@ void DcmVrpPlanner::compute_nominal_step_values(
         max_or_min_time << fabs_l_max / fabs(v_des_local(0)), fabs_w_max / fabs(v_des_local(1)), t_max_;
         t_upper_bound = max_or_min_time.minCoeff();
     }
-    t_nom_ = t_upper_bound - 0.01;//(t_lower_bound + t_upper_bound) * 0.5;
+    t_nom_ = (t_lower_bound + t_upper_bound) * 0.5;//t_upper_bound - 0.01;//
     tau_nom_ = exp(omega_ * t_nom_);
     l_nom_ = v_des_local(0) * t_nom_;
     if(is_left_leg_in_contact)
@@ -216,6 +216,7 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     // Express the desired velocity in the local frame.
     v_des_local_ = v_des;
     v_des_local_ = world_M_local_.rotation().transpose() * v_des_local_;
+//    v_des_local_ = world_M_local_.actInv(v_des_local_);
     // Nominal value tracked by the QP.
     compute_nominal_step_values(is_left_leg_in_contact, v_des_local_);
 

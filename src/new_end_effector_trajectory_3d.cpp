@@ -109,13 +109,20 @@ NewEndEffectorTrajectory3D::NewEndEffectorTrajectory3D() {
            0.0, 0.045, 0.0,
            0.0, 0.0, 0.09;//Left_swing
   M_inv_[1] << 0.045, -0.0, 0.0,
-           -0.0, 0.042, -0.0,
+           -0.0, 0.045, -0.0,//Lhum Warning
            0.0, -0.0, 0.09;//Right_swing
 //  M_inv_ << 0.045, -0.0, 0.0,
 //           -0.0, 0.042, 0.0,
 //           0.0, 0.0, 0.065;
   M_inv_[0] = M_inv_[0].inverse();
   M_inv_[1] = M_inv_[1].inverse();
+    //new_mass_matrix_test
+//    M_inv_[0] << 55.61, 2.38, 30.02,
+//            2.38, 23.91, 2.14,
+//            30.02, 2.14, 28.55;//Left_swing
+//    M_inv_[1] << 55.61, -2.38, 30.02,
+//            -2.38, 23.91, -2.14,
+//            30.02, -2.14, 28.55;//Right_swing
 
   v_des_.setZero();
 

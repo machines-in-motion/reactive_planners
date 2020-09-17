@@ -299,13 +299,13 @@ def yaw(q):
 def plot(f):
     # print("Lhum recompute", pos_for_plotter)
     if is_left_leg_in_contact:
-        M = [[0.045, -0.008, 0.045],
-             [-0.008, 0.042, -0.007],
-             [0.045, -0.007, 0.09]]
+        M = [[0.045, -0.0, 0.0],
+             [-0.0, 0.042, -0.0],
+             [0.0, -0.0, 0.09]]
     else:
-        M = [[0.045, 0.045, 0.043],
-             [0.045, 0.045, 0.01],
-             [0.043, 0.01, 0.09]]
+        M = [[0.045, 0.0, 0.0],
+             [0.0, 0.045, 0.0],
+             [0.0, 0.0, 0.09]]
     M_inv = inv(M)
     sum_f = [0, 0, 0]
     x2 = []
@@ -443,7 +443,7 @@ def external_force(com):
 
 if __name__ == "__main__":
     # Create a robot instance. This initializes the simulator as well.
-    robot = BoltRobot(useFixedBase=True)
+    robot = BoltRobot(useFixedBase=False)
     print("start")
     tau = np.zeros(6)
     p.resetDebugVisualizerCamera(1.6, 50, -35, (0., 0., 0.))
@@ -494,10 +494,10 @@ if __name__ == "__main__":
     robot.reset_state(q, qdot)
     total_mass = 1.13  # sum([i.mass for i in robot.pin_robot.model.inertias[1:]])
     warmup = 0
-    # kp = np.array([150., 150., 150., 150., 150., 150.])
-    # kd = [5., 5., 5., 5., 5., 5.]
-    kp = np.array([0., 0., 0., 0., 0., 0.])
-    kd = [0., 0., 0., 0., 0., 0.]
+    kp = np.array([150., 150., 150., 150., 150., 150.])
+    kd = [5., 5., 5., 5., 5., 5.]
+    # kp = np.array([0., 0., 0., 0., 0., 0.])
+    # kd = [0., 0., 0., 0., 0., 0.]
     # kp = np.array([150., 150., 150., 150., 150., 150.])
     # kd = [15., 15., 15., 15., 15., 15.]
     # kp_joint = np.array([2., 2., 2., 2., 2., 2.])
@@ -599,7 +599,7 @@ if __name__ == "__main__":
     # torque = np.loadtxt("torque.txt")
     h_bais = 0
     inv_kin = PointContactInverseKinematics(robot.pin_robot.model, robot.end_effector_names)
-    for i in range(505):#1466):#1500):
+    for i in range(1305):#1466):#1500):
         # print(i)
         last_qdot = qdot
         q, qdot = robot.get_state()
@@ -701,9 +701,9 @@ if __name__ == "__main__":
             dcm_force = dcm_reactive_stepper.get_forces().copy() #feed forward
             # print(dcm_force)
             # print("Lhum recompute ", dcm_reactive_stepper.get_time_from_last_step_touchdown())
-            if i % 1 == 0 and i > 1 and int(dcm_reactive_stepper.get_time_from_last_step_touchdown() * 1000) == 0:
-               d = dcm_reactive_stepper.get_forces().copy()
-               plot(d)#Lhum make sure you update the mass matrix with traj's mass matrix
+            # if i % 1 == 0 and i > 1 and int(dcm_reactive_stepper.get_time_from_last_step_touchdown() * 1000) == 0:
+            #    d = dcm_reactive_stepper.get_forces().copy()
+            #    plot(d)#Lhum make sure you update the mass matrix with traj's mass matrix
             # print("@", t)
             # print(yaw(q))
             # if dcm_reactive_stepper.time_from_last_step_touchdown == 0:
@@ -779,10 +779,8 @@ if __name__ == "__main__":
         dcm_force[2] = -dcm_force[2]
         if cnt_array[0] == 1 and cnt_array[1] == 0:
             F[3:] = dcm_force[:3]
-            F[:3] = [0., 0., 0.]
         elif cnt_array[0] == 0 and cnt_array[1] == 1:
             F[:3] = dcm_force[:3]
-            F[3:] = [0., 0., 0.]
         print(dcm_force[:3])
         tau, r= bolt_leg_ctrl.return_joint_torques(q.copy(), qdot.copy(), zero_cnt_gain(kp, cnt_array),
                                                  zero_cnt_gain(kd, cnt_array),
