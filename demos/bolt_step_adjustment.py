@@ -443,7 +443,7 @@ def external_force(com):
 
 if __name__ == "__main__":
     # Create a robot instance. This initializes the simulator as well.
-    robot = BoltRobot(useFixedBase=False)
+    robot = BoltRobot()
     print("start")
     tau = np.zeros(6)
     p.resetDebugVisualizerCamera(1.6, 50, -35, (0., 0., 0.))
