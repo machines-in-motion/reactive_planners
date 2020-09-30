@@ -55,7 +55,7 @@ if __name__ == "__main__":
             support_foot = dcm_reactive_stepper.right_foot_position.copy()
             swing_foot = dcm_reactive_stepper.left_foot_position.copy()
         dcm_reactive_stepper.run(time, swing_foot,
-                                 support_foot, x_com, xd_com, 0)
+                                 support_foot, x_com, xd_com, 0, [0, 0])
         if i == 760:
             xd_com[1] = xd_com[1] - 0.2
             t = dcm_reactive_stepper.time_from_last_step_touchdown

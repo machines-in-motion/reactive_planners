@@ -26,8 +26,11 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
                                            Eigen::Ref<const Eigen::Vector3d>,
                                            Eigen::Ref<const Eigen::Vector3d>,
                                            Eigen::Ref<const Eigen::Vector3d>,
+                                           Eigen::Ref<const Eigen::Vector3d>,
+                                           Eigen::Ref<const Eigen::Vector3d>,
                                            const double &,
-                                           Eigen::Ref<const Eigen::Vector2d>)) &
+                                           Eigen::Ref<const Eigen::Vector2d>,
+                                           const bool &)) &
                  DcmReactiveStepper::run)
         .def("run",
              (bool (DcmReactiveStepper::*)(double,
@@ -35,8 +38,11 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
                                            Eigen::Ref<const Eigen::Vector3d>,
                                            Eigen::Ref<const Eigen::Vector3d>,
                                            Eigen::Ref<const Eigen::Vector3d>,
+                                           Eigen::Ref<const Eigen::Vector3d>,
+                                           Eigen::Ref<const Eigen::Vector3d>,
                                            const pinocchio::SE3 &,
-                                           Eigen::Ref<const Eigen::Vector2d>)) &
+                                           Eigen::Ref<const Eigen::Vector2d>,
+                                           const bool &)) &
                  DcmReactiveStepper::run)
 
         .def("start", &DcmReactiveStepper::start)

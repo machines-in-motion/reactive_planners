@@ -18,7 +18,7 @@
 #include <chrono>
 #define RESET   "\033[0m"
 #define RED     "\033[31m"      /* Red */
-#define BLUE     "\033[34m"      /* Red */
+#define BLUE     "\033[34m"      /* Blue */
 #define MAX_VAR 500
 #define EPSION 0.00498
 
@@ -123,6 +123,13 @@ public:
     {
         return slack_variables_;
     }
+
+//    double calculate_t_min(
+//            Eigen::Ref<const Eigen::Vector3d> current_pose,
+//            Eigen::Ref<const Eigen::Vector3d> current_velocity,
+//            Eigen::Ref<const Eigen::Vector3d> current_acceleration,
+//            const double& current_time,
+//            const bool& is_left_leg_in_contact);
     /*
      * Private methods
      */
@@ -146,8 +153,28 @@ private:
       B_ineq_.setZero();
       qp_solver_.problem(nb_var_, nb_eq_, nb_ineq_);
   }
+  /** @brief resize QP variable at each step.
+   */
+  void resize_matrices_t_min(int index){
+      Q_t_min_.resize(3 * index, 3 * index);
+      Q_t_min_ = Eigen::MatrixXd::Identity(3 * index, 3 * index);
+      q_t_min_.resize(3 * index);
+      q_t_min_.setZero();
+
+      A_eq_t_min_.resize(2, 3 * index);
+      A_eq_t_min_.setZero();
+      B_eq_t_min_.resize(2);
+      B_eq_t_min_.setZero();
+
+      A_ineq_t_min_.resize(2 * 3 * index, 3 * index);
+      A_ineq_t_min_.setZero();
+      B_ineq_t_min_.resize(2 * 3 * index);
+      B_ineq_t_min_.setZero();
+      qp_solver_t_min_.problem(3 * index, 2, 2 * 3 * index);
+    }
 
   void calculate_acceleration();
+
   Eigen::MatrixXd *acceleration_terms_x_;
   Eigen::MatrixXd *acceleration_terms_y_;
   Eigen::MatrixXd *acceleration_terms_z_;
@@ -166,7 +193,7 @@ private:
 
   /** @brief Number of force variables in the optimization problem on the
    * one of the axes. */
-  int nb_var_axis_;
+  int nb_local_sampling_time_;
 
   /*
    * Variable problem parameters.
@@ -230,6 +257,13 @@ private:
    */
   Eigen::QuadProgDense qp_solver_;
 
+
+  /** @brief Quadratic program solver.
+   *
+   * This is an eigen wrapper around the quad_prog fortran solver.
+   */
+  Eigen::QuadProgDense qp_solver_t_min_;
+
   /** @brief Solution of the optimization problem.
    * @see NewEndEffectorTrajectory3D */
   Eigen::VectorXd x_opt_;
@@ -237,6 +271,9 @@ private:
   /** @brief Quadratic term of the quadratic cost.
    * @see NewEndEffectorTrajectory3D */
   Eigen::MatrixXd Q_;
+  /** @brief Quadratic term of the quadratic cost.
+   * @see NewEndEffectorTrajectory3D */
+  Eigen::MatrixXd Q_t_min_;
 
   /** @brief inverse estimation of mass matrix.
    * @see NewEndEffectorTrajectory3D */
@@ -299,6 +336,26 @@ private:
   /** @brief Linear inequality vector.
    * @see NewEndEffectorTrajectory3D */
   Eigen::VectorXd B_ineq_;
+
+  /** @brief Linear term of the quadratic cost.
+  * @see NewEndEffectorTrajectory3D */
+  Eigen::VectorXd q_t_min_;
+
+  /** @brief Linear equality matrix.
+   * @see NewEndEffectorTrajectory3D */
+  Eigen::MatrixXd A_eq_t_min_;
+
+  /** @brief Linear equality vector.
+   * @see NewEndEffectorTrajectory3D */
+  Eigen::VectorXd B_eq_t_min_;
+
+  /** @brief Linear inequality matrix.
+   * @see NewEndEffectorTrajectory3D */
+  Eigen::MatrixXd A_ineq_t_min_;
+
+  /** @brief Linear inequality vector.
+   * @see NewEndEffectorTrajectory3D */
+  Eigen::VectorXd B_ineq_t_min_;
 
   /** @brief Natural frequency of the pendulum: \f$ \omega =
    * \sqrt{\frac{g}{z_0}} \f$. */

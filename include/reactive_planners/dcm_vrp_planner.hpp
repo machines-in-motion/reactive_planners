@@ -18,6 +18,9 @@
 #include <cmath>
 #include <sstream>
 #include <stdexcept>
+#define RESET   "\033[0m"
+#define RED     "\033[31m"      /* Red */
+#define BLUE     "\033[34m"      /* Blue */
 
 namespace Eigen
 {
@@ -135,7 +138,8 @@ public:
                 Eigen::Ref<const Eigen::Vector3d> v_des,
                 Eigen::Ref<const Eigen::Vector3d> com,
                 Eigen::Ref<const Eigen::Vector3d> com_vel,
-                const pinocchio::SE3& world_M_base);
+                const pinocchio::SE3& world_M_base,
+                const double& new_t_min);
     /**
      * @brief Computes adapted step location for python3.
      *
@@ -169,7 +173,8 @@ public:
                 Eigen::Ref<const Eigen::Vector3d> v_des,
                 Eigen::Ref<const Eigen::Vector3d> com,
                 Eigen::Ref<const Eigen::Vector3d> com_vel,
-                const double& yaw);
+                const double& yaw,
+                const double& new_t_min);
 
     /**
      * @brief Solve the Quadratic program and extract the solution. Use
@@ -276,9 +281,13 @@ public:
      *
      * @return Eigen::Ref<const Eigen::Vector3d>
      */
-    Eigen::Ref<const Eigen::Vector3d> get_dcm_local() const
+
+    Eigen::Vector3d dcm_local_REF;
+    Eigen::Ref<const Eigen::Vector3d> get_dcm_local()
     {
-        return dcm_local_;
+        dcm_local_REF = world_M_local_.act(dcm_local_);
+        dcm_local_REF = dcm_local_;
+        return dcm_local_REF;
     }
 
     /**

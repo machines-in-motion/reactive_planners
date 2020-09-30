@@ -71,10 +71,13 @@ public:
     bool run(double time,
              Eigen::Ref<const Eigen::Vector3d> left_foot_position,
              Eigen::Ref<const Eigen::Vector3d> right_foot_position,
+             Eigen::Ref<const Eigen::Vector3d> left_foot_vel,
+             Eigen::Ref<const Eigen::Vector3d> right_foot_vel,
              Eigen::Ref<const Eigen::Vector3d> com_position,
              Eigen::Ref<const Eigen::Vector3d> com_velocity,
              const double &base_yaw,
-             Eigen::Ref<const Eigen::Vector2d> contact);
+             Eigen::Ref<const Eigen::Vector2d> contact,
+             const bool &is_closed_loop);
     /**
      * @brief
      *
@@ -89,10 +92,13 @@ public:
     bool run(double time,
              Eigen::Ref<const Eigen::Vector3d> left_foot_position,
              Eigen::Ref<const Eigen::Vector3d> right_foot_position,
+             Eigen::Ref<const Eigen::Vector3d> left_foot_vel,
+             Eigen::Ref<const Eigen::Vector3d> right_foot_vel,
              Eigen::Ref<const Eigen::Vector3d> com_position,
              Eigen::Ref<const Eigen::Vector3d> com_velocity,
              const pinocchio::SE3 &world_M_base,
-             Eigen::Ref<const Eigen::Vector2d> contact);
+             Eigen::Ref<const Eigen::Vector2d> contact,
+             const bool &is_closed_loop);
 
 
     /**
@@ -458,10 +464,13 @@ private:
     bool walk(double time,
               Eigen::Ref<const Eigen::Vector3d> left_foot_position,
               Eigen::Ref<const Eigen::Vector3d> right_foot_position,
+              Eigen::Ref<const Eigen::Vector3d> left_foot_vel,
+              Eigen::Ref<const Eigen::Vector3d> right_foot_vel,
               Eigen::Ref<const Eigen::Vector3d> com_position,
               Eigen::Ref<const Eigen::Vector3d> com_velocity,
-              const pinocchio::SE3 &local_frame,
-              Eigen::Ref<const Eigen::Vector2d> contact);
+              pinocchio::SE3 &local_frame,
+              Eigen::Ref<const Eigen::Vector2d> contact,
+              const bool &is_closed_loop);
 
     /**
      * @brief Makes the robot stand still.

@@ -109,38 +109,47 @@ bool DcmReactiveStepper::run(
     double time,
     Eigen::Ref<const Eigen::Vector3d> left_foot_position,
     Eigen::Ref<const Eigen::Vector3d> right_foot_position,
+    Eigen::Ref<const Eigen::Vector3d> left_foot_vel,
+    Eigen::Ref<const Eigen::Vector3d> right_foot_vel,
     Eigen::Ref<const Eigen::Vector3d> com_position,
     Eigen::Ref<const Eigen::Vector3d> com_velocity,
     const double &base_yaw,
-    Eigen::Ref<const Eigen::Vector2d> contact)
+    Eigen::Ref<const Eigen::Vector2d> contact,
+    const bool &is_closed_loop)
 {
-    Eigen::Vector3d base_pose;
+    Eigen::Vector3d support_foot;
     if(is_left_leg_in_contact_)
-        base_pose << left_foot_position(0), left_foot_position(1), dcm_vrp_planner_.get_com_height();
+        support_foot << left_foot_position(0), left_foot_position(1), dcm_vrp_planner_.get_com_height();
     else
-        base_pose << right_foot_position(0), right_foot_position(1), dcm_vrp_planner_.get_com_height();
+        support_foot << right_foot_position(0), right_foot_position(1), dcm_vrp_planner_.get_com_height();
     pinocchio::SE3 world_M_base(
         Eigen::AngleAxisd(base_yaw, Eigen::Vector3d::UnitZ())
             .toRotationMatrix(),
-        base_pose);
+        support_foot);
 
     return run(time,
                left_foot_position,
                right_foot_position,
+               left_foot_vel,
+               right_foot_vel,
                com_position,
                com_velocity,
                world_M_base,
-               contact);
+               contact,
+               is_closed_loop);
 }
 
 bool DcmReactiveStepper::run(
     double time,
     Eigen::Ref<const Eigen::Vector3d> left_foot_position,
     Eigen::Ref<const Eigen::Vector3d> right_foot_position,
+    Eigen::Ref<const Eigen::Vector3d> left_foot_vel,
+    Eigen::Ref<const Eigen::Vector3d> right_foot_vel,
     Eigen::Ref<const Eigen::Vector3d> com_position,
     Eigen::Ref<const Eigen::Vector3d> com_velocity,
     const pinocchio::SE3 &world_M_base,
-    Eigen::Ref<const Eigen::Vector2d> contact)
+    Eigen::Ref<const Eigen::Vector2d> contact,
+    const bool &is_closed_loop)
 {
     // if (first_iteration_)
     // {
@@ -166,13 +175,17 @@ bool DcmReactiveStepper::run(
         walk(time,
              left_foot_position,
              right_foot_position,
+             left_foot_vel,
+             right_foot_vel,
              com_position,
              com_velocity,
              local_frame_,
-             contact);
+             contact,
+             is_closed_loop);
     }
     else
     {
+//        std::cout << "stand_still\n"; // Lhum you should replace to left_on_ground for stand_still if you see this in output
         stand_still(time, left_foot_position, right_foot_position);
     }
     // Convert the feet position, velocity and acceleration to the local frame.
@@ -192,42 +205,62 @@ bool DcmReactiveStepper::walk(
     double time,
     Eigen::Ref<const Eigen::Vector3d> left_foot_position,
     Eigen::Ref<const Eigen::Vector3d> right_foot_position,
+    Eigen::Ref<const Eigen::Vector3d> left_foot_vel,
+    Eigen::Ref<const Eigen::Vector3d> right_foot_vel,
     Eigen::Ref<const Eigen::Vector3d> com_position,
     Eigen::Ref<const Eigen::Vector3d> com_velocity,
-    const pinocchio::SE3 &local_frame,
-    Eigen::Ref<const Eigen::Vector2d> contact)
+    pinocchio::SE3 &local_frame,
+    Eigen::Ref<const Eigen::Vector2d> contact,
+    const bool &is_closed_loop)
 {
+    Eigen::Vector3d left_on_ground = left_foot_position;
+    left_on_ground[2] = 0;
+    Eigen::Vector3d right_on_ground = right_foot_position;
+    right_on_ground[2] = 0;
     bool succeed = true;
     Eigen::Vector3d previous_next_support_foot_position_ = next_support_foot_position_;
     // Run the scheduler of the planner.
     if(contact[0] == 0 && contact[1] == 0){
         if (is_left_leg_in_contact_)
         {
-            stepper_head_.run(step_duration_, right_foot_position, time);
+            stepper_head_.run(step_duration_, right_on_ground, time);
         }
         else
         {
-            stepper_head_.run(step_duration_, left_foot_position, time);
+            stepper_head_.run(step_duration_, left_on_ground, time);
         }
     }
     else{
         if (is_left_leg_in_contact_)
         {
-            stepper_head_.run(step_duration_, right_foot_position, time, contact[1]);
+            stepper_head_.run(step_duration_, right_on_ground, time, contact[1]);
         }
         else
         {
-            stepper_head_.run(step_duration_, left_foot_position, time, contact[0]);
+            stepper_head_.run(step_duration_, left_on_ground, time, contact[0]);
         }
     }
     // Extract the usefull informations.
     is_left_leg_in_contact_ = stepper_head_.get_is_left_leg_in_contact();
     if(is_left_leg_in_contact_){
-        stepper_head_.set_support_foot_pos(left_foot_position);
+        stepper_head_.set_support_foot_pos(left_on_ground);
     }
     else{
-        stepper_head_.set_support_foot_pos(right_foot_position);
+        stepper_head_.set_support_foot_pos(right_on_ground);
     }
+//    if(is_closed_loop){
+//        if(is_left_leg_in_contact_){
+////            std::cout << "right\n" << std::endl;
+//            right_foot_position_ = right_foot_position;
+//            right_foot_velocity_ = right_foot_vel;
+//        }
+//        else{
+////            std::cout << "left\n" << std::endl;
+//            left_foot_position_ = left_foot_position;
+//            left_foot_velocity_ = left_foot_vel;
+//
+//        }
+//    }
     time_from_last_step_touchdown_ =
         stepper_head_.get_time_from_last_step_touchdown();
     current_support_foot_position_ =
@@ -235,6 +268,7 @@ bool DcmReactiveStepper::walk(
     Eigen::Vector3d current_swing_foot_position = is_left_leg_in_contact_? right_foot_position_: left_foot_position_;
     previous_support_foot_position_ =
         stepper_head_.get_previous_support_location();
+
 
 
     ///change solver loop time_step
@@ -267,12 +301,38 @@ bool DcmReactiveStepper::walk(
         nb_usage_of_force_ += 1;
         return true;
     }
+    Eigen::Vector3d support_foot;
+    if(is_left_leg_in_contact_)
+        support_foot << left_on_ground(0), left_on_ground(1), dcm_vrp_planner_.get_com_height();
+    else
+        support_foot << right_on_ground(0), right_on_ground(1), dcm_vrp_planner_.get_com_height();
+    local_frame.translation() = support_foot;
     nb_usage_of_force_ = 1;
     ///change solver loop time_step
 
 
     double previous_end_time = dcm_vrp_planner_.get_duration_before_step_landing();
     // Run the DcmVrpPlanner to get the next foot step location.
+    double current_time = stepper_head_.get_time_from_last_step_touchdown();
+    double new_t_min = 0.0;
+    if(new_) {
+//        if(is_left_leg_in_contact_)
+//            new_t_min = new_end_eff_traj3d_.calculate_t_min(
+//                    right_foot_position_,
+//                    right_foot_velocity_,
+//                    right_foot_acceleration_,
+//                    current_time,
+//                    is_left_leg_in_contact_);
+//        else
+//            new_t_min = new_end_eff_traj3d_.calculate_t_min(
+//                    left_foot_position_,
+//                    left_foot_velocity_,
+//                    left_foot_acceleration_,
+//                    current_time,
+//                    is_left_leg_in_contact_);
+        new_t_min = 0.;
+
+    }
     dcm_vrp_planner_.update(current_support_foot_position_,
                             current_swing_foot_position,
                             time_from_last_step_touchdown_,
@@ -280,14 +340,17 @@ bool DcmReactiveStepper::walk(
                             desired_com_velocity_,
                             com_position,
                             com_velocity,
-                            local_frame);
+                            local_frame,
+                            new_t_min);
 
     succeed += succeed && dcm_vrp_planner_.solve(0, 0, 0);
     // Extract the usefull informations.
     step_duration_ = dcm_vrp_planner_.get_duration_before_step_landing();
     next_support_foot_position_ = dcm_vrp_planner_.get_next_step_location();
+//    next_support_foot_position_(0) = 0;
+//    next_support_foot_position_(1) = 0;
+//    next_support_foot_position_(2) = 0;
     double start_time = 0.0;
-    double current_time = stepper_head_.get_time_from_last_step_touchdown();
     double end_time = dcm_vrp_planner_.get_duration_before_step_landing();// + step_local_duration_;////////////////////////////////
 
 //    if(previous_end_time != end_time && current_time >= previous_end_time - 0.001){
