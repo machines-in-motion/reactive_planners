@@ -316,21 +316,20 @@ bool DcmReactiveStepper::walk(
     double current_time = stepper_head_.get_time_from_last_step_touchdown();
     double new_t_min = 0.0;
     if(new_) {
-//        if(is_left_leg_in_contact_)
-//            new_t_min = new_end_eff_traj3d_.calculate_t_min(
-//                    right_foot_position_,
-//                    right_foot_velocity_,
-//                    right_foot_acceleration_,
-//                    current_time,
-//                    is_left_leg_in_contact_);
-//        else
-//            new_t_min = new_end_eff_traj3d_.calculate_t_min(
-//                    left_foot_position_,
-//                    left_foot_velocity_,
-//                    left_foot_acceleration_,
-//                    current_time,
-//                    is_left_leg_in_contact_);
-        new_t_min = 0.;
+        if(is_left_leg_in_contact_)
+            new_t_min = new_end_eff_traj3d_.calculate_t_min(
+                    right_foot_position_,
+                    right_foot_velocity_,
+                    right_foot_acceleration_,
+                    current_time,
+                    is_left_leg_in_contact_);
+        else
+            new_t_min = new_end_eff_traj3d_.calculate_t_min(
+                    left_foot_position_,
+                    left_foot_velocity_,
+                    left_foot_acceleration_,
+                    current_time,
+                    is_left_leg_in_contact_);
 
     }
     dcm_vrp_planner_.update(current_support_foot_position_,
@@ -764,7 +763,6 @@ bool DcmReactiveStepper::walk(
         right_foot_velocity_.setZero();
         right_foot_acceleration_.setZero();
     }
-
     // Compute the feasible velocity.
     feasible_com_velocity_ =
         (next_support_foot_position_ - previous_support_foot_position_) * 0.5;

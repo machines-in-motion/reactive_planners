@@ -124,6 +124,12 @@ class PointContactInverseKinematics(object):
         h = np.matrix(se3.nonLinearEffects(self.model, self.data, q, qdot)).transpose()
         return self.lambda_c * J * inv(self.m_c) * self.p * h
 
+    def equation_eleven_g(self, q, qdot):
+        self.equation_eleven_mass_matrix(q)
+        J = np.matrix(self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3])
+        g = np.matrix(se3.computeGeneralizedGravity(self.model, self.data, q)).transpose()
+        return self.lambda_c * J * inv(self.m_c) * self.p * g
+
     def xddot(self, q, qdot):
         self.xdot = self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3].dot(qdot)[:3]
         return (self.xdot - self.last_xdot) * 1000
@@ -300,14 +306,20 @@ def plot(f):
     print("Lhum recompute", pos_for_plotter)
     if is_left_leg_in_contact:
         M = [[0.045, -0.0, 0.0],
-             [-0.0, 0.042, -0.0],
+             [-0.0, 0.045, -0.0],
              [0.0, -0.0, 0.09]]
+        # M = [[0.045, 0.005, 0.043],
+        #      [0.005, 0.045, 0.01],
+        #      [0.043, 0.01, 0.09]]
     else:
         M = [[0.045, 0.0, 0.0],
              [0.0, 0.045, 0.0],
              [0.0, 0.0, 0.09]]
+        # M = [[0.045, -0.008, 0.045],
+        #      [-0.008, 0.042, -0.007],
+        #      [0.045, -0.007, 0.09]]
     M_inv = inv(M)
-    sum_f = [0, 0, 0]
+    # sum_f = [0, 0, 0]
     x2 = []
     x3 = []
     v = []
@@ -330,18 +342,24 @@ def plot(f):
     v0 = vel_for_plotter
     x2.append(x0)
     x3.append(x0)
+    h= np.array([-0.4, 0., 0.8])
+    # h= np.array([-0.0, 0., 0.0])
+    print("@@@@@@@@@@@@@@@@@@@@@@")
+    print("h", type(h))
+    print("F", type(f))
     # print("plot f", f)
     for i in range(len(f) / 3):
-        sum_f += f[i * 3: i * 3 + 3]
-        x2.append(0.5 * f[i * 3: i * 3 + 3].dot(M_inv) * time * time + x0 + v0 * time)
+        # sum_f += f[i * 3: i * 3 + 3]
+        x2.append(0.5 * (f[i * 3: i * 3 + 3] - h).dot(M_inv) * time * time + x0 + v0 * time)
         sum = pos_for_plotter + vel_for_plotter * (i + 1) * time
         final = B
         for k in range(i + 1):
             sum[:] += np.array(final * np.matrix(f[(i - k) * 3: (i - k) * 3 + 3].dot(M_inv)).transpose())[::2, 0]
+            sum[:] += np.array(final * np.matrix(-h.dot(M_inv)).transpose())[::2, 0]
             final = A * final
         x3.append(sum)
-        x0 = 0.5 * f[i * 3: i * 3 + 3].dot(M_inv) * time * time + x0 + v0 * time
-        v0 = v0 + f[i * 3: i * 3 + 3].dot(M_inv) * time
+        x0 = 0.5 * (f[i * 3: i * 3 + 3] - h).dot(M_inv) * time * time + x0 + v0 * time
+        v0 = v0 + (f[i * 3: i * 3 + 3] - h).dot(M_inv) * time
         v.append(v0)
     plt.plot(x2, label="x2")
     plt.plot(x3, label="x3")
@@ -458,6 +476,10 @@ if __name__ == "__main__":
     MM = np.matrix([[0.045, -0.002, 0.037],
          [-0.002, 0.042, 0.0],
          [0.037, 0.0, 0.065]])
+    MM =  np.matrix([[0.045, 0.005, 0.043],
+           [0.005, 0.045, 0.01,],
+           [0.043, 0.01, 0.09]])
+    print(inv(MM))
 
     M = np.matrix([[0.045, 0.0, 0.0],
                    [0.0, 0.045, 0.0],
@@ -503,10 +525,10 @@ if __name__ == "__main__":
     robot.reset_state(q, qdot)
     total_mass = 1.13  # sum([i.mass for i in robot.pin_robot.model.inertias[1:]])
     warmup = 5
-    # kp = np.array([50., 50., 50., 50., 50., 50.])
-    # kd = [5., 5., 5., 5., 5., 5.]
-    kp = np.array([150., 150., 150., 150., 150., 150.])
+    kp = np.array([50., 50., 50., 50., 50., 50.])
     kd = [5., 5., 5., 5., 5., 5.]
+    # kp = np.array([150., 150., 150., 150., 150., 150.])
+    # kd = [5., 5., 5., 5., 5., 5.]
     # kp = np.array([0., 0., 0., 0., 0., 0.])
     # kd = [0., 0., 0., 0., 0., 0.]
     # kp = np.array([150., 150., 150., 150., 150., 150.])
@@ -525,7 +547,7 @@ if __name__ == "__main__":
     w_min = -0.1
     w_max = 0.3
     t_min = 0.1
-    t_max = 0.3# Lhum TODO if you change it you should change stepper_head.cpp line 71 or looking for *
+    t_max = 0.8# Lhum TODO if you change it you should change stepper_head.cpp line 71 or looking for *
     l_p = 0.1035 * 1
     com_height = 0.36487417
     weight = [1, 1, 5, 1000, 1000, 100000, 100000, 100000, 100000]
@@ -595,6 +617,7 @@ if __name__ == "__main__":
     plt_eq_11_r = []
     plt_eq_11_l = []
     plt_eq_h = []
+    plt_eq_g = []
     plt_eq_qdot = []
     plt_eq_qddot = []
     plt_F_M_new = []
@@ -611,7 +634,7 @@ if __name__ == "__main__":
     # torque = np.loadtxt("torque.txt")
     h_bais = 0
     inv_kin = PointContactInverseKinematics(robot.pin_robot.model, robot.end_effector_names)
-    for i in range(10505):#1466):#1500):
+    for i in range(1405):#1466):#1500):
         # print("I", i)
         last_qdot = qdot
         q, qdot = robot.get_state()
@@ -620,70 +643,76 @@ if __name__ == "__main__":
         x_com = robot.pin_robot.com(q, qdot)[0]
         xd_com = robot.pin_robot.com(q, qdot)[1]
         # robot.forward_robot(q, qdot)
+        if i > 600 and i < 650:
+            print("External Force")
+            force = np.array([0, -100, 0])
+            p.applyExternalForce(objectUniqueId=robot.robotId, linkIndex=-1, forceObj=force,
+                                 posObj=[q[0], q[1], q[2]], flags=p.WORLD_FRAME)
 
         # print(dcm_reactive_stepper.get_is_left_leg_in_contact())
         if warmup <= i:
-            ###### mass matrix
-            m_q = np.matrix(q).transpose()
-            m_qdot = np.matrix(qdot).transpose()
-            if  i > 10 and 0.001 > dcm_reactive_stepper.get_time_from_last_step_touchdown():
-                additional_time = random() * 0.15
-                # print("EEEEEEEEE", i)
-                external_force(x_com)
-                dcm_reactive_stepper.dcm_vrp_planner_initialization(l_min, l_max, w_min, w_max, t_min + additional_time,
-                                                                    t_max, l_p, com_height, weight)
-
-            if dcm_reactive_stepper.get_is_left_leg_in_contact() == 1: #inv_kin
-                # if inv_kin.endeff_ids[1] != inv_kin.swing_id:
-                #     print(i)
-                inv_kin.swing_id = inv_kin.endeff_ids[1]
-                inv_kin.stance_id = inv_kin.endeff_ids[0]
-            else:
-                # if inv_kin.endeff_ids[0] != inv_kin.swing_id:
-                    # print(i)
-                inv_kin.swing_id = inv_kin.endeff_ids[0]
-                inv_kin.stance_id = inv_kin.endeff_ids[1]
-            inv_kin.forward_robot(m_q, m_qdot)
-            # print(inv_kin.foot_mass_matrix(m_q))
-            if dcm_reactive_stepper.get_is_left_leg_in_contact() == 1:
-                plt_foot_mass_r.append(inv_kin.foot_mass_matrix(m_q)[3:6])
-                plt_eq_11_r.append(inv_kin.equation_eleven_mass_matrix(m_q))
-                plt_time_r.append(dcm_reactive_stepper.get_time_from_last_step_touchdown())
-            else:
-                plt_foot_mass_l.append(inv_kin.foot_mass_matrix(m_q)[:3])
-                plt_eq_11_l.append(inv_kin.equation_eleven_mass_matrix(m_q))
-                plt_time_l.append(dcm_reactive_stepper.get_time_from_last_step_touchdown())
-            # print(inv_kin.equation_eleven_mass_matrix(m_q).dot(inv_kin.xddot(m_q, m_qdot)))
-
-            contact_array = [0, 0]
-            left = bolt_leg_ctrl.imps[0]
-            right = bolt_leg_ctrl.imps[1]
-            left_foot_location = np.array(left.pin_robot.data.oMf[left.frame_end_idx].translation).reshape(-1)
-            right_foot_location = np.array(right.pin_robot.data.oMf[right.frame_end_idx].translation).reshape(-1)
-            detect_contact()
-            if 0.003 < dcm_reactive_stepper.get_time_from_last_step_touchdown() and\
-                contact_array[dcm_reactive_stepper.get_is_left_leg_in_contact()] == 0:
-                plt_eq_h.append(inv_kin.equation_eleven_h(m_q, m_qdot))
-                plt_eq_qdot.append(inv_kin.equation_eleven_q_dot(m_q, m_qdot))
-                plt_eq_qddot.append(inv_kin.equation_eleven_mass_matrix(m_q).dot(inv_kin.xddot(m_q, m_qdot)))
-                plt_F_M.append(MM.dot(inv_kin.xddot(m_q, m_qdot)))
-                plt_F_M_new.append(M.dot(inv_kin.xddot(m_q, m_qdot)))
-                plt_time_all.append(dcm_reactive_stepper.get_time_from_last_step_touchdown())#if you uncomment this line, you should comment below similar line
-            else:
-                inv_kin.equation_eleven_h(m_q, m_qdot)
-                inv_kin.equation_eleven_q_dot(m_q, m_qdot)
-                inv_kin.equation_eleven_mass_matrix(m_q).dot(inv_kin.xddot(m_q, m_qdot))
-                dcm_reactive_stepper.get_time_from_last_step_touchdown()
-
-            contact_array = [0, 0]
-            s = inv_kin.equation_fifteen(m_q, m_qdot)
-            if s[0].item() > 0.00001:
-                plt_eq_fifteen.append(inv_kin.equation_fifteen(m_q, m_qdot))
-                # plt_time_all.append(dcm_reactive_stepper.get_time_from_last_step_touchdown())#if you uncomment this line, you should comment above similar line
-
-            # if(len(inv_kin.equation_fifteen(m_q, m_qdot) != 6)):
-            #     print(inv_kin.equation_fifteen(m_q, m_qdot))
-            ##### mass matrix done
+            # ###### mass matrix
+            # m_q = np.matrix(q).transpose()
+            # m_qdot = np.matrix(qdot).transpose()
+            # if  i > 10 and 0.001 > dcm_reactive_stepper.get_time_from_last_step_touchdown():
+            #     additional_time = random() * 0.15
+            #     # print("EEEEEEEEE", i)
+            #     external_force(x_com)
+            #     dcm_reactive_stepper.dcm_vrp_planner_initialization(l_min, l_max, w_min, w_max, t_min + additional_time,
+            #                                                         t_max, l_p, com_height, weight)
+            #
+            # if dcm_reactive_stepper.get_is_left_leg_in_contact() == 1: #inv_kin
+            #     # if inv_kin.endeff_ids[1] != inv_kin.swing_id:
+            #     #     print(i)
+            #     inv_kin.swing_id = inv_kin.endeff_ids[1]
+            #     inv_kin.stance_id = inv_kin.endeff_ids[0]
+            # else:
+            #     # if inv_kin.endeff_ids[0] != inv_kin.swing_id:
+            #         # print(i)
+            #     inv_kin.swing_id = inv_kin.endeff_ids[0]
+            #     inv_kin.stance_id = inv_kin.endeff_ids[1]
+            # inv_kin.forward_robot(m_q, m_qdot)
+            # # print(inv_kin.foot_mass_matrix(m_q))
+            # if dcm_reactive_stepper.get_is_left_leg_in_contact() == 1:
+            #     plt_foot_mass_r.append(inv_kin.foot_mass_matrix(m_q)[3:6])
+            #     plt_eq_11_r.append(inv_kin.equation_eleven_mass_matrix(m_q))
+            #     plt_time_r.append(dcm_reactive_stepper.get_time_from_last_step_touchdown())
+            # else:
+            #     plt_foot_mass_l.append(inv_kin.foot_mass_matrix(m_q)[:3])
+            #     plt_eq_11_l.append(inv_kin.equation_eleven_mass_matrix(m_q))
+            #     plt_time_l.append(dcm_reactive_stepper.get_time_from_last_step_touchdown())
+            # # print(inv_kin.equation_eleven_mass_matrix(m_q).dot(inv_kin.xddot(m_q, m_qdot)))
+            #
+            # contact_array = [0, 0]
+            # left = bolt_leg_ctrl.imps[0]
+            # right = bolt_leg_ctrl.imps[1]
+            # left_foot_location = np.array(left.pin_robot.data.oMf[left.frame_end_idx].translation).reshape(-1)
+            # right_foot_location = np.array(right.pin_robot.data.oMf[right.frame_end_idx].translation).reshape(-1)
+            # detect_contact()
+            # if 0.003 < dcm_reactive_stepper.get_time_from_last_step_touchdown() and\
+            #     contact_array[dcm_reactive_stepper.get_is_left_leg_in_contact()] == 0:
+            #     plt_eq_h.append(inv_kin.equation_eleven_h(m_q, m_qdot))
+            #     plt_eq_g.append(inv_kin.equation_eleven_g(m_q, m_qdot))
+            #     plt_eq_qdot.append(inv_kin.equation_eleven_q_dot(m_q, m_qdot))
+            #     plt_eq_qddot.append(inv_kin.equation_eleven_mass_matrix(m_q).dot(inv_kin.xddot(m_q, m_qdot)))
+            #     plt_F_M.append(MM.dot(inv_kin.xddot(m_q, m_qdot)))
+            #     plt_F_M_new.append(M.dot(inv_kin.xddot(m_q, m_qdot)))
+            #     plt_time_all.append(dcm_reactive_stepper.get_time_from_last_step_touchdown())#if you uncomment this line, you should comment below similar line
+            # else:
+            #     inv_kin.equation_eleven_h(m_q, m_qdot)
+            #     inv_kin.equation_eleven_q_dot(m_q, m_qdot)
+            #     inv_kin.equation_eleven_mass_matrix(m_q).dot(inv_kin.xddot(m_q, m_qdot))
+            #     dcm_reactive_stepper.get_time_from_last_step_touchdown()
+            #
+            # contact_array = [0, 0]
+            # s = inv_kin.equation_fifteen(m_q, m_qdot)
+            # if s[0].item() > 0.00001:
+            #     plt_eq_fifteen.append(inv_kin.equation_fifteen(m_q, m_qdot))
+            #     # plt_time_all.append(dcm_reactive_stepper.get_time_from_last_step_touchdown())#if you uncomment this line, you should comment above similar line
+            #
+            # # if(len(inv_kin.equation_fifteen(m_q, m_qdot) != 6)):
+            # #     print(inv_kin.equation_fifteen(m_q, m_qdot))
+            # ##### mass matrix done
 
 
 
@@ -721,11 +750,10 @@ if __name__ == "__main__":
                                      [right_foot_location[0], right_foot_location[1], right_foot_location[2] - offset,],
                                      left_foot_vel, right_foot_vel,
                                      x_com, xd_com, yaw(q), contact_array, not open_loop)
-            dcm_force = dcm_reactive_stepper.get_forces().copy() / 10 #feed forward
+            # dcm_force = dcm_reactive_stepper.get_forces().copy() #feed forward
             # print(dcm_force)
             # print("Lhum recompute ", dcm_reactive_stepper.get_time_from_last_step_touchdown())
-            print(i)
-            # if i % 10 == 0 and i > 1:# and int(dcm_reactive_stepper.get_time_from_last_step_touchdown() * 1000) == 0:
+            # if (i + 5) % 1 == 0 and i > 85:# and int(dcm_reactive_stepper.get_time_from_last_step_touchdown() * 1000) == 0:
             #    d = dcm_reactive_stepper.get_forces().copy()
             #    plot(d)#Lhum make sure you update the mass matrix with traj's mass matrix
             #    print(d[:3])
@@ -784,7 +812,6 @@ if __name__ == "__main__":
             else:
                 plt_right_eef_real_pos.append(
                     np.array(imp.pin_robot.data.oMf[imp.frame_end_idx].translation).reshape(-1))
-        print("H", h_bais)
         w_com = centr_controller.compute_com_wrench(q.copy(), qdot.copy(), [0.0, 0.0, com_height + h_bais], [0.0, 0.0, 0.0],
                                                     [0, 0., 0, 1.], [0., 0., 0.])
         w_com[0] = 0.0
@@ -926,16 +953,19 @@ if __name__ == "__main__":
     # np.savetxt('plt_eq_11_l3.txt', np.array(plt_eq_11_l)[:, 1, 1])
     # np.savetxt('plt_eq_11_l4.txt', np.array(plt_eq_11_l)[:, 1, 2])
     # np.savetxt('plt_eq_11_l5.txt', np.array(plt_eq_11_l)[:, 2, 2])
-    fig, ax = plt.subplots(3, 1)
-    ax[0].plot(plt_time_all, np.array(plt_eq_h)[:, 0], 'o', markersize=1, label='h')
-    ax[0].plot(plt_time_all, np.array(plt_eq_qdot)[:, 0], 'o', markersize=1, label='0')
-    ax[0].legend()
-    ax[1].plot(plt_time_all, np.array(plt_eq_h)[:, 1], 'o', markersize=1, label='h')
-    ax[1].plot(plt_time_all, np.array(plt_eq_qdot)[:, 1], 'o', markersize=1, label='1')
-    ax[1].legend()
-    ax[2].plot(plt_time_all, np.array(plt_eq_h)[:, 2], 'o', markersize=1, label='h')
-    ax[2].plot(plt_time_all, np.array(plt_eq_qdot)[:, 2], 'o', markersize=1, label='2')
-    ax[2].legend()
+    # fig, ax = plt.subplots(3, 1)
+    # ax[0].plot(plt_time_all, np.array(plt_eq_h)[:, 0], 'o', markersize=1, label='h')
+    # ax[0].plot(plt_time_all, np.array(plt_eq_g)[:, 0], 'o', markersize=1, label='g')
+    # ax[0].plot(plt_time_all, np.array(plt_eq_qdot)[:, 0], 'o', markersize=1, label='0')
+    # ax[0].legend()
+    # ax[1].plot(plt_time_all, np.array(plt_eq_h)[:, 1], 'o', markersize=1, label='h')
+    # ax[1].plot(plt_time_all, np.array(plt_eq_g)[:, 1], 'o', markersize=1, label='g')
+    # ax[1].plot(plt_time_all, np.array(plt_eq_qdot)[:, 1], 'o', markersize=1, label='1')
+    # ax[1].legend()
+    # ax[2].plot(plt_time_all, np.array(plt_eq_h)[:, 2], 'o', markersize=1, label='h')
+    # ax[2].plot(plt_time_all, np.array(plt_eq_g)[:, 2], 'o', markersize=1, label='g')
+    # ax[2].plot(plt_time_all, np.array(plt_eq_qdot)[:, 2], 'o', markersize=1, label='2')
+    # ax[2].legend()
     # fig, ax = plt.subplots(3, 1)
     # ax[0].plot(plt_time, np.array(plt_eq_qdot)[:, 0], 'o', markersize=1, label='0')
     # ax[0].legend()
@@ -954,47 +984,53 @@ if __name__ == "__main__":
     # ax[2].plot(plt_time_all, np.array(plt_eq_qdot)[:, 2] + np.array(plt_eq_h)[:, 2], 'o', label='Nonlinear Terms')
     # ax[2].legend()
 
-    fig, ax = plt.subplots(3, 1)
-    ax[0].plot(plt_time_all, np.array(plt_F_M_new)[:, 0] - (np.array(plt_eq_qddot)[:, 0] + np.array(plt_eq_qdot)[:, 0] + np.array(plt_eq_h)[:, 0]), 'o', markersize=1 , color = 'red', label='Diagonal')
-    ax[0].plot(plt_time_all, np.array(plt_F_M)[:, 0] - (np.array(plt_eq_qddot)[:, 0] + np.array(plt_eq_qdot)[:, 0] + np.array(plt_eq_h)[:, 0]), 'o', markersize=1 , label='Non-diagonal')
-    ax[0].legend()
-    ax[1].plot(plt_time_all, np.array(plt_F_M_new)[:, 1] - (np.array(plt_eq_qddot)[:, 1] + np.array(plt_eq_qdot)[:, 1] + np.array(plt_eq_h)[:, 1]), 'o', markersize=1 , color = 'red', label='Diagonal')
-    ax[1].plot(plt_time_all, np.array(plt_F_M)[:, 1] - (np.array(plt_eq_qddot)[:, 1] + np.array(plt_eq_qdot)[:, 1] + np.array(plt_eq_h)[:, 1]), 'o', markersize=1 , label='Non-diagonal')
-    ax[1].legend()
-    ax[2].plot(plt_time_all, np.array(plt_F_M_new)[:, 2] - (np.array(plt_eq_qddot)[:, 2] + np.array(plt_eq_qdot)[:, 2] + np.array(plt_eq_h)[:, 2]), 'o', markersize=1 , color = 'red', label='Diagonal')
-    ax[2].plot(plt_time_all, np.array(plt_F_M)[:, 2] - (np.array(plt_eq_qddot)[:, 2] + np.array(plt_eq_qdot)[:, 2] + np.array(plt_eq_h)[:, 2]), 'o', markersize=1 , label='Non-diagonal')
-    ax[2].legend()
-
-
-    np.savetxt('plt_D_error0.txt', np.array(plt_F_M_new)[:, 0] - (np.array(plt_eq_qddot)[:, 0] + np.array(plt_eq_qdot)[:, 0] + np.array(plt_eq_h)[:, 0]))
-    np.savetxt('plt_D_error1.txt', np.array(plt_F_M_new)[:, 1] - (np.array(plt_eq_qddot)[:, 1] + np.array(plt_eq_qdot)[:, 1] + np.array(plt_eq_h)[:, 1]))
-    np.savetxt('plt_D_error2.txt', np.array(plt_F_M_new)[:, 2] - (np.array(plt_eq_qddot)[:, 2] + np.array(plt_eq_qdot)[:, 2] + np.array(plt_eq_h)[:, 2]))
-    np.savetxt('plt_ND_error0.txt', np.array(plt_F_M)[:, 0] - (np.array(plt_eq_qddot)[:, 0] + np.array(plt_eq_qdot)[:, 0] + np.array(plt_eq_h)[:, 0]))
-    np.savetxt('plt_ND_error1.txt', np.array(plt_F_M)[:, 1] - (np.array(plt_eq_qddot)[:, 1] + np.array(plt_eq_qdot)[:, 1] + np.array(plt_eq_h)[:, 1]))
-    np.savetxt('plt_ND_error2.txt', np.array(plt_F_M)[:, 2] - (np.array(plt_eq_qddot)[:, 2] + np.array(plt_eq_qdot)[:, 2] + np.array(plt_eq_h)[:, 2]))
-    np.savetxt('plt_time_all_D_ND.txt', np.array(plt_time_all))
-
-    np.savetxt('plt_F0.txt', np.array(plt_eq_qddot)[:, 0] + np.array(plt_eq_qdot)[:, 0] + np.array(plt_eq_h)[:, 0])
-    np.savetxt('plt_F1.txt', np.array(plt_eq_qddot)[:, 1] + np.array(plt_eq_qdot)[:, 1] + np.array(plt_eq_h)[:, 1])
-    np.savetxt('plt_F2.txt', np.array(plt_eq_qddot)[:, 2] + np.array(plt_eq_qdot)[:, 2] + np.array(plt_eq_h)[:, 2])
-    np.savetxt('plt_non_linear0.txt', np.array(plt_eq_qdot)[:, 0] + np.array(plt_eq_h)[:, 0])
-    np.savetxt('plt_non_linear1.txt', np.array(plt_eq_qdot)[:, 1] + np.array(plt_eq_h)[:, 1])
-    np.savetxt('plt_non_linear2.txt', np.array(plt_eq_qdot)[:, 2] + np.array(plt_eq_h)[:, 2])
-    np.savetxt('plt_qddot_MassMatrix0.txt', np.array(plt_eq_qddot)[:, 0])
-    np.savetxt('plt_qddot_MassMatrix1.txt', np.array(plt_eq_qddot)[:, 1])
-    np.savetxt('plt_qddot_MassMatrix2.txt', np.array(plt_eq_qddot)[:, 2])
-    np.savetxt('plt_Error_D_M0.txt', np.array(plt_F_M_new)[:, 0] - np.array(plt_eq_qddot)[:, 0])
-    np.savetxt('plt_Error_D_M1.txt', np.array(plt_F_M_new)[:, 1] - np.array(plt_eq_qddot)[:, 1])
-    np.savetxt('plt_Error_D_M2.txt', np.array(plt_F_M_new)[:, 2] - np.array(plt_eq_qddot)[:, 2])
-    np.savetxt('plt_Error_ND_M0.txt', np.array(plt_F_M)[:, 0] - np.array(plt_eq_qddot)[:, 0])
-    np.savetxt('plt_Error_ND_M1.txt', np.array(plt_F_M)[:, 1] - np.array(plt_eq_qddot)[:, 1])
-    np.savetxt('plt_Error_ND_M2.txt', np.array(plt_F_M)[:, 2] - np.array(plt_eq_qddot)[:, 2])
-    np.savetxt('plt_h0.txt', np.array(plt_eq_h)[:, 0])
-    np.savetxt('plt_h1.txt', np.array(plt_eq_h)[:, 1])
-    np.savetxt('plt_h2.txt', np.array(plt_eq_h)[:, 2])
-    np.savetxt('plt_qdot0.txt', np.array(plt_eq_qdot)[:, 0])
-    np.savetxt('plt_qdot1.txt', np.array(plt_eq_qdot)[:, 1])
-    np.savetxt('plt_qdot2.txt', np.array(plt_eq_qdot)[:, 2])
+    # fig, ax = plt.subplots(3, 1)
+    # ax[0].plot(plt_time_all, np.array(plt_F_M_new)[:, 0] - (np.array(plt_eq_qddot)[:, 0] + np.array(plt_eq_qdot)[:, 0] + np.array(plt_eq_h)[:, 0]), 'o', markersize=1 , color = 'red', label='Diagonal')
+    # ax[0].plot(plt_time_all, np.array(plt_F_M)[:, 0] - (np.array(plt_eq_qddot)[:, 0] + np.array(plt_eq_qdot)[:, 0] + np.array(plt_eq_h)[:, 0]), 'o', markersize=1 , label='Non-diagonal')
+    # ax[0].plot(plt_time_all, np.array(plt_F_M_new)[:, 0] - 0.4  - (np.array(plt_eq_qddot)[:, 0] + np.array(plt_eq_qdot)[:, 0] + np.array(plt_eq_h)[:, 0]), 'og', markersize=1 , label='Non-diagonal')
+    # ax[0].legend()
+    # ax[1].plot(plt_time_all, np.array(plt_F_M_new)[:, 1] - (np.array(plt_eq_qddot)[:, 1] + np.array(plt_eq_qdot)[:, 1] + np.array(plt_eq_h)[:, 1]), 'o', markersize=1 , color = 'red', label='Diagonal')
+    # ax[1].plot(plt_time_all, np.array(plt_F_M)[:, 1] - (np.array(plt_eq_qddot)[:, 1] + np.array(plt_eq_qdot)[:, 1] + np.array(plt_eq_h)[:, 1]), 'o', markersize=1 , label='Non-diagonal')
+    # ax[1].plot(plt_time_all, np.array(plt_F_M_new)[:, 1] + 0  - (np.array(plt_eq_qddot)[:, 1] + np.array(plt_eq_qdot)[:, 1] + np.array(plt_eq_h)[:, 1]), 'og', markersize=1 , label='Non-diagonal')
+    # ax[1].legend()
+    # ax[2].plot(plt_time_all, np.array(plt_F_M_new)[:, 2] - (np.array(plt_eq_qddot)[:, 2] + np.array(plt_eq_qdot)[:, 2] + np.array(plt_eq_h)[:, 2]), 'o', markersize=1 , color = 'red', label='Diagonal')
+    # ax[2].plot(plt_time_all, np.array(plt_F_M)[:, 2] - (np.array(plt_eq_qddot)[:, 2] + np.array(plt_eq_qdot)[:, 2] + np.array(plt_eq_h)[:, 2]), 'o', markersize=1 , label='Non-diagonal')
+    # ax[2].plot(plt_time_all, np.array(plt_F_M_new)[:, 2] + 0.8 - (np.array(plt_eq_qddot)[:, 2] + np.array(plt_eq_qdot)[:, 2] + np.array(plt_eq_h)[:, 2]), 'og', markersize=1 , label='Non-diagonal')
+    # ax[2].legend()
+    #
+    #
+    # np.savetxt('plt_D_error0.txt', np.array(plt_F_M_new)[:, 0] - (np.array(plt_eq_qddot)[:, 0] + np.array(plt_eq_qdot)[:, 0] + np.array(plt_eq_h)[:, 0]))
+    # np.savetxt('plt_D_error1.txt', np.array(plt_F_M_new)[:, 1] - (np.array(plt_eq_qddot)[:, 1] + np.array(plt_eq_qdot)[:, 1] + np.array(plt_eq_h)[:, 1]))
+    # np.savetxt('plt_D_error2.txt', np.array(plt_F_M_new)[:, 2] - (np.array(plt_eq_qddot)[:, 2] + np.array(plt_eq_qdot)[:, 2] + np.array(plt_eq_h)[:, 2]))
+    # np.savetxt('plt_ND_error0.txt', np.array(plt_F_M)[:, 0] - (np.array(plt_eq_qddot)[:, 0] + np.array(plt_eq_qdot)[:, 0] + np.array(plt_eq_h)[:, 0]))
+    # np.savetxt('plt_ND_error1.txt', np.array(plt_F_M)[:, 1] - (np.array(plt_eq_qddot)[:, 1] + np.array(plt_eq_qdot)[:, 1] + np.array(plt_eq_h)[:, 1]))
+    # np.savetxt('plt_ND_error2.txt', np.array(plt_F_M)[:, 2] - (np.array(plt_eq_qddot)[:, 2] + np.array(plt_eq_qdot)[:, 2] + np.array(plt_eq_h)[:, 2]))
+    # np.savetxt('plt_time_all_D_ND.txt', np.array(plt_time_all))
+    #
+    # np.savetxt('plt_F0.txt', np.array(plt_eq_qddot)[:, 0] + np.array(plt_eq_qdot)[:, 0] + np.array(plt_eq_h)[:, 0])
+    # np.savetxt('plt_F1.txt', np.array(plt_eq_qddot)[:, 1] + np.array(plt_eq_qdot)[:, 1] + np.array(plt_eq_h)[:, 1])
+    # np.savetxt('plt_F2.txt', np.array(plt_eq_qddot)[:, 2] + np.array(plt_eq_qdot)[:, 2] + np.array(plt_eq_h)[:, 2])
+    # np.savetxt('plt_non_linear0.txt', np.array(plt_eq_qdot)[:, 0] + np.array(plt_eq_h)[:, 0])
+    # np.savetxt('plt_non_linear1.txt', np.array(plt_eq_qdot)[:, 1] + np.array(plt_eq_h)[:, 1])
+    # np.savetxt('plt_non_linear2.txt', np.array(plt_eq_qdot)[:, 2] + np.array(plt_eq_h)[:, 2])
+    # np.savetxt('plt_qddot_MassMatrix0.txt', np.array(plt_eq_qddot)[:, 0])
+    # np.savetxt('plt_qddot_MassMatrix1.txt', np.array(plt_eq_qddot)[:, 1])
+    # np.savetxt('plt_qddot_MassMatrix2.txt', np.array(plt_eq_qddot)[:, 2])
+    # np.savetxt('plt_Error_D_M0.txt', np.array(plt_F_M_new)[:, 0] - np.array(plt_eq_qddot)[:, 0])
+    # np.savetxt('plt_Error_D_M1.txt', np.array(plt_F_M_new)[:, 1] - np.array(plt_eq_qddot)[:, 1])
+    # np.savetxt('plt_Error_D_M2.txt', np.array(plt_F_M_new)[:, 2] - np.array(plt_eq_qddot)[:, 2])
+    # np.savetxt('plt_Error_ND_M0.txt', np.array(plt_F_M)[:, 0] - np.array(plt_eq_qddot)[:, 0])
+    # np.savetxt('plt_Error_ND_M1.txt', np.array(plt_F_M)[:, 1] - np.array(plt_eq_qddot)[:, 1])
+    # np.savetxt('plt_Error_ND_M2.txt', np.array(plt_F_M)[:, 2] - np.array(plt_eq_qddot)[:, 2])
+    # np.savetxt('plt_h0.txt', np.array(plt_eq_h)[:, 0])
+    # np.savetxt('plt_h1.txt', np.array(plt_eq_h)[:, 1])
+    # np.savetxt('plt_h2.txt', np.array(plt_eq_h)[:, 2])
+    # np.savetxt('plt_qdot0.txt', np.array(plt_eq_qdot)[:, 0])
+    # np.savetxt('plt_qdot1.txt', np.array(plt_eq_qdot)[:, 1])
+    # np.savetxt('plt_qdot2.txt', np.array(plt_eq_qdot)[:, 2])
+    # np.savetxt('plt_eq_g0.txt', np.array(plt_eq_g)[:, 0])
+    # np.savetxt('plt_eq_g1.txt', np.array(plt_eq_g)[:, 1])
+    # np.savetxt('plt_eq_g2.txt', np.array(plt_eq_g)[:, 2])
 
 
 
@@ -1087,6 +1123,7 @@ if __name__ == "__main__":
     plt.legend()
 
     plt.figure("z")
+    plt.plot(plt_time[:], plt_is_left_in_contact[:], label="is_left_in_contact")
     plt.plot(plt_time, np.array(plt_left_foot_position)[:, 2], label="left")
     plt.plot(plt_time, np.array(plt_right_foot_position)[:, 2], label="right")
     # plt.plot(plt_control_time, np.array(plt_x_com)[warmup:, 2], label="com")
@@ -1108,6 +1145,25 @@ if __name__ == "__main__":
     plt.figure("F")
     plt.plot(plt_time, plt_F[warmup:], label="F")
     plt.plot(plt_time[:], plt_is_left_in_contact[:], label="is_left_in_contact")
+    plt.legend()
+
+
+    plt.figure("Pos")
+    plt.plot(plt_time[230:], np.array(plt_left_eef_real_pos)[warmup + 230:, 0], label="left_x")
+    plt.plot(plt_time[230:], np.array(plt_left_eef_real_pos)[warmup + 230:, 1], label="left_y")
+    plt.plot(plt_time[230:], np.array(plt_left_eef_real_pos)[warmup + 230:, 2], label="left_z")
+    plt.plot(plt_time[230:], np.array(plt_right_eef_real_pos)[warmup + 230:, 0], label="right_x")
+    plt.plot(plt_time[230:], np.array(plt_right_eef_real_pos)[warmup + 230:, 1], label="right_y")
+    plt.plot(plt_time[230:], np.array(plt_right_eef_real_pos)[warmup + 230:, 2], label="right_z")
+    plt.plot(plt_time[230:], np.array(plt_left_foot_position)[230:, 0], label="des_left_x")
+    plt.plot(plt_time[230:], np.array(plt_left_foot_position)[230:, 1], label="des_lef_y")
+    plt.plot(plt_time[230:], np.array(plt_left_foot_position)[230:, 2], label="des_left_z")
+    plt.plot(plt_time[230:], np.array(plt_right_foot_position)[230:, 0], label="des_right_x")
+    plt.plot(plt_time[230:], np.array(plt_right_foot_position)[230:, 1], label="des_right_y")
+    plt.plot(plt_time[230:], np.array(plt_right_foot_position)[230:, 2], label="des_right_z")
+    plt.plot(plt_time[230:], np.array(plt_next_step_location)[230:, 0], label="next_step_location_x")
+    plt.plot(plt_time[230:], np.array(plt_next_step_location)[230:, 1], label="next_step_location_y")
+    # plt.plot(plt_time[230:], np.array(plt_next_step_location)[230:, 2], label="next_step_location_z")
     plt.legend()
 
     # plt.figure("last_step_touchdown")

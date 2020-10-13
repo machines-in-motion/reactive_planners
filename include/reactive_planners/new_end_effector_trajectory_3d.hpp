@@ -124,12 +124,12 @@ public:
         return slack_variables_;
     }
 
-//    double calculate_t_min(
-//            Eigen::Ref<const Eigen::Vector3d> current_pose,
-//            Eigen::Ref<const Eigen::Vector3d> current_velocity,
-//            Eigen::Ref<const Eigen::Vector3d> current_acceleration,
-//            const double& current_time,
-//            const bool& is_left_leg_in_contact);
+    double calculate_t_min(
+            Eigen::Ref<const Eigen::Vector3d> current_pose,
+            Eigen::Ref<const Eigen::Vector3d> current_velocity,
+            Eigen::Ref<const Eigen::Vector3d> current_acceleration,
+            const double& current_time,
+            const bool& is_left_leg_in_contact);
     /*
      * Private methods
      */
@@ -390,6 +390,11 @@ private:
   Eigen::Vector3d u_;
 
   Eigen::Vector3d slack_variables_;
+
+
+  Eigen::MatrixXd *g;
+
+  Eigen::Vector3d h;
 };
 
 } // namespace reactive_planners

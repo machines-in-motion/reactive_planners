@@ -53,6 +53,7 @@ NewEndEffectorTrajectory3D::NewEndEffectorTrajectory3D() {
   previous_solution_pose_.setZero();
   sampling_time = 0.010;
   control_loop =0.001;
+  is_left_leg_in_contact_ = 0;
 
   // QP parameter.
   nb_sampling_time = 10;
@@ -124,6 +125,12 @@ NewEndEffectorTrajectory3D::NewEndEffectorTrajectory3D() {
 //    M_inv_[1] << 55.61, -2.38, 30.02,
 //            -2.38, 23.91, -2.14,
 //            30.02, -2.14, 28.55;//Right_swing
+//    M_inv_[0] << 50, 7, 29,
+//            7, 28., 7,
+//            29, 7, 35;//Left_swing
+//    M_inv_[1] << 50, -7., 29,
+//            -7., 28., -7,
+//            29, -7, 35;//Right_swing
 
   v_des_.setZero();
 
@@ -140,6 +147,7 @@ void NewEndEffectorTrajectory3D::calculate_acceleration(){
   velocity_terms_x_  = new Eigen::MatrixXd[2];
   velocity_terms_y_  = new Eigen::MatrixXd[2];
   velocity_terms_z_  = new Eigen::MatrixXd[2];
+  g = new Eigen::MatrixXd[2];
   acceleration_terms_x_[0].resize(MAX_VAR, 3 * MAX_VAR);
   acceleration_terms_x_[1].resize(MAX_VAR, 3 * MAX_VAR);
   acceleration_terms_x_[0].setZero();
@@ -164,6 +172,12 @@ void NewEndEffectorTrajectory3D::calculate_acceleration(){
   velocity_terms_z_[1].resize(MAX_VAR, 3 * MAX_VAR);
   velocity_terms_z_[0].setZero();
   velocity_terms_z_[1].setZero();
+  g[0].resize(MAX_VAR, 3);
+  g[1].resize(MAX_VAR, 3);
+  g[0].setZero();
+  g[1].setZero();
+//  h << -0.4, 0., .8;
+  h << 0.0, 0., -0.;
 
   Eigen::MatrixXd A_;
   Eigen::MatrixXd B_;
@@ -195,6 +209,9 @@ void NewEndEffectorTrajectory3D::calculate_acceleration(){
                       x(0, 0) * M_inv_[k](0, 1) + x(0, 1) * M_inv_[k](1, 1) + x(0, 2) * M_inv_[k](2, 1);
               acceleration_terms_x_[k](i, j + 2 * MAX_VAR) =
                       x(0, 0) * M_inv_[k](0, 2) + x(0, 1) * M_inv_[k](1, 2) + x(0, 2) * M_inv_[k](2, 2);
+              g[k](i, 0) += acceleration_terms_x_[k](i, j) * h[0] +
+                           acceleration_terms_x_[k](i, j + MAX_VAR) * h[1] +
+                           acceleration_terms_x_[k](i, j + 2 * MAX_VAR) * h[2];
 
               acceleration_terms_y_[k](i, j) =
                       x(2, 0) * M_inv_[k](0, 0) + x(2, 1) * M_inv_[k](1, 0) + x(2, 2) * M_inv_[k](2, 0);
@@ -202,6 +219,9 @@ void NewEndEffectorTrajectory3D::calculate_acceleration(){
                       x(2, 0) * M_inv_[k](0, 1) + x(2, 1) * M_inv_[k](1, 1) + x(2, 2) * M_inv_[k](2, 1);
               acceleration_terms_y_[k](i, j + 2 * MAX_VAR) =
                       x(2, 0) * M_inv_[k](0, 2) + x(2, 1) * M_inv_[k](1, 2) + x(2, 2) * M_inv_[k](2, 2);
+              g[k](i, 1) += acceleration_terms_y_[k](i, j) * h[0] +
+                           acceleration_terms_y_[k](i, j + MAX_VAR) * h[1] +
+                           acceleration_terms_y_[k](i, j + 2 * MAX_VAR) * h[2];
 
               acceleration_terms_z_[k](i, j) =
                       x(4, 0) * M_inv_[k](0, 0) + x(4, 1) * M_inv_[k](1, 0) + x(4, 2) * M_inv_[k](2, 0);
@@ -209,6 +229,10 @@ void NewEndEffectorTrajectory3D::calculate_acceleration(){
                       x(4, 0) * M_inv_[k](0, 1) + x(4, 1) * M_inv_[k](1, 1) + x(4, 2) * M_inv_[k](2, 1);
               acceleration_terms_z_[k](i, j + 2 * MAX_VAR) =
                       x(4, 0) * M_inv_[k](0, 2) + x(4, 1) * M_inv_[k](1, 2) + x(4, 2) * M_inv_[k](2, 2);
+              g[k](i, 2) += acceleration_terms_z_[k](i, j) * h[0] +
+                           acceleration_terms_z_[k](i, j + MAX_VAR) * h[1] +
+                           acceleration_terms_z_[k](i, j + 2 * MAX_VAR) * h[2];
+//              std::cout << x(4, 0) << " " << M_inv_[k](0, 2) << " " << x(4, 1) << " " << M_inv_[k](1, 2) << " " << x(4, 2) << " " << M_inv_[k](2, 2) << std::endl;
 
               velocity_terms_x_[k](i, j) =
                       x(1, 0) * M_inv_[k](0, 0) + x(1, 1) * M_inv_[k](1, 0) + x(1, 2) * M_inv_[k](2, 0);
@@ -231,57 +255,67 @@ void NewEndEffectorTrajectory3D::calculate_acceleration(){
               velocity_terms_z_[k](i, j + 2 * MAX_VAR) =
                       x(5, 0) * M_inv_[k](0, 2) + x(5, 1) * M_inv_[k](1, 2) + x(5, 2) * M_inv_[k](2, 2);
               x = A_ * x;
+//              std::cout << "acc_z " << i << " " << j << "      " <<  acceleration_terms_z_[k](i, j) << " + " << acceleration_terms_z_[k](i, j + MAX_VAR) << " + " << acceleration_terms_z_[k](i, j + 2 * MAX_VAR) << std::endl;
           }
+//          std::cout << "G " << k << " " << i << "   " << g[k](i, 2) << std::endl;
       }
   }
 }
 
-//double NewEndEffectorTrajectory3D::calculate_t_min(
-//        Eigen::Ref<const Eigen::Vector3d> current_pose,
-//        Eigen::Ref<const Eigen::Vector3d> current_velocity,
-//        Eigen::Ref<const Eigen::Vector3d> current_acceleration,
-//        const double& current_time,
-//        const bool& is_left_leg_in_contact) {
-////    std::cout << std::endl << std::endl;
-////    auto start = std::chrono::high_resolution_clock::now();
-//    int index = 1;
-//    do {
-//        resize_matrices_t_min(index);
-//        if(index == 1){
-//            A_eq_t_min_.row(0).head(index) = acceleration_terms_z_[is_left_leg_in_contact].row(index).head(index);//xn[2]
-//            A_eq_t_min_.row(0).segment(index, index) = acceleration_terms_z_[is_left_leg_in_contact].row(index).segment(MAX_VAR, index);//xn[2]
-//            A_eq_t_min_.row(0).segment(2 * index, index) = acceleration_terms_z_[is_left_leg_in_contact].row(index).segment(2 * MAX_VAR, index);//xn[2]
-//
-//            B_eq_t_min_ << -current_pose_(2) + 0.0 - current_velocity_(2) * sampling_time * index,
-//                    0.;//-current_pose_(2) + 0.0;
-//        }
-//               else {
-//            A_eq_t_min_.row(0).head(index) = acceleration_terms_z_[is_left_leg_in_contact].row(index).head(index);//xn[2]
-//            A_eq_t_min_.row(0).segment(index, index) = acceleration_terms_z_[is_left_leg_in_contact].row(index).segment(MAX_VAR, index);//xn[2]
-//            A_eq_t_min_.row(0).segment(2 * index, index) = acceleration_terms_z_[is_left_leg_in_contact].row(index).segment(2 * MAX_VAR, index);//xn[2]
+double NewEndEffectorTrajectory3D::calculate_t_min(
+        Eigen::Ref<const Eigen::Vector3d> current_pose,
+        Eigen::Ref<const Eigen::Vector3d> current_velocity,
+        Eigen::Ref<const Eigen::Vector3d> current_acceleration,
+        const double& current_time,
+        const bool& is_left_leg_in_contact) {
+//    std::cout << "pos t " << current_pose  << current_velocity << std::endl;
+//    std::cout << std::endl << std::endl;
+//    auto start = std::chrono::high_resolution_clock::now();
+    int index = 1;
+//    std::cout << "pos" << current_pose << std::endl;
+    do {
+//        std::cout << "INDEX " << index << std::endl;
+        resize_matrices_t_min(index);
+        if(index == 1){
+            A_eq_t_min_.row(0).head(index) = acceleration_terms_z_[is_left_leg_in_contact].row(index).head(index);//xn[2]
+            A_eq_t_min_.row(0).segment(index, index) = acceleration_terms_z_[is_left_leg_in_contact].row(index).segment(MAX_VAR, index);//xn[2]
+            A_eq_t_min_.row(0).segment(2 * index, index) = acceleration_terms_z_[is_left_leg_in_contact].row(index).segment(2 * MAX_VAR, index);//xn[2]
+//            std::cout << "S\n";
+//            std::cout << is_left_leg_in_contact << std::endl;
+//            std::cout << g[is_left_leg_in_contact] << std::endl;
+//            std::cout << g[is_left_leg_in_contact](index, 2) << std::endl;
+//            std::cout << "e\n";
+            B_eq_t_min_ << -current_pose_(2) + 0.0 - current_velocity_(2) * sampling_time * index + g[is_left_leg_in_contact](index, 2),
+                    0.;//-current_pose_(2) + 0.0;
+        }
+       else {
+            A_eq_t_min_.row(0).head(index) = acceleration_terms_z_[is_left_leg_in_contact].row(index).head(index);//xn[2]
+            A_eq_t_min_.row(0).segment(index, index) = acceleration_terms_z_[is_left_leg_in_contact].row(index).segment(MAX_VAR, index);//xn[2]
+            A_eq_t_min_.row(0).segment(2 * index, index) = acceleration_terms_z_[is_left_leg_in_contact].row(index).segment(2 * MAX_VAR, index);//xn[2]
 //
 //            A_eq_t_min_.row(1).head(index) = acceleration_terms_z_[is_left_leg_in_contact].row(index - 1).head(index);//vn[2]
 //            A_eq_t_min_.row(1).segment(index, index) = acceleration_terms_z_[is_left_leg_in_contact].row(index - 1).segment(MAX_VAR, index);//vn[2]
 //            A_eq_t_min_.row(1).segment(2 * index, index) = acceleration_terms_z_[is_left_leg_in_contact].row(index - 1).segment(2 * MAX_VAR, index);//vn[2]
-//
-//            B_eq_t_min_ << -current_pose_(2) + 0.0 - current_velocity_(2) * sampling_time * index,
-//                    -current_pose_(2) + 0.0 - current_velocity_(2) * sampling_time * (index - 1);
-//        }
-//        for(int i = 0; i < index * 3; i++) {
-//            A_ineq_t_min_(i, i) = 1;
-//            B_ineq_t_min_(i) = 18;
-//            A_ineq_t_min_(3 * index + i, i) = -1;
-//            B_ineq_t_min_(3 * index + i) = 18;
-//        }
-//        index++;
-//    }while(!qp_solver_t_min_.solve(Q_t_min_, q_t_min_, A_eq_t_min_, B_eq_t_min_, A_ineq_t_min_, B_ineq_t_min_));
-//    index--;
-////    auto stop = std::chrono::high_resolution_clock::now();
-////    auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-////    std::cout << BLUE << "Lhum duration:      " << duration2.count() << RESET << std::endl;
-////    std::cout << index << std::endl;
-//    return index * sampling_time;
-//}
+
+            B_eq_t_min_ << -current_pose_(2) + 0.0 - current_velocity_(2) * sampling_time * index + g[is_left_leg_in_contact](index, 2);//,
+//                    -current_pose_(2) + 0.0 - current_velocity_(2) * sampling_time * (index - 1) + g[is_left_leg_in_contact](index - 1, 2);
+        }
+        for(int i = 0; i < index * 3; i++) {
+            A_ineq_t_min_(i, i) = 1;
+            B_ineq_t_min_(i) = 18;
+            A_ineq_t_min_(3 * index + i, i) = -1;
+            B_ineq_t_min_(3 * index + i) = 18;
+        }
+        index++;
+    }while(!qp_solver_t_min_.solve(Q_t_min_, q_t_min_, A_eq_t_min_, B_eq_t_min_, A_ineq_t_min_, B_ineq_t_min_));
+    index--;
+//    auto stop = std::chrono::high_resolution_clock::now();
+//    auto duration2 = std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
+//    std::cout << BLUE << "Lhum duration:      " << duration2.count() << RESET << std::endl;
+//    std::cout << "c" << current_time << std::endl;
+//    std::cout << "m " <<index * sampling_time << std::endl;
+    return index * sampling_time;
+}
 
 void NewEndEffectorTrajectory3D::init_calculate_dcm(
     Eigen::Ref<const Eigen::Vector3d> v_des,
@@ -339,6 +373,7 @@ bool NewEndEffectorTrajectory3D::compute(
     Eigen::Ref<const Eigen::Vector3d> com_vel,
     Eigen::Ref<const Eigen::Vector3d> current_support_foot_location,
     const bool& is_left_leg_in_contact) {
+//    std::cout << "pos c " << start_time << " " << current_time << " " << end_time << " " << current_pose  << current_velocity << std::endl;
   // scaling the problem
   double step_duration = end_time - start_time;
   double duration = end_time - current_time;
@@ -396,12 +431,19 @@ bool NewEndEffectorTrajectory3D::compute(
 //  }
   // Q_x
   for(int i = 0 ; i < nb_local_sampling_time_ ; i++){
-      Q_(i, i) = cost_;
+      Q_(i, i) = cost_;// + M_inv_[is_left_leg_in_contact_](0, 0) * M_inv_[is_left_leg_in_contact_](0, 0) / 10;
 //      std::cout << 2. * cost_ * i / nb_local_sampling_time_ << std::endl;
       // Q_y
-      Q_(nb_local_sampling_time_ + i,  nb_local_sampling_time_ + i) = cost_;
+      Q_(nb_local_sampling_time_ + i,  nb_local_sampling_time_ + i) = cost_;// + M_inv_[is_left_leg_in_contact_](1, 1) * M_inv_[is_left_leg_in_contact_](1, 1) / 40;
       // Q_z
-      Q_(2 * nb_local_sampling_time_ + i, 2 * nb_local_sampling_time_ + i) = cost_;
+      Q_(2 * nb_local_sampling_time_ + i, 2 * nb_local_sampling_time_ + i) = cost_;// + M_inv_[is_left_leg_in_contact_](0, 2) * M_inv_[is_left_leg_in_contact_](0, 2) / 10 +
+                                                                                   //+ M_inv_[is_left_leg_in_contact_](0, 2) * M_inv_[is_left_leg_in_contact_](0, 2) / 40;
+//      //Q_xz
+//      Q_(i, 2 * nb_local_sampling_time_ + i) = M_inv_[is_left_leg_in_contact_](0, 0) * M_inv_[is_left_leg_in_contact_](0, 2) / 10;
+//      Q_(2 * nb_local_sampling_time_ + i, i) = M_inv_[is_left_leg_in_contact_](0, 0) * M_inv_[is_left_leg_in_contact_](0, 2) / 10;
+//      //Q_yz
+//      Q_(nb_local_sampling_time_ + i, 2 * nb_local_sampling_time_ + i) = M_inv_[is_left_leg_in_contact_](1, 1) * M_inv_[is_left_leg_in_contact_](1, 2) / 40;
+//      Q_(2 * nb_local_sampling_time_ + i, nb_local_sampling_time_ + i) = M_inv_[is_left_leg_in_contact_](1, 1) * M_inv_[is_left_leg_in_contact_](1, 2) / 40;
   }
 //  Q_.block(0, 0, nb_local_sampling_time_, nb_local_sampling_time_) = sub_Q;
 //  Q_.block(nb_local_sampling_time_, nb_local_sampling_time_, nb_local_sampling_time_, nb_local_sampling_time_) = sub_Q;
@@ -427,8 +469,6 @@ bool NewEndEffectorTrajectory3D::compute(
   double hess_regul = 1e-9;
   Q_regul_ = Eigen::MatrixXd::Identity(nb_var_, nb_var_) * hess_regul;
   Q_ += Q_regul_;
-
-//  Eigen::Vector3d h << 0., 0., 0.;
 
   /*
    * Equality constraints.
@@ -532,6 +572,9 @@ bool NewEndEffectorTrajectory3D::compute(
       A_eq_.row(5).head(nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(nb_local_sampling_time_ - 1).head(nb_local_sampling_time_);//vn[2]
       A_eq_.row(5).segment(nb_local_sampling_time_, nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(nb_local_sampling_time_ - 1).segment(MAX_VAR, nb_local_sampling_time_);//vn[2]
       A_eq_.row(5).segment(2 * nb_local_sampling_time_, nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(nb_local_sampling_time_ - 1).segment(2 * MAX_VAR, nb_local_sampling_time_);//vn[2]
+//      if(h[0] != 0.)// vz==0
+//          A_eq_(5, nb_var_ - 1) = -1;
+
 //      A_eq_(5, nb_var_ - 4) = -1;
 //      acc_ep[nb_var_ - 1] = 0;//delete epsilon_vel
   }
@@ -562,18 +605,18 @@ bool NewEndEffectorTrajectory3D::compute(
   A_eq_(7, nb_var_ - 7) = -1;
 //  acc_ep[nb_var_ - 7] = 0;//epsilon_z_mid
 
-  int flag = nb_local_sampling_time_ > 1 ? 1: 0;
-  double mid_z = nb_mid_sampling_time > 0 ? - current_pose_(2) + mid_air_height_ - current_velocity_(2) * sampling_time * nb_mid_sampling_time: 0;
+  bool flag = nb_local_sampling_time_ > 1? true: false;
+  double mid_z = nb_mid_sampling_time > 0 ? - current_pose_(2) + mid_air_height_ - current_velocity_(2) * sampling_time * nb_mid_sampling_time + g[is_left_leg_in_contact_](nb_mid_sampling_time, 2): 0;
 //  std::cout << "\nCurrent_pose " << current_pose_ << "\ntarget_pose " <<  target_pose_ << "\ncurrent_velocity " << current_velocity_ <<
 //               "\nsampling_time " <<  sampling_time << "\nnb_local_sampling_time_ " << nb_local_sampling_time_ << std::endl;
-  B_eq_.head(8) << - current_pose_(0) + target_pose_(0) - current_velocity_(0) * sampling_time * nb_local_sampling_time_,
-                - current_pose_(1) + target_pose_(1) - current_velocity_(1) * sampling_time * nb_local_sampling_time_,
-                - current_pose_(2) + target_pose_(2) - current_velocity_(2) * sampling_time * nb_local_sampling_time_,
-                flag * (- current_pose_(0) + target_pose_(0) - current_velocity_(0) * sampling_time * (nb_local_sampling_time_ - 1)),
-                flag * (- current_pose_(1) + target_pose_(1) - current_velocity_(1) * sampling_time * (nb_local_sampling_time_ - 1)),
-                flag * (- current_pose_(2) + target_pose_(2) - current_velocity_(2) * sampling_time * (nb_local_sampling_time_ - 1)),
-                0.0,
-                mid_z;
+  B_eq_.head(8) << - current_pose_(0) + target_pose_(0) - current_velocity_(0) * sampling_time * nb_local_sampling_time_ + g[is_left_leg_in_contact_](nb_local_sampling_time_, 0),
+                   - current_pose_(1) + target_pose_(1) - current_velocity_(1) * sampling_time * nb_local_sampling_time_ + g[is_left_leg_in_contact_](nb_local_sampling_time_, 1),
+                   - current_pose_(2) + target_pose_(2) - current_velocity_(2) * sampling_time * nb_local_sampling_time_ + g[is_left_leg_in_contact_](nb_local_sampling_time_, 2),
+                   flag * (- current_pose_(0) + target_pose_(0) - current_velocity_(0) * sampling_time * (nb_local_sampling_time_ - 1) + g[is_left_leg_in_contact_](nb_local_sampling_time_ - 1, 0)),
+                   flag * (- current_pose_(1) + target_pose_(1) - current_velocity_(1) * sampling_time * (nb_local_sampling_time_ - 1) + g[is_left_leg_in_contact_](nb_local_sampling_time_ - 1, 1)),
+                   flag * (- current_pose_(2) + target_pose_(2) - current_velocity_(2) * sampling_time * (nb_local_sampling_time_ - 1) + g[is_left_leg_in_contact_](nb_local_sampling_time_ - 1, 2)),
+                   0.0,
+                   mid_z;
 
   // Use DCM from half of the step
 //  for(int i = 0; i < nb_var_; i++)
@@ -658,19 +701,19 @@ bool NewEndEffectorTrajectory3D::compute(
       A_ineq_.row(i - 1).head(nb_local_sampling_time_) = -acceleration_terms_z_[is_left_leg_in_contact_].row(i).head(nb_local_sampling_time_);
       A_ineq_.row(i - 1).segment(nb_local_sampling_time_, nb_local_sampling_time_) = -acceleration_terms_z_[is_left_leg_in_contact_].row(i).segment(MAX_VAR, nb_local_sampling_time_);
       A_ineq_.row(i - 1).segment(2 * nb_local_sampling_time_, nb_local_sampling_time_) = -acceleration_terms_z_[is_left_leg_in_contact_].row(i).segment(2 * MAX_VAR, nb_local_sampling_time_);
-      B_ineq_(i - 1) = current_pose_(2) - std::min(start_pose(2), target_pose(2)) + 0.0001 + current_velocity_(2) * sampling_time * i;
+      B_ineq_(i - 1) = current_pose_(2) - std::min(start_pose(2), target_pose(2)) + 0.0001 + current_velocity_(2) * sampling_time * i + g[is_left_leg_in_contact_](i, 2);
       // z <= z_max, i <= n/2 || z_i <= z_i - 1, i > n/2
 //    A_ineq_.row(i - 1 + nb_local_sampling_time_).head(nb_var_ - 7) = acc;
-      if (i <= nb_mid_sampling_time || i >= nb_local_sampling_time_ - 1) {
+      if (i <= nb_mid_sampling_time || i >= nb_local_sampling_time_ - 1 || h[0] != 0.) {
           A_ineq_.row(i - 1 + nb_local_sampling_time_).head(nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(i).head(nb_local_sampling_time_);
           A_ineq_.row(i - 1 + nb_local_sampling_time_).segment(nb_local_sampling_time_, nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(i).segment(MAX_VAR, nb_local_sampling_time_);
           A_ineq_.row(i - 1 + nb_local_sampling_time_).segment(2 * nb_local_sampling_time_, nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(i).segment(2 * MAX_VAR, nb_local_sampling_time_);
-          B_ineq_(i - 1 + nb_local_sampling_time_) = -current_pose_(2) + std::max(start_pose(2), target_pose(2)) + mid_air_height_ - current_velocity_(2) * sampling_time * i;
+          B_ineq_(i - 1 + nb_local_sampling_time_) = -current_pose_(2) + std::max(start_pose(2), target_pose(2)) + mid_air_height_ - current_velocity_(2) * sampling_time * i + g[is_left_leg_in_contact_](i, 2);//Lhum add 0.02 just for test!!
       } else {
           A_ineq_.row(i - 1 + nb_local_sampling_time_).head(nb_local_sampling_time_) = velocity_terms_z_[is_left_leg_in_contact_].row(i).head(nb_local_sampling_time_);
           A_ineq_.row(i - 1 + nb_local_sampling_time_).segment(nb_local_sampling_time_, nb_local_sampling_time_) = velocity_terms_z_[is_left_leg_in_contact_].row(i).segment(MAX_VAR, nb_local_sampling_time_);
           A_ineq_.row(i - 1 + nb_local_sampling_time_).segment(2 * nb_local_sampling_time_, nb_local_sampling_time_) = velocity_terms_z_[is_left_leg_in_contact_].row(i).segment(2 * MAX_VAR, nb_local_sampling_time_);
-          B_ineq_(i - 1 + nb_local_sampling_time_) = -current_velocity_(2);
+          B_ineq_(i - 1 + nb_local_sampling_time_) = -current_velocity_(2);// + g[is_left_leg_in_contact_](1, 2);// Lhum TODO G doesn't work here!
       }
   }
 //  B_ineq_(nb_local_sampling_time_ - 1) = -std::min(start_pose(2), target_pose(2));
@@ -749,9 +792,9 @@ int NewEndEffectorTrajectory3D::get_forces(
     }
     slack_variables_ << x_opt_(nb_var_ - 6), x_opt_(nb_var_ - 5), x_opt_(nb_var_ - 4);
   }
-  next_acceleration << forces[0] * M_inv_[is_left_leg_in_contact_](0, 0) + forces[1] * M_inv_[is_left_leg_in_contact_](1, 0) + forces[2] * M_inv_[is_left_leg_in_contact_](2, 0),
-                       forces[0] * M_inv_[is_left_leg_in_contact_](0, 1) + forces[1] * M_inv_[is_left_leg_in_contact_](1, 1) + forces[2] * M_inv_[is_left_leg_in_contact_](2, 1),
-                       forces[0] * M_inv_[is_left_leg_in_contact_](0, 2) + forces[1] * M_inv_[is_left_leg_in_contact_](1, 2) + forces[2] * M_inv_[is_left_leg_in_contact_](2, 2);
+  next_acceleration << (forces[0] - h[0]) * M_inv_[is_left_leg_in_contact_](0, 0) + (forces[1] - h[1]) * M_inv_[is_left_leg_in_contact_](1, 0) + (forces[2] - h[2]) * M_inv_[is_left_leg_in_contact_](2, 0),
+                       (forces[0] - h[0]) * M_inv_[is_left_leg_in_contact_](0, 1) + (forces[1] - h[1]) * M_inv_[is_left_leg_in_contact_](1, 1) + (forces[2] - h[2]) * M_inv_[is_left_leg_in_contact_](2, 1),
+                       (forces[0] - h[0]) * M_inv_[is_left_leg_in_contact_](0, 2) + (forces[1] - h[1]) * M_inv_[is_left_leg_in_contact_](1, 2) + (forces[2] - h[2]) * M_inv_[is_left_leg_in_contact_](2, 2);
 
   next_velocity << next_acceleration(0) * control_loop + current_velocity_(0),
                    next_acceleration(1) * control_loop + current_velocity_(1),
@@ -777,9 +820,9 @@ void NewEndEffectorTrajectory3D::update_robot_status(Eigen::Ref<Eigen::Vector3d>
     Eigen::Vector3d forces;
     forces << x_opt_[0], x_opt_[nb_local_sampling_time_], x_opt_[2 * nb_local_sampling_time_];
 
-    next_acceleration << forces[0] * M_inv_[is_left_leg_in_contact_](0, 0) + forces[1] * M_inv_[is_left_leg_in_contact_](1, 0) + forces[2] * M_inv_[is_left_leg_in_contact_](2, 0),
-            forces[0] * M_inv_[is_left_leg_in_contact_](0, 1) + forces[1] * M_inv_[is_left_leg_in_contact_](1, 1) + forces[2] * M_inv_[is_left_leg_in_contact_](2, 1),
-            forces[0] * M_inv_[is_left_leg_in_contact_](0, 2) + forces[1] * M_inv_[is_left_leg_in_contact_](1, 2) + forces[2] * M_inv_[is_left_leg_in_contact_](2, 2);
+    next_acceleration << (forces[0] - h[0]) * M_inv_[is_left_leg_in_contact_](0, 0) + (forces[1] - h[1]) * M_inv_[is_left_leg_in_contact_](1, 0) + (forces[2] - h[2]) * M_inv_[is_left_leg_in_contact_](2, 0),
+                         (forces[0] - h[0]) * M_inv_[is_left_leg_in_contact_](0, 1) + (forces[1] - h[1]) * M_inv_[is_left_leg_in_contact_](1, 1) + (forces[2] - h[2]) * M_inv_[is_left_leg_in_contact_](2, 1),
+                         (forces[0] - h[0]) * M_inv_[is_left_leg_in_contact_](0, 2) + (forces[1] - h[1]) * M_inv_[is_left_leg_in_contact_](1, 2) + (forces[2] - h[2]) * M_inv_[is_left_leg_in_contact_](2, 2);
 
     next_velocity << next_acceleration(0) * control_loop + current_velocity_(0),
             next_acceleration(1) * control_loop + current_velocity_(1),
