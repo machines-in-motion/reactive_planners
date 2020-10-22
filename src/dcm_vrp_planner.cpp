@@ -23,9 +23,8 @@ DcmVrpPlanner::DcmVrpPlanner(
     Eigen::Ref<const Eigen::Vector9d> cost_weights_local,
     const bool is_new)
 {
-    new_ = is_new;
     initialize(
-        l_min, l_max, w_min, w_max, t_min, t_max, l_p, ht, cost_weights_local);
+        l_min, l_max, w_min, w_max, t_min, t_max, l_p, ht, cost_weights_local, is_new);
 }
 
 void DcmVrpPlanner::initialize(
@@ -37,8 +36,10 @@ void DcmVrpPlanner::initialize(
     const double& t_max,
     const double& l_p,
     const double& ht,
-    Eigen::Ref<const Eigen::Vector9d> cost_weights_local)
+    Eigen::Ref<const Eigen::Vector9d> cost_weights_local,
+    const bool is_new)
 {
+    new_ = is_new;
     l_min_ = l_min;
     l_max_ = l_max;
     w_min_ = w_min;
@@ -211,9 +212,9 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
 
     // Do not update after t_min_ for stability of the flying foot trajectory
     // reasons.
-    if (time_from_last_step_touchdown_ > 0.8 * t_nom_ && !new_) {
-        return;
-    }
+//    if (time_from_last_step_touchdown_ > 0.8 * t_nom_ && !new_) {
+//        return;
+//    }
 
     // Express the desired velocity in the local frame.
     v_des_local_ = v_des;
@@ -260,8 +261,8 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
 //    std::cout << new_t_min << std::endl;
 //    std::cout << "N" << std::max(t_min_, time_from_last_step_touchdown_ + new_t_min - 0.0001) << std::endl;
 //    std::cout << "O" << std::max(t_min_, time_from_last_step_touchdown_ + std::max(0.00099, sqrt(2. * current_swing_foot_location(2) / alpha))) << std::endl;
-//    tau_min_ = exp(omega_ * std::max(t_min_, time_from_last_step_touchdown_ + new_t_min - 0.0001));
-    tau_min_ = exp(omega_ * std::max(t_min_, time_from_last_step_touchdown_ + std::max(0.00099, sqrt(2. * current_swing_foot_location(2) / alpha))));
+    tau_min_ = exp(omega_ * std::max(t_min_, time_from_last_step_touchdown_ + new_t_min - 0.0001));
+//    tau_min_ = exp(omega_ * std::max(t_min_, time_from_last_step_touchdown_ + std::max(0.00099, sqrt(2. * current_swing_foot_location(2) / alpha))));
     // clang-format off
     B_ineq_ << l_max_,                // 0
             w_max_local,           // 1
@@ -304,10 +305,10 @@ bool DcmVrpPlanner::solve(double time, double x, double y)
 {
     /* Here we stop optimizing after t_min because the foot trajectory does
     not follow up and the controller becomes unstable. */
-    if (time_from_last_step_touchdown_ > 0.8 * t_nom_ && !new_)
-    {
-        return true;
-    }// Lhum 70 Lhum new_ Lhum time
+//    if (time_from_last_step_touchdown_ > 0.8 * t_nom_ && !new_)
+//    {
+//        return true;
+//    }// Lhum 70 Lhum new_ Lhum time
 //    Eigen::Vector3d tmp;
 //    if(time != 0){
 //        std::cout << "Lhum second solve" << std::endl;

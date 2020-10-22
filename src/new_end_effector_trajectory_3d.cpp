@@ -176,8 +176,8 @@ void NewEndEffectorTrajectory3D::calculate_acceleration(){
   g[1].resize(MAX_VAR, 3);
   g[0].setZero();
   g[1].setZero();
-//  h << -0.4, 0., .8;
-  h << 0.0, 0., -0.;
+  h << -0.4, 0., .8;
+//  h << 0.0, 0., -0.;
 
   Eigen::MatrixXd A_;
   Eigen::MatrixXd B_;
@@ -271,6 +271,8 @@ double NewEndEffectorTrajectory3D::calculate_t_min(
 //    std::cout << "pos t " << current_pose  << current_velocity << std::endl;
 //    std::cout << std::endl << std::endl;
 //    auto start = std::chrono::high_resolution_clock::now();
+//    if(current_time < 0.02)
+//        std::cout << "POS      " << current_pose << std::endl;
     int index = 1;
 //    std::cout << "pos" << current_pose << std::endl;
     do {
@@ -375,10 +377,11 @@ bool NewEndEffectorTrajectory3D::compute(
     const bool& is_left_leg_in_contact) {
 //    std::cout << "pos c " << start_time << " " << current_time << " " << end_time << " " << current_pose  << current_velocity << std::endl;
   // scaling the problem
-  double step_duration = end_time - start_time;
-  double duration = end_time - current_time;
+  double step_duration = end_time - start_time - 0.000000001;//To solve numeric problem
+  double duration = end_time - current_time - 0.000000001;//To solve numeric problem
   nb_sampling_time = ceil(step_duration / sampling_time);
   nb_local_sampling_time_ = ceil(duration / sampling_time);
+//    std::cout << "NLST                                 " << nb_local_sampling_time_ << std::endl;
 //  nb_sampling_time = round((step_duration + EPSION) / sampling_time); //Lhum it is equal to ceil and it avoids floating point problem.
 //  double nb_local_sampling_time_ = round((duration + EPSION) / sampling_time);
   int nb_mid_sampling_time = nb_local_sampling_time_ - (nb_sampling_time / 2);
@@ -464,7 +467,7 @@ bool NewEndEffectorTrajectory3D::compute(
   Q_(nb_var_ - 4, nb_var_ - 4) = 1 * cost_epsilon_z_;
   Q_(nb_var_ - 3, nb_var_ - 3) = 1 * cost_epsilon_vel_;
   Q_(nb_var_ - 2, nb_var_ - 2) = 1 * cost_epsilon_vel_;
-  Q_(nb_var_ - 1, nb_var_ - 1) = 1 * cost_epsilon_vel_;
+  Q_(nb_var_ - 1, nb_var_ - 1) = 1 * cost_epsilon_vel_ * 1000;
   // Q_regul
   double hess_regul = 1e-9;
   Q_regul_ = Eigen::MatrixXd::Identity(nb_var_, nb_var_) * hess_regul;
@@ -572,9 +575,8 @@ bool NewEndEffectorTrajectory3D::compute(
       A_eq_.row(5).head(nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(nb_local_sampling_time_ - 1).head(nb_local_sampling_time_);//vn[2]
       A_eq_.row(5).segment(nb_local_sampling_time_, nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(nb_local_sampling_time_ - 1).segment(MAX_VAR, nb_local_sampling_time_);//vn[2]
       A_eq_.row(5).segment(2 * nb_local_sampling_time_, nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(nb_local_sampling_time_ - 1).segment(2 * MAX_VAR, nb_local_sampling_time_);//vn[2]
-//      if(h[0] != 0.)// vz==0
-//          A_eq_(5, nb_var_ - 1) = -1;
-
+      if(h[0] != 0.)
+          A_eq_(5, nb_var_ - 1) = -1;
 //      A_eq_(5, nb_var_ - 4) = -1;
 //      acc_ep[nb_var_ - 1] = 0;//delete epsilon_vel
   }

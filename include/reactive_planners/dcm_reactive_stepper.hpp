@@ -155,7 +155,7 @@ public:
                     const double &com_height,
                     const Eigen::Vector9d &weight)
     {
-        dcm_vrp_planner_.initialize(l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight);
+        dcm_vrp_planner_.initialize(l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight, new_);
     }
 
     /** @brief Set the costs of x, y, z axes, and hessian regularization.
@@ -499,7 +499,7 @@ private:
      * tracking at best a reference CoM velocity. */
     DcmVrpPlanner dcm_vrp_planner_;
 
-    bool new_ = true;
+    bool new_ = false;
     /** @brief Computes the end-effector flying trajectory. */
     EndEffectorTrajectory3D end_eff_traj3d_;
     NewEndEffectorTrajectory3D new_end_eff_traj3d_;

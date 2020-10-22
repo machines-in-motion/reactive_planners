@@ -86,7 +86,7 @@ public:
     DcmVrpPlanner()
     {
         initialize(
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Eigen::Vector9d::Zero());
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Eigen::Vector9d::Zero(), false);
     }
 
     /**
@@ -102,7 +102,8 @@ public:
                     const double& t_max,
                     const double& l_p,
                     const double& ht,
-                    Eigen::Ref<const Eigen::Vector9d> cost_weights_local);
+                    Eigen::Ref<const Eigen::Vector9d> cost_weights_local,
+                    const bool is_new);
 
     /**
      * @brief Computes adapted step location.

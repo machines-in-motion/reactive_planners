@@ -56,7 +56,7 @@ void DcmReactiveStepper::initialize(const bool &is_left_leg_in_contact,
 {
     // Initialize the dcm vrp planner and initialize it.
     dcm_vrp_planner_.initialize(
-        l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight);
+        l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight, new_);
     // Initialize the end-effector trajecotry generator.
     if(new_) {
         new_end_eff_traj3d_.set_mid_air_height(mid_air_foot_height);
@@ -272,6 +272,7 @@ bool DcmReactiveStepper::walk(
 
 
     ///change solver loop time_step
+//    std::cout << time_from_last_step_touchdown_ << "      " << is_left_leg_in_contact_ << std::endl;
     if(new_ && time_from_last_step_touchdown_ == 0.0)
         nb_usage_of_force_ = 0;
     if(new_ && nb_usage_of_force_ % 10 != 0){//Lhum TODO update 10 automatically
