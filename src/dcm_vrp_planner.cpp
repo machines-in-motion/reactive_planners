@@ -20,13 +20,11 @@ DcmVrpPlanner::DcmVrpPlanner(
     const double& t_max,
     const double& l_p,
     const double& ht,
-    const double& t_f,
-    const double& omega,
     Eigen::Ref<const Eigen::Vector9d> cost_weights_local,
     const bool is_new)
 {
     initialize(
-        l_min, l_max, w_min, w_max, t_min, t_max, l_p, ht, t_f, omega, cost_weights_local, is_new);
+        l_min, l_max, w_min, w_max, t_min, t_max, l_p, ht, cost_weights_local, is_new);
 }
 
 void DcmVrpPlanner::initialize(
@@ -38,8 +36,6 @@ void DcmVrpPlanner::initialize(
     const double& t_max,
     const double& l_p,
     const double& ht,
-    const double& t_f,
-    const double& omega,
     Eigen::Ref<const Eigen::Vector9d> cost_weights_local,
     const bool is_new)
 {
@@ -49,13 +45,12 @@ void DcmVrpPlanner::initialize(
     w_min_ = w_min;
     w_max_ = w_max;
     t_min_ = t_min;
-    t_max_ = t_max;//Lhum should check it!!!!
+    t_max_ = t_max;
     l_p_ = l_p;
     ht_ = ht;
     cost_weights_local_ = cost_weights_local;
 
-    t_f_ = t_f;
-    omega_ = omega;
+    omega_ = sqrt(9.81 / ht_);
     tau_min_ = exp(omega_ * t_min_);
     tau_max_ = exp(omega_ * t_max_);
 
@@ -139,7 +134,7 @@ void DcmVrpPlanner::compute_nominal_step_values(
         max_or_min_time << fabs_l_max / fabs(v_des_local(0)), fabs_w_max / fabs(v_des_local(1)), t_max_;
         t_upper_bound = max_or_min_time.minCoeff();
     }
-    t_nom_ = (t_lower_bound + t_upper_bound) * 0.5;//t_upper_bound - 0.01;//Lhum TODO!!! walking 0.225;//
+    t_nom_ = 0.225;//(t_lower_bound + t_upper_bound) * 0.5;//t_upper_bound - 0.01;//
     tau_nom_ = exp(omega_ * t_nom_);
     l_nom_ = v_des_local(0) * t_nom_;
     if(is_left_leg_in_contact)
@@ -147,9 +142,9 @@ void DcmVrpPlanner::compute_nominal_step_values(
     else
         w_nom_ = v_des_local(1) * t_nom_ + l_p_;
 
-    bx_nom_ = 0;//l_nom_ / (tau_nom_ - 1);
-    by_nom_ = -0.0;//(pow(-1, contact_switcher) * (l_p_ / (1 + tau_nom_))) -
-              //v_des_local(1) * t_nom_ / (1 - tau_nom_);
+    bx_nom_ = l_nom_ / (tau_nom_ - 1);
+    by_nom_ = (pow(-1, contact_switcher) * (l_p_ / (1 + tau_nom_))) -
+              v_des_local(1) * t_nom_ / (1 - tau_nom_);
 }
 
 #define dbg_dump(var) std::cout << "  " << #var << ": " << var << std::endl
@@ -162,10 +157,7 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
                            Eigen::Ref<const Eigen::Vector3d> com,
                            Eigen::Ref<const Eigen::Vector3d> com_vel,
                            const double& yaw,
-                           const double& new_t_min,
-                           const double& omega,
-                           Eigen::Ref<const Eigen::Vector3d> x_T_s,
-                           Eigen::Ref<const Eigen::Vector3d> x_d_T_s)
+                           const double& new_t_min)
 {
     pinocchio::SE3 world_M_base(
         Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix(),
@@ -178,10 +170,7 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
            com,
            com_vel,
            world_M_base,
-           new_t_min,
-           omega,
-           x_T_s,
-           x_d_T_s);
+           new_t_min);
 }
 
 void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_location,
@@ -192,11 +181,7 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
                            Eigen::Ref<const Eigen::Vector3d> com,
                            Eigen::Ref<const Eigen::Vector3d> com_vel,
                            const pinocchio::SE3& world_M_base,
-                           const double& new_t_min,
-                           const double& omega,
-                           Eigen::Ref<const Eigen::Vector3d> x_T_s,
-                           Eigen::Ref<const Eigen::Vector3d> x_d_T_s) {
-    omega_ = omega;
+                           const double& new_t_min) {
 //    std::cout << new_t_min << std::endl;
     // std::cout << "DcmVrpPlanner::update" << std::endl;
     // dbg_dump(current_step_location);
@@ -219,12 +204,10 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     Eigen::Vector3d rpy = world_M_base.rotation().eulerAngles(0, 1, 2);
     world_M_local_.rotation() = world_M_base.rotation();//Eigen::AngleAxisd(rpy[2], Eigen::Vector3d::UnitZ());
 
+
     // Compute the DCM in the local frame.
     dcm_local_.head<2>() = com_vel.head<2>() / omega_ + com.head<2>();
-//    dcm_local_(2) = ground_height;
-//
-//    std::cout << "COM VCOM" << com << " " << com_vel << std::endl;
-//    std::cout << "DCM " << dcm_local_ << std::endl;
+    dcm_local_(2) = ground_height;
     dcm_local_ = world_M_local_.actInv(dcm_local_);
 
     // Do not update after t_min_ for stability of the flying foot trajectory
@@ -265,34 +248,22 @@ void DcmVrpPlanner::update(Eigen::Ref<const Eigen::Vector3d> current_step_locati
     if (is_left_leg_in_contact) {
         w_max_local = -w_min_ - l_p_;
         w_min_local = -w_max_ - l_p_;
-        by_max = 0; //-by_max_out_;//by_max_in_;
-        by_min = 0;//-by_max_in_;//by_max_out_;
+        by_max = -by_max_out_;//by_max_in_;
+        by_min = -by_max_in_;//by_max_out_;
     } else {
         w_max_local = w_max_ + l_p_;
         w_min_local = w_min_ + l_p_;
-        by_max = 0;//by_max_in_;//-by_max_out_;
-        by_min = 0;//by_max_out_;//-by_max_in_;
+        by_max = by_max_in_;//-by_max_out_;
+        by_min = by_max_out_;//-by_max_in_;
     }
-//    std::cout << by_max_in_ << "     " << by_max_out_ << std::endl;
     double alpha = 30 * 18.;
 //    std::cout << "TFLST" << time_from_last_step_touchdown_ << std::endl;
 //    std::cout << new_t_min << std::endl;
 //    std::cout << "N" << std::max(t_min_, time_from_last_step_touchdown_ + new_t_min - 0.0001) << std::endl;
 //    std::cout << "O" << std::max(t_min_, time_from_last_step_touchdown_ + std::max(0.00099, sqrt(2. * current_swing_foot_location(2) / alpha))) << std::endl;
-//    tau_min_ = exp(omega_ * std::max(t_min_, time_from_last_step_touchdown_ + new_t_min - 0.0001)); // Lhum TODO uncomment it as soon as possible!!!!!!!!!!!
+    tau_min_ = exp(omega_ * std::max(t_min_, time_from_last_step_touchdown_ + new_t_min - 0.0001));
 //    tau_min_ = exp(omega_ * std::max(t_min_, time_from_last_step_touchdown_ + std::max(0.00099, sqrt(2. * current_swing_foot_location(2) / alpha))));
     // clang-format off
-//    std::cout << " MIN MAX " << by_min << "    " << by_max << std::endl;
-std::cout << "condition" << l_max_<< " " <<                // 0
-        w_max_local<< " " <<          // 1
-        -l_min_<<" " <<                // 2
-        -w_min_local<<" " <<           // 3
-        tau_max_<<" " <<              // 4
-        -tau_min_<<" " <<              // 5
-        bx_max_<<" " <<               // 6
-        -bx_min_<<" " <<               // 7
-        by_max<<" " <<                 // 8
-        -by_min << std::endl;
     B_ineq_ << l_max_,                // 0
             w_max_local,           // 1
             -l_min_,                // 2
@@ -311,48 +282,19 @@ std::cout << "condition" << l_max_<< " " <<                // 0
 //    dcm_local_(0) = std::min(dcm_local_(0), bx_max_);
 //    dcm_local_(1) = std::max(dcm_local_(1), by_min);
 //    dcm_local_(1) = std::min(dcm_local_(1), by_max);
-    Eigen::Vector3d x_T_s_;
-    Eigen::Vector3d x_d_T_s_;
-    const Eigen::Vector3d &tmp3 = x_T_s;
-    x_T_s_ = world_M_local_.actInv(tmp3);
-    const Eigen::Vector3d &tmp4 = x_d_T_s;
-    x_d_T_s_ = world_M_local_.actInv(tmp4);
-//    std::cout << "X_T                  " << x_T_s[0] << " " << x_T_s[1] << " " << x_d_T_s[0] << " " << x_d_T_s[1] << std::endl;
-
-    double v0, v1;
-    double t_s = 0.2;
-    if(time_from_last_step_touchdown - t_s <= 0.0000001) {
-        tmp0_ = (dcm_local_(0) - current_step_location_local_[0]) *
-                exp(-1.0 * omega_ * std::min(t_s, time_from_last_step_touchdown));//Lhum TODO 0.2 should be swing_phase
-        tmp1_ = (dcm_local_(1) - current_step_location_local_[1]) *
-                exp(-1.0 * omega_ * std::min(t_s, time_from_last_step_touchdown));
-        v0 = x_d_T_s_[0] * t_f_;
-        v1 = x_d_T_s_[1] * t_f_;
-        tmp5_ = world_M_local_.act((Eigen::Vector3d() << tmp0_ * exp(omega * t_s), tmp1_ * exp(omega * t_s), 0.0).finished());
-//        tmp5_ = world_M_local_.act((Eigen::Vector3d() << tmp0_ * exp(omega * t_s), tmp1_ * exp(omega * t_s), 0.0).finished());
-    }
-    else{
-        const Eigen::Vector3d &tmp8 = com_vel;
-        const Eigen::Vector3d vcom = world_M_local_.actInv(tmp8);
-        v0 = vcom(0) * t_f_;
-        v1 = vcom(1) * t_f_;
-    }
+    double tmp0 = (dcm_local_(0) - current_step_location_local_[0]) *
+                  exp(-1.0 * omega_ * time_from_last_step_touchdown);
+    double tmp1 = (dcm_local_(1) - current_step_location_local_[1]) *
+                  exp(-1.0 * omega_ * time_from_last_step_touchdown);
 
     // clang-format off
-    const Eigen::Vector3d &tmp7 = tmp5_;
-    const Eigen::Vector3d tmp6 = world_M_local_.actInv(tmp7) / exp(omega * t_s);
-//    v0 = 0;
-//    v1 = 0;
-//    std::cout << "TMP " << tmp5_ << std::endl;
-    A_eq_ << 1.0, 0.0, -1.0 * tmp6(0), 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-             0.0, 1.0, -1.0 * tmp6(1), 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
-             0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+  A_eq_ << 1.0, 0.0, -1.0 * tmp0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+           0.0, 1.0, -1.0 * tmp1, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
+           0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
 
-    B_eq_ << v0,
-             v1,
-             0.0;
-//    next_step_location_ = world_M_local_.act((Eigen::Vector3d() << tmp6(0)  * exp(omega * t_s) + v0 * t_f_, tmp6(1) * exp(omega * t_s) + v1 * t_f_, 0.0).finished());
-//    std::cout << x_d_T_s[1] << std::endl;
+  B_eq_ << 0.0,
+           0.0,
+           0.0;
 //  dcm_local_(0) = std::max(t_min_, time_from_last_step_touchdown_ + new_t_min - 0.0001);
 //  dcm_local_(1) = time_from_last_step_touchdown_ + new_t_min - 0.0001;
 //  dcm_local_(2) = t_min_;
@@ -406,19 +348,17 @@ bool DcmVrpPlanner::solve(double time, double x, double y)
             failure = true;
         }
     }
+
     if (!failure)
     {
         // Extract the information from the solution.
         x_opt_ = qp_solver_.result();
-        std::cout << "RESULT " << world_M_local_.act((Eigen::Vector3d() << x_opt_(0), x_opt_(1), 0.0).finished()) << " " << log(x_opt_(2)) / omega_ << std::endl;
-//        std::cout << "NEXT " << next_step_location_ << std::endl;
         next_step_location_ =
             current_step_location_local_ +
             (Eigen::Vector3d() << x_opt_(0), x_opt_(1), 0.0).finished();
         next_step_location_ = world_M_local_.act(next_step_location_);
-        duration_before_step_landing_ = log(x_opt_(2)) / omega_ + t_f_;
+        duration_before_step_landing_ = log(x_opt_(2)) / omega_;
         slack_variables_ = x_opt_.tail<4>();
-
     }
     else
     {
@@ -437,7 +377,7 @@ bool DcmVrpPlanner::solve(double time, double x, double y)
         }
         slack_variables_.setZero();
 
-        duration_before_step_landing_ = t_nom_ + t_f_;
+        duration_before_step_landing_ = t_nom_;
         next_step_location_ << l_nom_, w_nom_, 0.0;
         next_step_location_ += current_step_location_local_;
         next_step_location_ = world_M_local_.act(next_step_location_);

@@ -42,7 +42,7 @@ bool run(std::ofstream &myfile)
     for (int i = 0; i < 10000; ++i)
     {
         stepper_head.run(
-            duration_before_step_landing, 0., next_support_foot, time);
+            duration_before_step_landing, next_support_foot, time);
 
         next_support_foot << 0.5*time, time, 2*time;
         time += dt;

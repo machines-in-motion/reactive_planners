@@ -14,7 +14,6 @@
 #include "reactive_planners/end_effector_trajectory_3d.hpp"
 #include "reactive_planners/new_end_effector_trajectory_3d.hpp"
 #include "reactive_planners/stepper_head.hpp"
-#include "reactive_planners/com_planner.hpp"
 #include <iostream>
 
 namespace reactive_planners
@@ -156,7 +155,7 @@ public:
                     const double &com_height,
                     const Eigen::Vector9d &weight)
     {
-        dcm_vrp_planner_.initialize(l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, flying_phase_duration_, omega_, weight, new_);
+        dcm_vrp_planner_.initialize(l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight, new_);
     }
 
     /** @brief Set the costs of x, y, z axes, and hessian regularization.
@@ -447,39 +446,9 @@ public:
         return force;
     }
 
-    /**
-     * @brief Get the desired com height.
-     *
-     * @return const double&
+    /*
+     * Private methods
      */
-    Eigen::Vector3d &get_com()
-    {
-        return com_;
-    }
-    /**
-     * @brief Get the desired com height.
-     *
-     * @return const double&
-     */
-    Eigen::Vector3d &get_v_com()
-    {
-        std::cout << "G v_com " << v_com_ << std::endl;
-        return v_com_;
-    }
-
-    /** @brief Get if the left foot is in contact. If not then it is the right
-     * foot.
-     * @return const double&
-     */
-    Eigen::Vector2d &get_contact_phase()
-    {
-        return contact_;
-    }
-
-
-        /*
-         * Private methods
-         */
 private:
     /**
      * @brief Makes the robot walk.
@@ -530,14 +499,10 @@ private:
      * tracking at best a reference CoM velocity. */
     DcmVrpPlanner dcm_vrp_planner_;
 
-    /** @brief Computes the position and velocity of center of mass. */
-    ComPlanner com_planner_;
-
-    bool new_ = true;
+    bool new_ = false;
     /** @brief Computes the end-effector flying trajectory. */
     EndEffectorTrajectory3D end_eff_traj3d_;
     NewEndEffectorTrajectory3D new_end_eff_traj3d_;
-    NewEndEffectorTrajectory3D new_swing_end_eff_traj3d_;
 
     /** @brief Is the left foot in contact? otherwize the right foot is. */
     bool is_left_leg_in_contact_;
@@ -600,9 +565,6 @@ private:
     /** @brief All of forces calculated until the next contact. */
     Eigen::VectorXd forces_;
 
-    /** @brief All of forces calculated until the next contact for swing foot. */
-    Eigen::VectorXd f_swing_;
-
     /** @brief This frame is located at a the constant CoM height, and at the
      * current CoM XY position. The roll and pitch are null and the yaw comes
      * from the current robot base yaw orientation.
@@ -631,31 +593,6 @@ private:
 
     /** @brief Nominal DCM computed from the CoM estimation and nominal time. */
     Eigen::Vector3d dcm_;
-
-    /** @brief Center of mass position. */
-    Eigen::Vector3d com_;
-
-    /** @brief Center of mass velocity. */
-    Eigen::Vector3d v_com_;
-
-    /** @brief desired swing foot position. */
-    Eigen::Vector3d des_swing_position_;
-
-    /** @brief [is_left_leg_in_contact, is_right_leg_in_contact] */
-    Eigen::Vector2d contact_;
-
-    /** @brief Flying phase duration. */
-    double flying_phase_duration_;
-
-    /** @brief Stance phase duration. */
-    double stance_phase_duration_;
-
-    /** @brief Omega. */
-    double omega_;
-
-    Eigen::Vector3d x_T_s_;
-
-    Eigen::Vector3d x_d_T_s_;
 
 };
 

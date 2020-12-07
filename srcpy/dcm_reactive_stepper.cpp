@@ -58,8 +58,6 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
              &DcmReactiveStepper::set_left_foot_velocity)
         .def("dcm_vrp_planner_initialization",
              &DcmReactiveStepper::dcm_vrp_planner_initialization)
-        .def("set_desired_com_velocity",
-             &DcmReactiveStepper::set_desired_com_velocity)
 
         // Getters.
         .def("get_right_foot_position",
@@ -89,12 +87,9 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
              &DcmReactiveStepper::get_is_left_leg_in_contact)
         .def("get_forces",
              &DcmReactiveStepper::get_forces)
-        .def("get_com",
-             &DcmReactiveStepper::get_com)
-        .def("get_v_com",
-             &DcmReactiveStepper::get_v_com)
-        .def("get_contact_phase",
-             &DcmReactiveStepper::get_contact_phase);
+        // Setters
+        .def("set_desired_com_velocity",
+             &DcmReactiveStepper::set_desired_com_velocity);
 //        .def("set_end_eff_traj_costs",
 //             &DcmReactiveStepper::set_end_eff_traj_costs);
 }

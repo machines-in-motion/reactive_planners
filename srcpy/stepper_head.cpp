@@ -28,7 +28,6 @@ void bind_stepper_head(pybind11::module &module)
 
        .def("run",
              (void (StepperHead::*)(const double&,
-                                    const double&,
                                     const Eigen::Vector3d&,
                                     const double&)) &
                      StepperHead::run)
