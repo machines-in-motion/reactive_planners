@@ -29,9 +29,17 @@ DcmReactiveStepper::DcmReactiveStepper()
     left_foot_velocity_.setZero();
     left_foot_acceleration_.setZero();
     feasible_com_velocity_.setZero();
+    x_T_s_.setZero();
+    x_d_T_s_.setZero();
     running_ = false;
     local_frame_.setIdentity();
     nb_usage_of_force_ = 0.;
+    flying_phase_duration_ = 0.1;
+    stance_phase_duration_ = 0.2;
+    omega_ = 7.2;//sqrt(9.81 / dcm_vrp_planner_.get_com_height());//Lhum TODO read it from python or DG.
+    contact_(0) = is_left_leg_in_contact_;
+    contact_(1) = !is_left_leg_in_contact_;
+    des_swing_position_ << 0, 0, 0.05;
 }
 
 DcmReactiveStepper::~DcmReactiveStepper()
@@ -56,11 +64,13 @@ void DcmReactiveStepper::initialize(const bool &is_left_leg_in_contact,
 {
     // Initialize the dcm vrp planner and initialize it.
     dcm_vrp_planner_.initialize(
-        l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight, new_);
+        l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, flying_phase_duration_, omega_, weight, new_);
     // Initialize the end-effector trajecotry generator.
     if(new_) {
         new_end_eff_traj3d_.set_mid_air_height(mid_air_foot_height);
-        new_end_eff_traj3d_.init_calculate_dcm(v_des, com_height, l_p, t_min, t_max);
+        new_end_eff_traj3d_.init_calculate_dcm(v_des, com_height, l_p, t_min, t_max, omega_, flying_phase_duration_);
+        new_swing_end_eff_traj3d_.set_mid_air_height(mid_air_foot_height);
+        new_swing_end_eff_traj3d_.init_calculate_dcm(v_des, com_height, l_p, t_min, t_max, omega_, flying_phase_duration_);
     }
     else{
         end_eff_traj3d_.set_mid_air_height(mid_air_foot_height);
@@ -101,7 +111,8 @@ void DcmReactiveStepper::initialize(const bool &is_left_leg_in_contact,
         current_support_foot_position_ = right_foot_position;
         previous_support_foot_position_ = left_foot_position_;
     }
-    forces_.resize(ceil(t_max * 1000) * 3);
+    forces_.resize(ceil((t_max + 1.) * 1000) * 3);
+    f_swing_.resize(ceil((t_max + 1.) * 1000) * 3);
     running_ = false;
 }
 
@@ -223,12 +234,13 @@ bool DcmReactiveStepper::walk(
     if(contact[0] == 0 && contact[1] == 0){
         if (is_left_leg_in_contact_)
         {
-            stepper_head_.run(step_duration_, right_on_ground, time);
+            stepper_head_.run(step_duration_ - flying_phase_duration_, flying_phase_duration_, right_on_ground, time);
         }
         else
         {
-            stepper_head_.run(step_duration_, left_on_ground, time);
+            stepper_head_.run(step_duration_ - flying_phase_duration_, flying_phase_duration_, left_on_ground, time);
         }
+        contact_ = stepper_head_.get_contact_phase();
     }
     else{
         if (is_left_leg_in_contact_)
@@ -266,8 +278,8 @@ bool DcmReactiveStepper::walk(
     current_support_foot_position_ =
         stepper_head_.get_current_support_location();
     Eigen::Vector3d current_swing_foot_position = is_left_leg_in_contact_? right_foot_position_: left_foot_position_;
-    previous_support_foot_position_ =
-        stepper_head_.get_previous_support_location();
+    if(contact_(0) != contact_(1))
+        previous_support_foot_position_ = stepper_head_.get_previous_support_location();
 
 
 
@@ -277,27 +289,52 @@ bool DcmReactiveStepper::walk(
         nb_usage_of_force_ = 0;
     if(new_ && nb_usage_of_force_ % 10 != 0){//Lhum TODO update 10 automatically
         // Compute the flying foot trajectory.
-        if (is_left_leg_in_contact_)  // check which foot is in contact
-        {
-            // flying foot is the right foot
-            new_end_eff_traj3d_.update_robot_status(right_foot_position_,
-                                                    right_foot_velocity_,
-                                                    right_foot_acceleration_);
-            // The current support foot does not move
-            left_foot_position_ = current_support_foot_position_;
-            left_foot_velocity_.setZero();
-            left_foot_acceleration_.setZero();
+        if(contact_(0) != contact_(1)) {
+            if (is_left_leg_in_contact_)  // check which foot is in contact
+            {
+                // flying foot is the right foot
+                new_end_eff_traj3d_.update_robot_status(right_foot_position_,
+                                                        right_foot_velocity_,
+                                                        right_foot_acceleration_);
+                // The current support foot does not move
+                left_foot_position_ = current_support_foot_position_;
+                left_foot_velocity_.setZero();
+                left_foot_acceleration_.setZero();
+            } else {
+                // flying foot is the left foot
+                new_end_eff_traj3d_.update_robot_status(left_foot_position_,
+                                                        left_foot_velocity_,
+                                                        left_foot_acceleration_);
+                // The current support foot does not move
+                right_foot_position_ = current_support_foot_position_;
+                right_foot_velocity_.setZero();
+                right_foot_acceleration_.setZero();
+            }
         }
-        else
-        {
-            // flying foot is the left foot
-            new_end_eff_traj3d_.update_robot_status(left_foot_position_,
-                                                    left_foot_velocity_,
-                                                    left_foot_acceleration_);
-            // The current support foot does not move
-            right_foot_position_ = current_support_foot_position_;
-            right_foot_velocity_.setZero();
-            right_foot_acceleration_.setZero();
+        else{
+            if (is_left_leg_in_contact_)  // check which foot is in contact
+            {
+                // flying foot is the right foot
+                new_end_eff_traj3d_.update_robot_status(right_foot_position_,
+                                                        right_foot_velocity_,
+                                                        right_foot_acceleration_);
+
+//                new_swing_end_eff_traj3d_.update_robot_status(left_foot_position_,
+//                                                              left_foot_velocity_,
+//                                                              left_foot_acceleration_);
+
+            } else {
+
+                // flying foot is the left foot
+                new_end_eff_traj3d_.update_robot_status(left_foot_position_,
+                                                        left_foot_velocity_,
+                                                        left_foot_acceleration_);
+
+//                new_swing_end_eff_traj3d_.update_robot_status(right_foot_position_,
+//                                                              right_foot_velocity_,
+//                                                              right_foot_acceleration_);
+            }
+
         }
         nb_usage_of_force_ += 1;
         return true;
@@ -316,7 +353,7 @@ bool DcmReactiveStepper::walk(
     // Run the DcmVrpPlanner to get the next foot step location.
     double current_time = stepper_head_.get_time_from_last_step_touchdown();
     double new_t_min = 0.0;
-    if(new_) {
+    if(new_ && false) {//Lhum jump delete false when you want normal walking
         if(is_left_leg_in_contact_)
             new_t_min = new_end_eff_traj3d_.calculate_t_min(
                     right_foot_position_,
@@ -333,6 +370,14 @@ bool DcmReactiveStepper::walk(
                     is_left_leg_in_contact_);
 
     }
+
+    Eigen::Vector3d stance_pos = is_left_leg_in_contact_? left_foot_position_:right_foot_position_;
+    if(current_time < stance_phase_duration_) {
+        com_planner_.update_com_mea_single_support(omega_, stance_phase_duration_ - current_time,
+                                                   stance_pos, com_position, com_velocity);
+        x_T_s_ = com_planner_.get_com_mea();
+        x_d_T_s_ = com_planner_.get_com_d_mea();
+    }
     dcm_vrp_planner_.update(current_support_foot_position_,
                             current_swing_foot_position,
                             time_from_last_step_touchdown_,
@@ -341,10 +386,13 @@ bool DcmReactiveStepper::walk(
                             com_position,
                             com_velocity,
                             local_frame,
-                            new_t_min);
+                            new_t_min,
+                            omega_,
+                            x_T_s_,
+                            x_d_T_s_);
 
     succeed += succeed && dcm_vrp_planner_.solve(0, 0, 0);
-    // Extract the usefull informations.
+    // Extract the useful information.
     step_duration_ = dcm_vrp_planner_.get_duration_before_step_landing();
     next_support_foot_position_ = dcm_vrp_planner_.get_next_step_location();
 //    next_support_foot_position_(0) = 0;
@@ -353,15 +401,36 @@ bool DcmReactiveStepper::walk(
     double start_time = 0.0;
     double end_time = dcm_vrp_planner_.get_duration_before_step_landing();// + step_local_duration_;////////////////////////////////
 
+    //calculate com and vcom traj
+    Eigen::Vector3d com;
+    Eigen::Vector3d vcom;
+    com << 0., 0., dcm_vrp_planner_.get_com_height();//Lhum TODO read it from python or DG.
+    vcom << 0., 0., -0.491985;//Lhum TODO read it from python or DG.
+    if(contact_(0) != contact_(1)) {
+        std::cout << "stance phase\n";
+        com_planner_.update_com_single_support(omega_, current_time, stance_pos, com, vcom);
+        com_ = com_planner_.get_com();
+        v_com_ = com_planner_.get_com_d();
+        std::cout << "v_com " << v_com_ << std::endl;
+    }
+    else{
+        std::cout << "swing phase\n";
+        com_ = com_position;
+        v_com_ = com_velocity;
+        std::cout << "Other v_com " << v_com_ << std::endl;
+    }
+
 //    if(previous_end_time != end_time && current_time >= previous_end_time - 0.001){
 //        //next_support_foot_position_ = previous_next_support_foot_position_;
 //        next_support_foot_position_[2] = previous_next_support_foot_position_[2] - 0.0001;
 //    }
 //    std::cout << "Here" << std::endl;
-    // Compute the flying foot trajectory.
-    if (is_left_leg_in_contact_)  // check which foot is in contact
-    {
-        // flying foot is the right foot
+
+    // Compute the feet trajectories.
+    if(contact_(0) != contact_(1)) {
+        if (is_left_leg_in_contact_)  // check which foot is in contact
+        {
+            // flying foot is the right foot
 //
 //        ///////cost
 //        double cost[1000];
@@ -404,28 +473,28 @@ bool DcmReactiveStepper::walk(
 //            }
 //        }
 
-        if(new_) {
-            Eigen::Vector3d local_right_foot_position_ = right_foot_position_;
-            Eigen::Vector3d local_right_foot_velocity_ = right_foot_velocity_;
-            Eigen::Vector3d local_right_foot_acceleration_ = right_foot_acceleration_;
-            succeed +=
-                    succeed && new_end_eff_traj3d_.compute(previous_support_foot_position_,
+            if (new_) {
+                Eigen::Vector3d local_right_foot_position_ = right_foot_position_;
+                Eigen::Vector3d local_right_foot_velocity_ = right_foot_velocity_;
+                Eigen::Vector3d local_right_foot_acceleration_ = right_foot_acceleration_;
+                succeed +=
+                        succeed && new_end_eff_traj3d_.compute(des_swing_position_,
+                                                               local_right_foot_position_,
+                                                               local_right_foot_velocity_,
+                                                               local_right_foot_acceleration_,
+                                                               next_support_foot_position_ + des_swing_position_,
+                                                               start_time,
+                                                               current_time,
+                                                               end_time - flying_phase_duration_,
+                                                               com_position,
+                                                               com_velocity,
+                                                               current_support_foot_position_,
+                                                               is_left_leg_in_contact_);
+                nb_force_ = new_end_eff_traj3d_.get_forces(forces_,
                                                            local_right_foot_position_,
                                                            local_right_foot_velocity_,
-                                                           local_right_foot_acceleration_,
-                                                           next_support_foot_position_,
-                                                           start_time,
-                                                           current_time,
-                                                           end_time,
-                                                           com_position,
-                                                           com_velocity,
-                                                           current_support_foot_position_,
-                                                           is_left_leg_in_contact_);
-            nb_force_ = new_end_eff_traj3d_.get_forces(forces_,
-                                                       local_right_foot_position_,
-                                                       local_right_foot_velocity_,
-                                                       local_right_foot_acceleration_);
-            Eigen::Vector3d slack = new_end_eff_traj3d_.get_slack_variables();
+                                                           local_right_foot_acceleration_);
+                Eigen::Vector3d slack = new_end_eff_traj3d_.get_slack_variables();
 //            if((fabs(slack(0)) > .01 || fabs(slack(1)) > 0.01)){
 //                std::cout << BLUE << "slack 1\n " << std::endl;
 //                std::cout << slack << RESET << std::endl;
@@ -540,33 +609,31 @@ bool DcmReactiveStepper::walk(
 //                          next_support_foot_position_(1) + slack(1) << " " << end_time << std::endl;
 //                std::cout << "_________________________________________\n";
 //            }
-            right_foot_position_ = local_right_foot_position_;
-            right_foot_velocity_ = local_right_foot_velocity_;
-            right_foot_acceleration_ = local_right_foot_acceleration_;
+                right_foot_position_ = local_right_foot_position_;
+                right_foot_velocity_ = local_right_foot_velocity_;
+                right_foot_acceleration_ = local_right_foot_acceleration_;
 
-        }
-        else {
-            succeed +=
-                    succeed && end_eff_traj3d_.compute(previous_support_foot_position_,
-                                                       right_foot_position_,
-                                                       right_foot_velocity_,
-                                                       right_foot_acceleration_,
-                                                       next_support_foot_position_,
-                                                       start_time,
-                                                       current_time,
-                                                       end_time);
-            end_eff_traj3d_.get_next_state(current_time + control_period_,
-                                           right_foot_position_,
-                                           right_foot_velocity_,
-                                           right_foot_acceleration_);
-        }
-        // The current support foot does not move
-        left_foot_position_ = current_support_foot_position_;
-        left_foot_velocity_.setZero();
-        left_foot_acceleration_.setZero();
-    }
-    else{
-        // flying foot is the left foot
+            } else {
+                succeed +=
+                        succeed && end_eff_traj3d_.compute(previous_support_foot_position_,
+                                                           right_foot_position_,
+                                                           right_foot_velocity_,
+                                                           right_foot_acceleration_,
+                                                           next_support_foot_position_ + des_swing_position_,
+                                                           start_time,
+                                                           current_time,
+                                                           end_time - flying_phase_duration_);
+                end_eff_traj3d_.get_next_state(current_time + control_period_,
+                                               right_foot_position_,
+                                               right_foot_velocity_,
+                                               right_foot_acceleration_);
+                // The current support foot does not move
+                left_foot_position_ = current_support_foot_position_;
+                left_foot_velocity_.setZero();
+                left_foot_acceleration_.setZero();
+            }
+        } else {
+            // flying foot is the left foot
 //        ///////cost
 //        double cost[1000];
 //        std::cout << "Lhum cost: _______________________\n";
@@ -606,28 +673,28 @@ bool DcmReactiveStepper::walk(
 //                minimum = dcm_vrp_planner_.cost() + end_eff_traj3d_.cost();
 //            }
 //        }
-        if(new_) {
-            Eigen::Vector3d local_left_foot_position_ = left_foot_position_;
-            Eigen::Vector3d local_left_foot_velocity_ = left_foot_velocity_;
-            Eigen::Vector3d local_left_foot_acceleration_ = left_foot_acceleration_;
-            succeed +=
-                    succeed && new_end_eff_traj3d_.compute(previous_support_foot_position_,
+            if (new_) {
+                Eigen::Vector3d local_left_foot_position_ = left_foot_position_;
+                Eigen::Vector3d local_left_foot_velocity_ = left_foot_velocity_;
+                Eigen::Vector3d local_left_foot_acceleration_ = left_foot_acceleration_;
+                succeed +=
+                        succeed && new_end_eff_traj3d_.compute(des_swing_position_,
+                                                               local_left_foot_position_,
+                                                               local_left_foot_velocity_,
+                                                               local_left_foot_acceleration_,
+                                                               next_support_foot_position_ + des_swing_position_,
+                                                               start_time,
+                                                               current_time,
+                                                               end_time - flying_phase_duration_,
+                                                               com_position,
+                                                               com_velocity,
+                                                               current_support_foot_position_,
+                                                               is_left_leg_in_contact_);
+                nb_force_ = new_end_eff_traj3d_.get_forces(forces_,
                                                            local_left_foot_position_,
                                                            local_left_foot_velocity_,
-                                                           local_left_foot_acceleration_,
-                                                           next_support_foot_position_,
-                                                           start_time,
-                                                           current_time,
-                                                           end_time,
-                                                           com_position,
-                                                           com_velocity,
-                                                           current_support_foot_position_,
-                                                           is_left_leg_in_contact_);
-            nb_force_ = new_end_eff_traj3d_.get_forces(forces_,
-                                                       local_left_foot_position_,
-                                                       local_left_foot_velocity_,
-                                                       local_left_foot_acceleration_);
-            Eigen::Vector3d slack = new_end_eff_traj3d_.get_slack_variables();
+                                                           local_left_foot_acceleration_);
+                Eigen::Vector3d slack = new_end_eff_traj3d_.get_slack_variables();
 //            if(fabs(slack(0)) > .01 || fabs(slack(1)) > 0.01){
 //                std::cout << BLUE << "slack 1\n "  << std::endl;
 //                std::cout << slack << RESET << std::endl;
@@ -740,26 +807,200 @@ bool DcmReactiveStepper::walk(
 //                          next_support_foot_position_(1) + slack(1) << " " << end_time << std::endl;
 //                std::cout << "_________________________________________\n";
 //            }
-            left_foot_position_ = local_left_foot_position_;
-            left_foot_velocity_ = local_left_foot_velocity_;
-            left_foot_acceleration_ = local_left_foot_acceleration_;
-        }
-        else{
-            succeed +=
-                succeed && end_eff_traj3d_.compute(previous_support_foot_position_,
+                left_foot_position_ = local_left_foot_position_;
+                left_foot_velocity_ = local_left_foot_velocity_;
+                left_foot_acceleration_ = local_left_foot_acceleration_;
+            } else {
+                succeed +=
+                        succeed && end_eff_traj3d_.compute(previous_support_foot_position_,
+                                                           left_foot_position_,
+                                                           left_foot_velocity_,
+                                                           left_foot_acceleration_,
+                                                           next_support_foot_position_ + des_swing_position_,
+                                                           start_time,
+                                                           current_time,
+                                                           end_time - flying_phase_duration_);
+                end_eff_traj3d_.get_next_state(current_time + control_period_,
                                                left_foot_position_,
                                                left_foot_velocity_,
-                                               left_foot_acceleration_,
-                                               next_support_foot_position_,
-                                               start_time,
-                                               current_time,
-                                               end_time);
-            end_eff_traj3d_.get_next_state(current_time + control_period_,
-                                           left_foot_position_,
-                                           left_foot_velocity_,
-                                           left_foot_acceleration_);
+                                               left_foot_acceleration_);
+                // The current support foot does not move
+                right_foot_position_ = current_support_foot_position_;
+                right_foot_velocity_.setZero();
+                right_foot_acceleration_.setZero();
+            }
         }
-        // The current support foot does not move
+    }
+    else{
+//        if (is_left_leg_in_contact_)  // check which foot is in contact
+//        {
+//            if(current_time < flying_phase_duration_ / 2 + stance_phase_duration_) {
+//                std::cout << "\n\n\nLeft\n";
+//                // flying foot is the right foot
+//                if (new_) {
+//                    Eigen::Vector3d local_right_foot_position_ = right_foot_position_;
+//                    Eigen::Vector3d local_right_foot_velocity_ = right_foot_velocity_;
+//                    Eigen::Vector3d local_right_foot_acceleration_ = right_foot_acceleration_;
+//                    Eigen::Vector3d local_left_foot_position_ = left_foot_position_;
+//                    Eigen::Vector3d local_left_foot_velocity_ = left_foot_velocity_;
+//                    Eigen::Vector3d local_left_foot_acceleration_ = left_foot_acceleration_;
+//                    std::cout << start_time << "   " << current_time - stance_phase_duration_ << "  "
+//                              << flying_phase_duration_ << std::endl;
+//                    std::cout << "find left traj\n";
+//                    succeed +=
+//                            succeed && new_end_eff_traj3d_.compute(previous_support_foot_position_,
+//                                                                   local_left_foot_position_,
+//                                                                   local_left_foot_velocity_,
+//                                                                   local_left_foot_acceleration_,
+//                                                                   des_swing_position_,
+//                                                                   start_time + stance_phase_duration_,
+//                                                                   current_time,
+//                                                                   flying_phase_duration_ / 2 +
+//                                                                   stance_phase_duration_,
+//                                                                   com_position,
+//                                                                   com_velocity,
+//                                                                   current_support_foot_position_,
+//                                                                   0);
+//                    nb_force_ = new_end_eff_traj3d_.get_forces(forces_,
+//                                                               local_left_foot_position_,
+//                                                               local_left_foot_velocity_,
+//                                                               local_left_foot_acceleration_);
+//                    Eigen::Vector3d slack = new_end_eff_traj3d_.get_slack_variables();
+//                    left_foot_position_ = local_left_foot_position_;
+//                    left_foot_velocity_ = local_left_foot_velocity_;
+//                    left_foot_acceleration_ = local_left_foot_acceleration_;
+//                    std::cout << "find left traj done\n";
+//                    std::cout << start_time << "   " << current_time << "  " << end_time << std::endl;
+//                    std::cout << "NEXT " << next_support_foot_position_ << "Current   "
+//                              << local_right_foot_position_ << std::endl;
+//                    //                std::cout << "find right traj\n";
+//                    //                succeed +=
+//                    //                        succeed && new_swing_end_eff_traj3d_.compute(des_swing_position_,
+//                    //                                                                     local_right_foot_position_,
+//                    //                                                                     local_right_foot_velocity_,
+//                    //                                                                     local_right_foot_acceleration_,
+//                    //                                                                     next_support_foot_position_,
+//                    //                                                                     start_time,
+//                    //                                                                     current_time,
+//                    //                                                                     end_time,
+//                    //                                                                     com_position,
+//                    //                                                                     com_velocity,
+//                    //                                                                     current_support_foot_position_,
+//                    //                                                                     is_left_leg_in_contact_);
+//                    //                nb_force_ = new_end_eff_traj3d_.get_forces(forces_,
+//                    //                                                           local_right_foot_position_,
+//                    //                                                           local_right_foot_velocity_,
+//                    //                                                           local_right_foot_acceleration_);
+//                    //
+//                    //                int n = new_swing_end_eff_traj3d_.get_forces(f_swing_,
+//                    //                                                     local_right_foot_position_,
+//                    //                                                     local_right_foot_velocity_,
+//                    //                                                     local_right_foot_acceleration_);
+//                    //                std::cout << f_swing_.head(n) << std::endl;
+//                    //                right_foot_position_ = local_right_foot_position_;
+//                    //                right_foot_velocity_ = local_right_foot_velocity_;
+//                    //                right_foot_acceleration_ = local_right_foot_acceleration_;
+//                    //                std::cout << "find right traj done\n";
+//
+//                } else {
+//                    succeed +=
+//                            succeed && end_eff_traj3d_.compute(previous_support_foot_position_,
+//                                                               right_foot_position_,
+//                                                               right_foot_velocity_,
+//                                                               right_foot_acceleration_,
+//                                                               next_support_foot_position_,
+//                                                               start_time,
+//                                                               current_time,
+//                                                               end_time);
+//                    end_eff_traj3d_.get_next_state(current_time + control_period_,
+//                                                   right_foot_position_,
+//                                                   right_foot_velocity_,
+//                                                   right_foot_acceleration_);
+//                    left_foot_position_ = current_support_foot_position_;
+//                    left_foot_velocity_.setZero();
+//                    left_foot_acceleration_.setZero();
+//                }
+//            }
+//            else {
+//            }
+//        }
+//        else {
+//            // flying foot is the left foot
+//            if (new_) {
+//                Eigen::Vector3d local_right_foot_position_ = right_foot_position_;
+//                Eigen::Vector3d local_right_foot_velocity_ = right_foot_velocity_;
+//                Eigen::Vector3d local_right_foot_acceleration_ = right_foot_acceleration_;
+//                Eigen::Vector3d local_left_foot_position_ = left_foot_position_;
+//                Eigen::Vector3d local_left_foot_velocity_ = left_foot_velocity_;
+//                Eigen::Vector3d local_left_foot_acceleration_ = left_foot_acceleration_;
+//                succeed +=
+//                        succeed && new_end_eff_traj3d_.compute(previous_support_foot_position_,
+//                                                               local_right_foot_position_,
+//                                                               local_right_foot_velocity_,
+//                                                               local_right_foot_acceleration_,
+//                                                               des_swing_position_,
+//                                                               start_time + stance_phase_duration_,
+//                                                               current_time,
+//                                                               flying_phase_duration_ / 2 + stance_phase_duration_,
+//                                                               com_position,
+//                                                               com_velocity,
+//                                                               current_support_foot_position_,
+//                                                               1);//Lhum TODO
+//                nb_force_ = new_end_eff_traj3d_.get_forces(forces_,
+//                                                           local_right_foot_position_,
+//                                                           local_right_foot_velocity_,
+//                                                           local_right_foot_acceleration_);
+//                Eigen::Vector3d slack = new_end_eff_traj3d_.get_slack_variables();
+//                right_foot_position_ = local_right_foot_position_;
+//                right_foot_velocity_ = local_right_foot_velocity_;
+//                right_foot_acceleration_ = local_right_foot_acceleration_;
+//
+////                succeed +=
+////                        succeed && new_swing_end_eff_traj3d_.compute(des_swing_position_,
+////                                                                     local_left_foot_position_,
+////                                                                     local_left_foot_velocity_,
+////                                                                     local_left_foot_acceleration_,
+////                                                                     next_support_foot_position_,
+////                                                                     start_time,
+////                                                                     current_time,
+////                                                                     end_time,
+////                                                                     com_position,
+////                                                                     com_velocity,
+////                                                                     current_support_foot_position_,
+////                                                                     is_left_leg_in_contact_);
+////
+////                new_swing_end_eff_traj3d_.get_forces(f_swing_,
+////                                                     local_left_foot_position_,
+////                                                     local_left_foot_velocity_,
+////                                                     local_left_foot_acceleration_);
+////                left_foot_position_ = local_left_foot_position_;
+////                left_foot_velocity_ = local_left_foot_velocity_;
+////                left_foot_acceleration_ = local_left_foot_acceleration_;
+//            } else {
+//                succeed +=
+//                        succeed && end_eff_traj3d_.compute(previous_support_foot_position_,
+//                                                           left_foot_position_,
+//                                                           left_foot_velocity_,
+//                                                           left_foot_acceleration_,
+//                                                           next_support_foot_position_,
+//                                                           start_time,
+//                                                           current_time,
+//                                                           end_time);
+//                end_eff_traj3d_.get_next_state(current_time + control_period_,
+//                                               left_foot_position_,
+//                                               left_foot_velocity_,
+//                                               left_foot_acceleration_);
+//                // The current support foot does not move
+//                right_foot_position_ = current_support_foot_position_;
+//                right_foot_velocity_.setZero();
+//                right_foot_acceleration_.setZero();
+//            }
+//        }
+        forces_ << 0., 0., 0.;
+        nb_force_ = 3;
+        left_foot_position_ = current_support_foot_position_;
+        left_foot_velocity_.setZero();
+        left_foot_acceleration_.setZero();
         right_foot_position_ = current_support_foot_position_;
         right_foot_velocity_.setZero();
         right_foot_acceleration_.setZero();
@@ -782,11 +1023,11 @@ bool DcmReactiveStepper::stand_still(
     // Run the scheduler of the planner.
     if (is_left_leg_in_contact_)
     {
-        stepper_head_.run(0.0, right_foot_position, time);
+        stepper_head_.run(0.0, 0.0, right_foot_position, time);
     }
     else
     {
-        stepper_head_.run(0.0, left_foot_position, time);
+        stepper_head_.run(0.0, 0.0, left_foot_position, time);
     }
     // Extract the usefull informations.
     time_from_last_step_touchdown_ =

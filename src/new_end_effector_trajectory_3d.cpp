@@ -324,12 +324,14 @@ void NewEndEffectorTrajectory3D::init_calculate_dcm(
     const double& ht,
     const double& l_p,
     const double& t_lower_bound,
-    const double& t_upper_bound){
+    const double& t_upper_bound,
+    const double& omega,
+    const double& t_f){
   ht_ = ht;
   v_des_ = v_des;
   l_p_ = l_p;
-  t_nom_ = (t_lower_bound + t_upper_bound) * 0.5;
-  omega_ = sqrt(9.81 / ht_);
+  t_nom_ = (t_lower_bound + t_upper_bound) * 0.5 + t_f;
+  omega_ = omega;
   tau_nom_ = exp(omega_ * t_nom_);
   l_nom_ = v_des_(0) * t_nom_;
   bx_nom_ = l_nom_ / (tau_nom_ - 1);
@@ -352,7 +354,7 @@ void NewEndEffectorTrajectory3D::calculate_dcm(
 
   Eigen::Vector3d dcm_local;
   dcm_local.head<2>() = com_vel.head<2>() / omega_ + com.head<2>();
-  dcm_local(2) = 0.0;//non local
+//  dcm_local(2) = 0.0;//non local
 
   double ux = ((dcm_local(0) - current_support_foot_location[0]) *
                exp(-1.0 * omega_ * current_time)) * tau_nom_ - bx_nom_ + current_support_foot_location[0];
@@ -382,8 +384,8 @@ bool NewEndEffectorTrajectory3D::compute(
   nb_sampling_time = ceil(step_duration / sampling_time);
   nb_local_sampling_time_ = ceil(duration / sampling_time);
 //    std::cout << "NLST                                 " << nb_local_sampling_time_ << std::endl;
-//  nb_sampling_time = round((step_duration + EPSION) / sampling_time); //Lhum it is equal to ceil and it avoids floating point problem.
-//  double nb_local_sampling_time_ = round((duration + EPSION) / sampling_time);
+//  nb_sampling_time = round((step_duration + EPSILON) / sampling_time); //Lhum it is equal to ceil and it avoids floating point problem.
+//  double nb_local_sampling_time_ = round((duration + EPSILON) / sampling_time);
   int nb_mid_sampling_time = nb_local_sampling_time_ - (nb_sampling_time / 2);
   int start_mid = std::max(0, nb_mid_sampling_time + 1);
   nb_var_ = 3 * nb_local_sampling_time_ + 7 + 2 * (nb_local_sampling_time_ - start_mid + 1) + (nb_local_sampling_time_ - 1) * 2;
@@ -467,7 +469,7 @@ bool NewEndEffectorTrajectory3D::compute(
   Q_(nb_var_ - 4, nb_var_ - 4) = 1 * cost_epsilon_z_;
   Q_(nb_var_ - 3, nb_var_ - 3) = 1 * cost_epsilon_vel_;
   Q_(nb_var_ - 2, nb_var_ - 2) = 1 * cost_epsilon_vel_;
-  Q_(nb_var_ - 1, nb_var_ - 1) = 1 * cost_epsilon_vel_ * 1000;
+  Q_(nb_var_ - 1, nb_var_ - 1) = 1 * cost_epsilon_vel_;
   // Q_regul
   double hess_regul = 1e-9;
   Q_regul_ = Eigen::MatrixXd::Identity(nb_var_, nb_var_) * hess_regul;
@@ -575,8 +577,8 @@ bool NewEndEffectorTrajectory3D::compute(
       A_eq_.row(5).head(nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(nb_local_sampling_time_ - 1).head(nb_local_sampling_time_);//vn[2]
       A_eq_.row(5).segment(nb_local_sampling_time_, nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(nb_local_sampling_time_ - 1).segment(MAX_VAR, nb_local_sampling_time_);//vn[2]
       A_eq_.row(5).segment(2 * nb_local_sampling_time_, nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(nb_local_sampling_time_ - 1).segment(2 * MAX_VAR, nb_local_sampling_time_);//vn[2]
-      if(h[0] != 0.)
-          A_eq_(5, nb_var_ - 1) = -1;
+//      if(h[0] != 0.)
+//          A_eq_(5, nb_var_ - 1) = -1;
 //      A_eq_(5, nb_var_ - 4) = -1;
 //      acc_ep[nb_var_ - 1] = 0;//delete epsilon_vel
   }
@@ -690,34 +692,38 @@ bool NewEndEffectorTrajectory3D::compute(
 //  for(int i = 0; i < nb_var_ - 7; i++)
 //    acc[i] = 0;
 //  std::cout << "ST" << nb_local_sampling_time_  << std::endl;
-  for (int i = 1; i < nb_local_sampling_time_; ++i) {
-      // z >= zmin   =>   -z <= -z_min
-//    x = B_;
-//    for(int j = i - 1 ; j >= 0; j--){
-//      acc[j] = x(4, 0) * M_inv_(0, 0) + x(4, 1) * M_inv_(1, 0) + x(4, 2) * M_inv_(2, 0);
-//      acc[j + nb_local_sampling_time] = x(4, 0) * M_inv_(0, 1) + x(4, 1) * M_inv_(1, 1) + x(4, 2) * M_inv_(2, 1);
-//      acc[j + 2 * nb_local_sampling_time] = x(4, 0) * M_inv_(0, 2) + x(4, 1) * M_inv_(1, 2) + x(4, 2) * M_inv_(2, 2);
-//      x = A_ * x;
-//    }
-//    A_ineq_.row(i - 1).head(nb_var_ - 7) = -acc;
-      A_ineq_.row(i - 1).head(nb_local_sampling_time_) = -acceleration_terms_z_[is_left_leg_in_contact_].row(i).head(nb_local_sampling_time_);
-      A_ineq_.row(i - 1).segment(nb_local_sampling_time_, nb_local_sampling_time_) = -acceleration_terms_z_[is_left_leg_in_contact_].row(i).segment(MAX_VAR, nb_local_sampling_time_);
-      A_ineq_.row(i - 1).segment(2 * nb_local_sampling_time_, nb_local_sampling_time_) = -acceleration_terms_z_[is_left_leg_in_contact_].row(i).segment(2 * MAX_VAR, nb_local_sampling_time_);
-      B_ineq_(i - 1) = current_pose_(2) - std::min(start_pose(2), target_pose(2)) + 0.0001 + current_velocity_(2) * sampling_time * i + g[is_left_leg_in_contact_](i, 2);
-      // z <= z_max, i <= n/2 || z_i <= z_i - 1, i > n/2
-//    A_ineq_.row(i - 1 + nb_local_sampling_time_).head(nb_var_ - 7) = acc;
-      if (i <= nb_mid_sampling_time || i >= nb_local_sampling_time_ - 1 || h[0] != 0.) {
-          A_ineq_.row(i - 1 + nb_local_sampling_time_).head(nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(i).head(nb_local_sampling_time_);
-          A_ineq_.row(i - 1 + nb_local_sampling_time_).segment(nb_local_sampling_time_, nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(i).segment(MAX_VAR, nb_local_sampling_time_);
-          A_ineq_.row(i - 1 + nb_local_sampling_time_).segment(2 * nb_local_sampling_time_, nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(i).segment(2 * MAX_VAR, nb_local_sampling_time_);
-          B_ineq_(i - 1 + nb_local_sampling_time_) = -current_pose_(2) + std::max(start_pose(2), target_pose(2)) + mid_air_height_ - current_velocity_(2) * sampling_time * i + g[is_left_leg_in_contact_](i, 2);//Lhum add 0.02 just for test!!
-      } else {
-          A_ineq_.row(i - 1 + nb_local_sampling_time_).head(nb_local_sampling_time_) = velocity_terms_z_[is_left_leg_in_contact_].row(i).head(nb_local_sampling_time_);
-          A_ineq_.row(i - 1 + nb_local_sampling_time_).segment(nb_local_sampling_time_, nb_local_sampling_time_) = velocity_terms_z_[is_left_leg_in_contact_].row(i).segment(MAX_VAR, nb_local_sampling_time_);
-          A_ineq_.row(i - 1 + nb_local_sampling_time_).segment(2 * nb_local_sampling_time_, nb_local_sampling_time_) = velocity_terms_z_[is_left_leg_in_contact_].row(i).segment(2 * MAX_VAR, nb_local_sampling_time_);
-          B_ineq_(i - 1 + nb_local_sampling_time_) = -current_velocity_(2);// + g[is_left_leg_in_contact_](1, 2);// Lhum TODO G doesn't work here!
-      }
-  }
+
+
+//  for (int i = 1; i < nb_local_sampling_time_; ++i) {
+//      // z >= zmin   =>   -z <= -z_min
+////    x = B_;
+////    for(int j = i - 1 ; j >= 0; j--){
+////      acc[j] = x(4, 0) * M_inv_(0, 0) + x(4, 1) * M_inv_(1, 0) + x(4, 2) * M_inv_(2, 0);
+////      acc[j + nb_local_sampling_time] = x(4, 0) * M_inv_(0, 1) + x(4, 1) * M_inv_(1, 1) + x(4, 2) * M_inv_(2, 1);
+////      acc[j + 2 * nb_local_sampling_time] = x(4, 0) * M_inv_(0, 2) + x(4, 1) * M_inv_(1, 2) + x(4, 2) * M_inv_(2, 2);
+////      x = A_ * x;
+////    }
+////    A_ineq_.row(i - 1).head(nb_var_ - 7) = -acc;
+//      A_ineq_.row(i - 1).head(nb_local_sampling_time_) = -acceleration_terms_z_[is_left_leg_in_contact_].row(i).head(nb_local_sampling_time_);
+//      A_ineq_.row(i - 1).segment(nb_local_sampling_time_, nb_local_sampling_time_) = -acceleration_terms_z_[is_left_leg_in_contact_].row(i).segment(MAX_VAR, nb_local_sampling_time_);
+//      A_ineq_.row(i - 1).segment(2 * nb_local_sampling_time_, nb_local_sampling_time_) = -acceleration_terms_z_[is_left_leg_in_contact_].row(i).segment(2 * MAX_VAR, nb_local_sampling_time_);
+//      B_ineq_(i - 1) = current_pose_(2) - std::min(0,0) + 0.0001 + current_velocity_(2) * sampling_time * i + g[is_left_leg_in_contact_](i, 2);
+//      // z <= z_max, i <= n/2 || z_i <= z_i - 1, i > n/2
+////    A_ineq_.row(i - 1 + nb_local_sampling_time_).head(nb_var_ - 7) = acc;
+//      if (i <= nb_mid_sampling_time || i >= nb_local_sampling_time_ - 1 || h[0] != 0.) {
+//          A_ineq_.row(i - 1 + nb_local_sampling_time_).head(nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(i).head(nb_local_sampling_time_);
+//          A_ineq_.row(i - 1 + nb_local_sampling_time_).segment(nb_local_sampling_time_, nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(i).segment(MAX_VAR, nb_local_sampling_time_);
+//          A_ineq_.row(i - 1 + nb_local_sampling_time_).segment(2 * nb_local_sampling_time_, nb_local_sampling_time_) = acceleration_terms_z_[is_left_leg_in_contact_].row(i).segment(2 * MAX_VAR, nb_local_sampling_time_);
+//          B_ineq_(i - 1 + nb_local_sampling_time_) = -current_pose_(2) + std::max(0,0) + mid_air_height_ - current_velocity_(2) * sampling_time * i + g[is_left_leg_in_contact_](i, 2);
+//      } else {
+//          A_ineq_.row(i - 1 + nb_local_sampling_time_).head(nb_local_sampling_time_) = velocity_terms_z_[is_left_leg_in_contact_].row(i).head(nb_local_sampling_time_);
+//          A_ineq_.row(i - 1 + nb_local_sampling_time_).segment(nb_local_sampling_time_, nb_local_sampling_time_) = velocity_terms_z_[is_left_leg_in_contact_].row(i).segment(MAX_VAR, nb_local_sampling_time_);
+//          A_ineq_.row(i - 1 + nb_local_sampling_time_).segment(2 * nb_local_sampling_time_, nb_local_sampling_time_) = velocity_terms_z_[is_left_leg_in_contact_].row(i).segment(2 * MAX_VAR, nb_local_sampling_time_);
+//          B_ineq_(i - 1 + nb_local_sampling_time_) = -current_velocity_(2);// + g[is_left_leg_in_contact_](1, 2);// Lhum TODO G doesn't work here!
+//      }
+//  }//Lhum TODO uncomment these lines
+
+
 //  B_ineq_(nb_local_sampling_time_ - 1) = -std::min(start_pose(2), target_pose(2));
   //Force
 //  std::cout << nb_eq_ << std::endl;
@@ -808,13 +814,12 @@ int NewEndEffectorTrajectory3D::get_forces(
                current_velocity_(1) * control_loop + current_pose_(1),
                0.5 * next_acceleration(2) * control_loop * control_loop +
                current_velocity_(2) * control_loop + current_pose_(2);
-
   return nb_local_sampling_time_ * 3;
 }
 
 void NewEndEffectorTrajectory3D::update_robot_status(Eigen::Ref<Eigen::Vector3d> next_pose,
         Eigen::Ref<Eigen::Vector3d> next_velocity, Eigen::Ref<Eigen::Vector3d> next_acceleration) {
-    if (current_time_ < start_time_) {
+    if (current_time_ < start_time_ or nb_local_sampling_time_ < 1) {
         return;
     }
     current_pose_ = next_pose;

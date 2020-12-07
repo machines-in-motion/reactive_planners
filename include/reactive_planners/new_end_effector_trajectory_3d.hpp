@@ -20,7 +20,7 @@
 #define RED     "\033[31m"      /* Red */
 #define BLUE     "\033[34m"      /* Blue */
 #define MAX_VAR 500
-#define EPSION 0.00498
+#define EPSILON 0.00498
 
 namespace reactive_planners {
 
@@ -54,7 +54,9 @@ public:
           const double& ht,
           const double& l_p,
           const double& t_lower_bound,
-          const double& t_upper_bound);
+          const double& t_upper_bound,
+          const double& omega,
+          const double& t_f);
 
   void calculate_dcm(
           Eigen::Ref<const Eigen::Vector3d> com,

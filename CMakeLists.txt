@@ -69,6 +69,7 @@ catkin_python_setup()
 add_library( ${PROJECT_NAME} SHARED
   src/stepper_head.cpp
   src/dcm_vrp_planner.cpp
+  src/com_planner.cpp
   src/end_effector_trajectory_3d.cpp
   src/new_end_effector_trajectory_3d.cpp
   src/dcm_reactive_stepper.cpp

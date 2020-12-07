@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Eigen/Eigen"
+#include <iostream>
 
 namespace reactive_planners
 {
@@ -40,11 +41,12 @@ public:
         current_support_location_ = current_support_location;
     }
 
-    void run(const double &duration_before_foot_landing,
+    void run(const double &duration_stance_phase,
+             const double &duration_swing_phase,
              const Eigen::Vector3d &next_support_location,
              const double &current_time);
 
-    void run(const double &duration_before_foot_landing,
+    void run(const double &duration_stance_phase,
              const Eigen::Vector3d &next_support_location,
              const double &current_time, bool impact);
 
@@ -87,6 +89,16 @@ public:
         return current_support_location_;
     }
 
+    /** @brief Get if the left foot is in contact. If not then it is the right
+     * foot.
+     * @return const double&
+     */
+
+    Eigen::Vector2d &get_contact_phase()
+    {
+        return contact_;
+    }
+
     /*
      * Private methods.
      */
@@ -99,9 +111,11 @@ protected:
      * Inputs
      */
 
-    /** @brief This is the duration before the current flying foot needs to
-     * land. */
-    double duration_before_foot_landing_;
+    /** @brief This is the duration of stance phase. */
+    double duration_stance_phase_;
+
+    /** @brief This is the duration of swing phase. */
+    double duration_swing_phase_;
 
     /** @brief Next support location in absolute coordintates. The
      * corresponding foot is currently **flying**. */
@@ -134,6 +148,9 @@ protected:
 
     /** @brief Time to switch the support foot from left to right. */
     double time_support_switch_;
+
+    /** @brief [is_left_in_contact, is_right_in_contact] */
+    Eigen::Vector2d contact_;
 };
 
 }  // namespace reactive_planners

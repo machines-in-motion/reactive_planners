@@ -77,6 +77,8 @@ public:
                   const double& t_max,
                   const double& l_p,
                   const double& ht,
+                  const double& t_f,
+                  const double& omega,
                   Eigen::Ref<const Eigen::Vector9d> cost_weights_local,
                   const bool is_new);
 
@@ -86,7 +88,7 @@ public:
     DcmVrpPlanner()
     {
         initialize(
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Eigen::Vector9d::Zero(), false);
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Eigen::Vector9d::Zero(), true);//Lhum new change
     }
 
     /**
@@ -102,6 +104,8 @@ public:
                     const double& t_max,
                     const double& l_p,
                     const double& ht,
+                    const double& t_f,
+                    const double& omega,
                     Eigen::Ref<const Eigen::Vector9d> cost_weights_local,
                     const bool is_new);
 
@@ -140,7 +144,10 @@ public:
                 Eigen::Ref<const Eigen::Vector3d> com,
                 Eigen::Ref<const Eigen::Vector3d> com_vel,
                 const pinocchio::SE3& world_M_base,
-                const double& new_t_min);
+                const double& new_t_min,
+                const double& omega,
+                Eigen::Ref<const Eigen::Vector3d> x_T_s,
+                Eigen::Ref<const Eigen::Vector3d> x_d_T_s);
     /**
      * @brief Computes adapted step location for python3.
      *
@@ -175,7 +182,10 @@ public:
                 Eigen::Ref<const Eigen::Vector3d> com,
                 Eigen::Ref<const Eigen::Vector3d> com_vel,
                 const double& yaw,
-                const double& new_t_min);
+                const double& new_t_min,
+                const double& omega,
+                Eigen::Ref<const Eigen::Vector3d> x_T_s,
+                Eigen::Ref<const Eigen::Vector3d> x_d_T_s);
 
     /**
      * @brief Solve the Quadratic program and extract the solution. Use
@@ -383,7 +393,6 @@ public:
         B_eq_(2) = exp(omega_ * time);
     }
 
-
     /*
      * Private methods
      */
@@ -571,6 +580,12 @@ private:
     Eigen::VectorXd B_ineq_;
 
     bool new_;
+
+    double t_f_;
+
+    double tmp0_, tmp1_;
+
+    Eigen::VectorXd tmp5_;
 };
 
 }  // namespace reactive_planners
