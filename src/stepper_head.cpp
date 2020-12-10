@@ -8,8 +8,6 @@
  */
 
 #include "reactive_planners/stepper_head.hpp"
-#include <iostream>
-#include <sstream>
 
 namespace reactive_planners
 {
@@ -40,13 +38,9 @@ void StepperHead::run(const double& duration_before_foot_landing,
     current_time_ = current_time;
 
     // Compute the time_from_last_step_touchdown_
-//    std::cout << current_time_ << "  # " << time_support_switch_ << std::endl;
     time_from_last_step_touchdown_ = current_time_ - time_support_switch_;
-//    std::cout.precision(17);
-//    std::cout << "TT                                                " << time_from_last_step_touchdown_ << "        " << duration_before_foot_landing_ << std::endl;
     if (time_from_last_step_touchdown_  > duration_before_foot_landing_)
     {
-//        std::cout << "CHANGE_CONTACT_FOOT\n";
         // Switch the contact phase.
         is_left_leg_in_contact_ = !is_left_leg_in_contact_;
         time_support_switch_ = current_time;

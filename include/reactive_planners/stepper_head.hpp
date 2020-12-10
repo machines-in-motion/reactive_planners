@@ -23,20 +23,18 @@ class StepperHead
      * Public methods.
      */
 public:
-    /** @brief Construct a new StepperHead object with simple default paramters.
+    /** @brief Construct a new StepperHead object with simple default parameters.
      * Please call init() in order to setup this class properly. */
     StepperHead();
 
-    void init();
-
     void set_support_feet_pos(
-            Eigen::Ref<const Eigen::Vector3d> previous_support_location,
-            Eigen::Ref<const Eigen::Vector3d> current_support_location){
+            const Eigen::Ref<const Eigen::Vector3d>& previous_support_location,
+            const Eigen::Ref<const Eigen::Vector3d>& current_support_location){
         previous_support_location_ = previous_support_location;
         current_support_location_ = current_support_location;
     }
     void set_support_foot_pos(
-            Eigen::Ref<const Eigen::Vector3d> current_support_location){
+            const Eigen::Ref<const Eigen::Vector3d>& current_support_location){
         current_support_location_ = current_support_location;
     }
 
@@ -55,7 +53,7 @@ public:
     /** @brief Get the time from last foot touchdown.
      * @return const double&
      */
-    const double &get_time_from_last_step_touchdown()
+    const double &get_time_from_last_step_touchdown() const
     {
         return time_from_last_step_touchdown_;
     }
@@ -64,13 +62,13 @@ public:
      * foot.
      * @return const double&
      */
-    const bool &get_is_left_leg_in_contact()
+    bool &get_is_left_leg_in_contact()
     {
         return is_left_leg_in_contact_;
     }
 
     /** @brief Get the previous foot step location in the world frame. The
-     * previous foot is therfore currently a flying foot.
+     * previous foot is therefore currently a flying foot.
      * @return const Eigen::Vector3d&
      */
     const Eigen::Vector3d &get_previous_support_location()
@@ -103,7 +101,7 @@ protected:
      * land. */
     double duration_before_foot_landing_;
 
-    /** @brief Next support location in absolute coordintates. The
+    /** @brief Next support location in absolute coordinates. The
      * corresponding foot is currently **flying**. */
     Eigen::Vector3d next_support_location_;
 
@@ -124,7 +122,7 @@ protected:
      * corresponding foot is currently **flying**. */
     Eigen::Vector3d previous_support_location_;
 
-    /** @brief Current support location in absolute coordintates. The
+    /** @brief Current support location in absolute coordinates. The
      * corresponding foot is currently in **contact**. */
     Eigen::Vector3d current_support_location_;
 

@@ -24,12 +24,9 @@
 
 namespace Eigen
 {
-/** @brief Colomn vector of size 9 which correspond to the number of
+/** @brief Column vector of size 9 which correspond to the number of
  * optimization variables. */
 typedef Matrix<double, 9, 1> Vector9d;
-/** @brief Rectangle matrix of size which correspond to the number of inequality
- * constraint by the number of optimization variables. */
-typedef Matrix<double, 9, 5> Matrix9d;
 }  // namespace Eigen
 
 namespace reactive_planners
@@ -56,14 +53,14 @@ public:
      * direction of forward motion).
      * @param w_min [in] Minimum step length in the y direction (in the lateral
      * direction).
-     * @param w_max [in] Maximum step lenght in the y direction (in the lateratl
+     * @param w_max [in] Maximum step length in the y direction (in the lateral
      * direction).
      * @param t_min [in] Minimum step time.
      * @param t_max [in] Maximum step time.
      * @param v_des [in] Desired average velocity in the x and y ([v_x, v_y]) 2d
      * vector.
-     * @param l_p [in] Default lateral step length. Typically usefull for
-     * humnaoid robot where this value refer to the distance between the 2 feet
+     * @param l_p [in] Default lateral step length. Typically useful for
+     * humanoid robot where this value refer to the distance between the 2 feet
      * while in the half-sitting/neutral position.
      * @param ht [in] Average desired height of the com above the ground.
      * @param cost_weights_local [in] Weights of the QP cost expressed in the
@@ -77,8 +74,7 @@ public:
                   const double& t_max,
                   const double& l_p,
                   const double& ht,
-                  Eigen::Ref<const Eigen::Vector9d> cost_weights_local,
-                  const bool is_new);
+                  const Eigen::Ref<const Eigen::Vector9d>& cost_weights_local);
 
     /**
      * @brief Construct a new DcmVrpPlanner object with some default parameters.
@@ -86,7 +82,7 @@ public:
     DcmVrpPlanner()
     {
         initialize(
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Eigen::Vector9d::Zero(), false);
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Eigen::Vector9d::Zero());
     }
 
     /**
@@ -102,8 +98,7 @@ public:
                     const double& t_max,
                     const double& l_p,
                     const double& ht,
-                    Eigen::Ref<const Eigen::Vector9d> cost_weights_local,
-                    const bool is_new);
+                    const Eigen::Ref<const Eigen::Vector9d>& cost_weights_local);
 
     /**
      * @brief Computes adapted step location.
@@ -132,13 +127,12 @@ public:
      * @param world_M_base SE3 position of the robot base expressed in the world
      * frame.
      */
-    void update(Eigen::Ref<const Eigen::Vector3d> current_step_location,
-                Eigen::Ref<const Eigen::Vector3d> current_swing_foot_location,
+    void update(const Eigen::Ref<const Eigen::Vector3d>& current_step_location,
                 const double& time_from_last_step_touchdown,
                 const bool& is_left_leg_in_contact,
-                Eigen::Ref<const Eigen::Vector3d> v_des,
-                Eigen::Ref<const Eigen::Vector3d> com,
-                Eigen::Ref<const Eigen::Vector3d> com_vel,
+                const Eigen::Ref<const Eigen::Vector3d>& v_des,
+                const Eigen::Ref<const Eigen::Vector3d>& com,
+                const Eigen::Ref<const Eigen::Vector3d>& com_vel,
                 const pinocchio::SE3& world_M_base,
                 const double& new_t_min);
     /**
@@ -167,22 +161,21 @@ public:
      * @param com_vel is the CoM velocity.
      * @param yaw
      */
-    void update(Eigen::Ref<const Eigen::Vector3d> current_step_location,
-                Eigen::Ref<const Eigen::Vector3d> current_swing_foot_location,
+    void update(const Eigen::Ref<const Eigen::Vector3d>& current_step_location,
                 const double& time_from_last_step_touchdown,
                 const bool& is_left_leg_in_contact,
-                Eigen::Ref<const Eigen::Vector3d> v_des,
-                Eigen::Ref<const Eigen::Vector3d> com,
-                Eigen::Ref<const Eigen::Vector3d> com_vel,
+                const Eigen::Ref<const Eigen::Vector3d>& v_des,
+                const Eigen::Ref<const Eigen::Vector3d>& com,
+                const Eigen::Ref<const Eigen::Vector3d>& com_vel,
                 const double& yaw,
                 const double& new_t_min);
 
     /**
      * @brief Solve the Quadratic program and extract the solution. Use
      * DcmVrpPlanner::get_next_step_location() and
-     * DcmVrpPlanner::get_duration_before_step_landing() to acces the results.
+     * DcmVrpPlanner::get_duration_before_step_landing() to access the results.
      */
-    bool solve(double time, double x, double y);
+    bool solve();
 
     /**
      * @brief Perform an internal checks on the solver matrices. A warning
@@ -370,7 +363,6 @@ public:
      */
     double cost()
     {
-//        std::cout << "Lhum cost: vrp" << x_opt_ << " " << Q_ << " " << q_ << std::endl;
         return (0.5 * x_opt_.transpose() * Q_ * x_opt_ + q_.transpose() * x_opt_)(0, 0);
     }
 
@@ -398,7 +390,7 @@ private:
      * @param v_des_local in the local frame.
      */
     void compute_nominal_step_values(const bool& is_left_leg_in_contact,
-                                     Eigen::Ref<const Eigen::Vector3d> v_des_local);
+                                     const Eigen::Ref<const Eigen::Vector3d>& v_des_local);
 
     /*
      * Attributes
@@ -421,12 +413,12 @@ private:
      */
     double w_min_;
 
-    /** @brief Maximum step length in the y direction (in the lateratl
+    /** @brief Maximum step length in the y direction (in the lateral
      * direction).
      */
     double w_max_;
 
-    /** @brief Nominal step length in the y direction (in the lateratl
+    /** @brief Nominal step length in the y direction (in the lateral
      * direction).
      */
     double w_nom_;
@@ -569,8 +561,6 @@ private:
     /** @brief Linear inequality vector.
      * @see DcmVrpPlanner::compute_adapted_step_locations. */
     Eigen::VectorXd B_ineq_;
-
-    bool new_;
 };
 
 }  // namespace reactive_planners

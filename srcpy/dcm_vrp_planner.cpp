@@ -23,24 +23,22 @@ void bind_dcm_vrp_planner(pybind11::module &module)
         .def("internal_checks", &DcmVrpPlanner::internal_checks)
         .def("print_solver", &DcmVrpPlanner::print_solver)
         .def("update",
-             (void (DcmVrpPlanner::*)(Eigen::Ref<const Eigen::Vector3d>,
-                                      Eigen::Ref<const Eigen::Vector3d>,
+             (void (DcmVrpPlanner::*)(const Eigen::Ref<const Eigen::Vector3d> &,
                                       const double &,
                                       const bool &,
-                                      Eigen::Ref<const Eigen::Vector3d>,
-                                      Eigen::Ref<const Eigen::Vector3d>,
-                                      Eigen::Ref<const Eigen::Vector3d>,
+                                      const Eigen::Ref<const Eigen::Vector3d> &,
+                                      const Eigen::Ref<const Eigen::Vector3d> &,
+                                      const Eigen::Ref<const Eigen::Vector3d> &,
                                       const pinocchio::SE3 &,
                                       const double &)) &
                  DcmVrpPlanner::update)
         .def("update",
-             (void (DcmVrpPlanner::*)(Eigen::Ref<const Eigen::Vector3d>,
-                                      Eigen::Ref<const Eigen::Vector3d>,
+             (void (DcmVrpPlanner::*)(const Eigen::Ref<const Eigen::Vector3d> &,
                                       const double &,
                                       const bool &,
-                                      Eigen::Ref<const Eigen::Vector3d>,
-                                      Eigen::Ref<const Eigen::Vector3d>,
-                                      Eigen::Ref<const Eigen::Vector3d>,
+                                      const Eigen::Ref<const Eigen::Vector3d> &,
+                                      const Eigen::Ref<const Eigen::Vector3d> &,
+                                      const Eigen::Ref<const Eigen::Vector3d> &,
                                       const double &,
                                       const double &)) &
                  DcmVrpPlanner::update)

@@ -71,14 +71,14 @@ EndEffectorTrajectory3D::EndEffectorTrajectory3D() {
   qp_solver_.problem(nb_var_, nb_eq_, nb_ineq_);
 }
 
-EndEffectorTrajectory3D::~EndEffectorTrajectory3D() {}
+EndEffectorTrajectory3D::~EndEffectorTrajectory3D() = default;
 
 bool EndEffectorTrajectory3D::compute(
-    Eigen::Ref<const Eigen::Vector3d> start_pose,
-    Eigen::Ref<const Eigen::Vector3d> current_pose,
-    Eigen::Ref<const Eigen::Vector3d> current_velocity,
-    Eigen::Ref<const Eigen::Vector3d> current_acceleration,
-    Eigen::Ref<const Eigen::Vector3d> target_pose, const double &start_time,
+    const Eigen::Ref<const Eigen::Vector3d>& start_pose,
+    const Eigen::Ref<const Eigen::Vector3d>& current_pose,
+    const Eigen::Ref<const Eigen::Vector3d>& current_velocity,
+    const Eigen::Ref<const Eigen::Vector3d>& current_acceleration,
+    const Eigen::Ref<const Eigen::Vector3d>& target_pose, const double &start_time,
     const double &current_time, const double &end_time) {
   // scaling the problem
   double duration = (end_time - start_time);
@@ -99,15 +99,7 @@ bool EndEffectorTrajectory3D::compute(
   // Scale velocity and acceleration into local time.
   current_velocity_ *= duration;
   current_acceleration_ *= duration * duration;
-
-  // Do not compute the QP if the solution is trivial or too close to the end of
-  // the trajectory.
-//  std::cout << current_time << " " << start_time << local_current_time << std::endl;
-//  if (current_time_ < start_time_ || local_current_time >= 0.8) {
-//    return true;
-//  } else {
-    last_end_time_seen_ = end_time;
-//  }
+  last_end_time_seen_ = end_time;
 
   /*
    * Quadratic cost
@@ -224,18 +216,11 @@ bool EndEffectorTrajectory3D::compute(
     t += dt;
   }
 
-  bool failure = false;
-  if (!failure) {
-    if (!qp_solver_.solve(Q_, q_, A_eq_, B_eq_, A_ineq_, B_ineq_)) {
-      std::string error = "EndEffectorTrajectory3D::compute(): "
-                          "failed to solve the QP.";
-      std::cout << "Error: " << error << std::endl;
-      //   print_solver();
-      failure = true;
-    }
-  }
+  if (!qp_solver_.solve(Q_, q_, A_eq_, B_eq_, A_ineq_, B_ineq_)) {
+    std::string error = "EndEffectorTrajectory3D::compute(): "
+                        "failed to solve the QP.";
+    std::cout << "Error: " << error << std::endl;
 
-  if (failure) {
     // https://github.com/jrl-umi3218/eigen-quadprog/blob/master/src/QuadProg/c/solve.QP.compact.c#L94
     if (qp_solver_.fail() == 1) {
       std::cout << "EndEffectorTrajectory3D::compute -> the minimization "
@@ -247,8 +232,9 @@ bool EndEffectorTrajectory3D::compute(
           << "EndEffectorTrajectory3D::compute -> problems with decomposing D!"
           << std::endl;
     }
+    return false;
   }
-  return !failure;
+  return true;
 }
 
 void EndEffectorTrajectory3D::get_next_state(

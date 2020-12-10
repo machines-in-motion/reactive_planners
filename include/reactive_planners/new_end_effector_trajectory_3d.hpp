@@ -20,7 +20,7 @@
 #define RED     "\033[31m"      /* Red */
 #define BLUE     "\033[34m"      /* Blue */
 #define MAX_VAR 500
-#define EPSION 0.00498
+#define EPSILON 1e-9
 
 namespace reactive_planners {
 
@@ -38,31 +38,19 @@ public:
   /** @brief Destructor. */
   ~NewEndEffectorTrajectory3D();
 
-  bool compute(Eigen::Ref<const Eigen::Vector3d> start_pose,
-               Eigen::Ref<const Eigen::Vector3d> current_pose,
-               Eigen::Ref<const Eigen::Vector3d> current_velocity,
-               Eigen::Ref<const Eigen::Vector3d> current_acceleration,
-               Eigen::Ref<const Eigen::Vector3d> target_pose, const double &start_time,
+  bool compute(const Eigen::Ref<const Eigen::Vector3d>& start_pose,
+               const Eigen::Ref<const Eigen::Vector3d>& current_pose,
+               const Eigen::Ref<const Eigen::Vector3d>& current_velocity,
+               const Eigen::Ref<const Eigen::Vector3d>& target_pose, const double &start_time,
                const double &current_time, const double &end_time,
-               Eigen::Ref<const Eigen::Vector3d> com_pos,
-               Eigen::Ref<const Eigen::Vector3d> com_vel,
-               Eigen::Ref<const Eigen::Vector3d> current_support_foot_location,
                const bool& is_left_leg_in_contact);
 
   void init_calculate_dcm(
-          Eigen::Ref<const Eigen::Vector3d> v_des,
+          const Eigen::Ref<const Eigen::Vector3d>& v_des,
           const double& ht,
-          const double& l_p,
           const double& t_lower_bound,
           const double& t_upper_bound);
 
-  void calculate_dcm(
-          Eigen::Ref<const Eigen::Vector3d> com,
-          Eigen::Ref<const Eigen::Vector3d> com_vel,
-          Eigen::Ref<const Eigen::Vector3d> current_support_foot_location,
-          const double &time,
-          const double& current_time,
-          const bool& is_left_leg_in_contact);
 
 
   void update_robot_status(Eigen::Ref<Eigen::Vector3d> next_pose,
@@ -85,10 +73,6 @@ public:
   /** @brief Get the height of the flying foot. */
   double get_mid_air_height() { return mid_air_height_; }
 
-  /** @brief Get the last end time taken into account during the foot trajectory
-   * computation. */
-  double get_last_end_time_taken_into_account() { return last_end_time_seen_; }
-
   /*
    * Setters
    */
@@ -110,9 +94,6 @@ public:
   {
     x_opt_.resize(nb_var_);
     x_opt_ = qp_solver_.result();
-//    std::cout << "Lhum cost: traj" << (0.5 * x_opt_.transpose() * Q_ * x_opt_)(0, 0) << std::endl;
-//    std::cout << "Lhum cost: traj" << " " << x_opt_.size() << std::endl;
-
     return (0.5 * x_opt_.transpose() * Q_ * x_opt_ + q_.transpose() * x_opt_)(0, 0);
   }
 
@@ -125,10 +106,8 @@ public:
     }
 
     double calculate_t_min(
-            Eigen::Ref<const Eigen::Vector3d> current_pose,
-            Eigen::Ref<const Eigen::Vector3d> current_velocity,
-            Eigen::Ref<const Eigen::Vector3d> current_acceleration,
-            const double& current_time,
+            const Eigen::Ref<const Eigen::Vector3d>& current_pose,
+            const Eigen::Ref<const Eigen::Vector3d>& current_velocity,
             const bool& is_left_leg_in_contact);
     /*
      * Private methods
@@ -223,9 +202,6 @@ private:
   /** @brief Current time. */
   double current_time_;
 
-  /** @brief Final time and the end of the motion. */
-  double end_time_;
-
   /** @brief Last end time register when we computed the QP. */
   double last_end_time_seen_;
 
@@ -249,7 +225,7 @@ private:
   int nb_ineq_;
 
   /** @brief Number of sampling time in the optimization problem. */
-  double nb_sampling_time;
+  int nb_sampling_time;
 
   /** @brief Quadratic program solver.
    *
@@ -381,16 +357,13 @@ private:
   /** @brief Average desired height of the com above the ground. */
   double ht_;
 
-  /** @brief Default step width. */
-  double l_p_;
 
   /** @brief Desired velocity. */
   Eigen::Vector3d v_des_;
 
-  Eigen::Vector3d u_;
+  Eigen::Vector3d u_;//Lhum TODO rename them
 
   Eigen::Vector3d slack_variables_;
-
 
   Eigen::MatrixXd *g;
 

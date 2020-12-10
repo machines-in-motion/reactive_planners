@@ -30,11 +30,11 @@ public:
   /** @brief Destructor. */
   ~EndEffectorTrajectory3D();
 
-  bool compute(Eigen::Ref<const Eigen::Vector3d> start_pose,
-               Eigen::Ref<const Eigen::Vector3d> current_pose,
-               Eigen::Ref<const Eigen::Vector3d> current_velocity,
-               Eigen::Ref<const Eigen::Vector3d> current_acceleration,
-               Eigen::Ref<const Eigen::Vector3d> target_pose, const double &start_time,
+  bool compute(const Eigen::Ref<const Eigen::Vector3d>& start_pose,
+               const Eigen::Ref<const Eigen::Vector3d>& current_pose,
+               const Eigen::Ref<const Eigen::Vector3d>& current_velocity,
+               const Eigen::Ref<const Eigen::Vector3d>& current_acceleration,
+               const Eigen::Ref<const Eigen::Vector3d>& target_pose, const double &start_time,
                const double &current_time, const double &end_time);
 
   void get_next_state(const double &next_time, Eigen::Ref<Eigen::Vector3d> next_pose,
