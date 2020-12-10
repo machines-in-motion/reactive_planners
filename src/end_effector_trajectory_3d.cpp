@@ -10,65 +10,66 @@
 #include "reactive_planners/end_effector_trajectory_3d.hpp"
 #include <iostream>
 
-namespace reactive_planners {
+namespace reactive_planners
+{
+EndEffectorTrajectory3D::EndEffectorTrajectory3D()
+{
+    // Constant problem parameter.
+    mid_air_height_ = 0.05;
+    nb_var_x_ = 6;
+    nb_var_y_ = 6;
+    nb_var_z_ = 9;
+    cost_x_ = 1e1;
+    cost_y_ = 1e1;
+    cost_z_ = 1e0;
+    double hess_regul = 1e-6;
 
-EndEffectorTrajectory3D::EndEffectorTrajectory3D() {
-  // Constant problem parameter.
-  mid_air_height_ = 0.05;
-  nb_var_x_ = 6;
-  nb_var_y_ = 6;
-  nb_var_z_ = 9;
-  cost_x_ = 1e1;
-  cost_y_ = 1e1;
-  cost_z_ = 1e0;
-  double hess_regul = 1e-6;
-
-  // Variable parameters.
-  // clang-format off
+    // Variable parameters.
+    // clang-format off
   time_vec_x_.resize(nb_var_x_); time_vec_x_.setZero();
   time_vec_y_.resize(nb_var_y_); time_vec_y_.setZero();
   time_vec_z_.resize(nb_var_z_); time_vec_z_.setZero();
-  // clang-format on
-  start_pose_.setZero();
-  current_pose_.setZero();
-  current_velocity_.setZero();
-  current_acceleration_.setZero();
-  target_pose_.setZero();
-  start_time_ = 0.0;
-  current_time_ = 0.0;
-  end_time_ = 0.0;
-  previous_solution_pose_.setZero();
+    // clang-format on
+    start_pose_.setZero();
+    current_pose_.setZero();
+    current_velocity_.setZero();
+    current_acceleration_.setZero();
+    target_pose_.setZero();
+    start_time_ = 0.0;
+    current_time_ = 0.0;
+    end_time_ = 0.0;
+    previous_solution_pose_.setZero();
 
-  // QP parameter.
-  nb_var_ = nb_var_x_ + nb_var_y_ + nb_var_z_;
-  // Around 10 nodes for the z_min < z(t) < z_max.
-  nb_ineq_ = 2 * 10;
-  // current and final conditions
-  nb_eq_ = 5 + 5 + 6; // + 1;
+    // QP parameter.
+    nb_var_ = nb_var_x_ + nb_var_y_ + nb_var_z_;
+    // Around 10 nodes for the z_min < z(t) < z_max.
+    nb_ineq_ = 2 * 10;
+    // current and final conditions
+    nb_eq_ = 5 + 5 + 6;  // + 1;
 
-  x_opt_.resize(nb_var_);
-  x_opt_.setZero();
-  x_opt_lb_.resize(nb_var_);
-  x_opt_lb_.setZero();
-  x_opt_ub_.resize(nb_var_);
-  x_opt_ub_.setZero();
+    x_opt_.resize(nb_var_);
+    x_opt_.setZero();
+    x_opt_lb_.resize(nb_var_);
+    x_opt_lb_.setZero();
+    x_opt_ub_.resize(nb_var_);
+    x_opt_ub_.setZero();
 
-  Q_.resize(nb_var_, nb_var_);
-  Q_.setZero();
-  Q_regul_ = Eigen::MatrixXd::Identity(nb_var_, nb_var_) * hess_regul;
-  q_.resize(nb_var_);
-  q_.setZero();
+    Q_.resize(nb_var_, nb_var_);
+    Q_.setZero();
+    Q_regul_ = Eigen::MatrixXd::Identity(nb_var_, nb_var_) * hess_regul;
+    q_.resize(nb_var_);
+    q_.setZero();
 
-  A_eq_.resize(nb_eq_, nb_var_);
-  A_eq_.setZero();
-  B_eq_.resize(nb_eq_);
-  B_eq_.setZero();
+    A_eq_.resize(nb_eq_, nb_var_);
+    A_eq_.setZero();
+    B_eq_.resize(nb_eq_);
+    B_eq_.setZero();
 
-  A_ineq_.resize(nb_ineq_, nb_var_);
-  A_ineq_.setZero();
-  B_ineq_.resize(nb_ineq_);
-  B_ineq_.setZero();
-  qp_solver_.problem(nb_var_, nb_eq_, nb_ineq_);
+    A_ineq_.resize(nb_ineq_, nb_var_);
+    A_ineq_.setZero();
+    B_ineq_.resize(nb_ineq_);
+    B_ineq_.setZero();
+    qp_solver_.problem(nb_var_, nb_eq_, nb_ineq_);
 }
 
 EndEffectorTrajectory3D::~EndEffectorTrajectory3D() = default;
@@ -78,64 +79,68 @@ bool EndEffectorTrajectory3D::compute(
     const Eigen::Ref<const Eigen::Vector3d>& current_pose,
     const Eigen::Ref<const Eigen::Vector3d>& current_velocity,
     const Eigen::Ref<const Eigen::Vector3d>& current_acceleration,
-    const Eigen::Ref<const Eigen::Vector3d>& target_pose, const double &start_time,
-    const double &current_time, const double &end_time) {
-  // scaling the problem
-  double duration = (end_time - start_time);
-  double local_current_time = (current_time - start_time) / duration;
-  double local_end_time = 1.0;
-  double mid_time = 0.5;
+    const Eigen::Ref<const Eigen::Vector3d>& target_pose,
+    const double& start_time,
+    const double& current_time,
+    const double& end_time)
+{
+    // scaling the problem
+    double duration = (end_time - start_time);
+    double local_current_time = (current_time - start_time) / duration;
+    double local_end_time = 1.0;
+    double mid_time = 0.5;
 
-  // save args:
-  start_pose_ = start_pose;
-  current_pose_ = current_pose;
-  current_velocity_ = current_velocity;
-  current_acceleration_ = current_acceleration;
-  target_pose_ = target_pose;
-  start_time_ = start_time;
-  current_time_ = current_time;
-  end_time_ = end_time;
+    // save args:
+    start_pose_ = start_pose;
+    current_pose_ = current_pose;
+    current_velocity_ = current_velocity;
+    current_acceleration_ = current_acceleration;
+    target_pose_ = target_pose;
+    start_time_ = start_time;
+    current_time_ = current_time;
+    end_time_ = end_time;
 
-  // Scale velocity and acceleration into local time.
-  current_velocity_ *= duration;
-  current_acceleration_ *= duration * duration;
-  last_end_time_seen_ = end_time;
+    // Scale velocity and acceleration into local time.
+    current_velocity_ *= duration;
+    current_acceleration_ *= duration * duration;
+    last_end_time_seen_ = end_time;
 
-  /*
-   * Quadratic cost
-   */
-  Q_.setZero();
-  // Q_x
-  t_vec(local_end_time, time_vec_x_);
-  Q_.block(0, 0, nb_var_x_, nb_var_x_) =
-      time_vec_x_ * time_vec_x_.transpose() * cost_x_;
-  // Q_y
-  t_vec(local_end_time, time_vec_y_);
-  Q_.block(nb_var_x_, nb_var_x_, nb_var_y_, nb_var_y_) =
-      time_vec_y_ * time_vec_y_.transpose() * cost_y_;
-  // Q_z
-  t_vec(mid_time, time_vec_z_);
-  Q_.block(nb_var_x_ + nb_var_y_, nb_var_x_ + nb_var_y_, nb_var_z_, nb_var_z_) =
-      time_vec_z_ * time_vec_z_.transpose() * cost_z_;
-  // Q_regul
-  Q_ += Q_regul_;
+    /*
+     * Quadratic cost
+     */
+    Q_.setZero();
+    // Q_x
+    t_vec(local_end_time, time_vec_x_);
+    Q_.block(0, 0, nb_var_x_, nb_var_x_) =
+        time_vec_x_ * time_vec_x_.transpose() * cost_x_;
+    // Q_y
+    t_vec(local_end_time, time_vec_y_);
+    Q_.block(nb_var_x_, nb_var_x_, nb_var_y_, nb_var_y_) =
+        time_vec_y_ * time_vec_y_.transpose() * cost_y_;
+    // Q_z
+    t_vec(mid_time, time_vec_z_);
+    Q_.block(
+        nb_var_x_ + nb_var_y_, nb_var_x_ + nb_var_y_, nb_var_z_, nb_var_z_) =
+        time_vec_z_ * time_vec_z_.transpose() * cost_z_;
+    // Q_regul
+    Q_ += Q_regul_;
 
-  // q_x
-  t_vec(local_end_time, time_vec_x_);
-  q_.head(nb_var_x_) = -time_vec_x_ * target_pose(0) * cost_x_;
-  // q_y
-  t_vec(local_end_time, time_vec_y_);
-  q_.segment(nb_var_x_, nb_var_y_) = -time_vec_y_ * target_pose(1) * cost_y_;
-  // q_z
-  t_vec(mid_time, time_vec_z_);
-  q_.tail(nb_var_z_) =
-      -time_vec_z_ *
-      (std::max(start_pose(2), target_pose(2)) + mid_air_height_) * cost_z_;
+    // q_x
+    t_vec(local_end_time, time_vec_x_);
+    q_.head(nb_var_x_) = -time_vec_x_ * target_pose(0) * cost_x_;
+    // q_y
+    t_vec(local_end_time, time_vec_y_);
+    q_.segment(nb_var_x_, nb_var_y_) = -time_vec_y_ * target_pose(1) * cost_y_;
+    // q_z
+    t_vec(mid_time, time_vec_z_);
+    q_.tail(nb_var_z_) =
+        -time_vec_z_ *
+        (std::max(start_pose(2), target_pose(2)) + mid_air_height_) * cost_z_;
 
-  /*
-   * Equality constraints.
-   */
-  // clang-format off
+    /*
+     * Equality constraints.
+     */
+    // clang-format off
   A_eq_.setZero();
   // X current constraints
   t_vec(local_current_time, time_vec_x_);
@@ -185,125 +190,143 @@ bool EndEffectorTrajectory3D::compute(
            current_pose_(2), current_velocity_(2), current_acceleration_(2),
            target_pose(2), 0.0, 0.0;
         //    0.0;
-  // clang-format on
+    // clang-format on
 
-  /*
-   * Inequality constraints
-   */
-  A_ineq_.setZero();
-  B_ineq_.setZero();
+    /*
+     * Inequality constraints
+     */
+    A_ineq_.setZero();
+    B_ineq_.setZero();
 
-  int n = A_ineq_.rows() / 2;
-  double t = 0.0;
-  double dt = 1.0 / (double)n;
+    int n = A_ineq_.rows() / 2;
+    double t = 0.0;
+    double dt = 1.0 / (double)n;
 
-  for (int i = 0; i < n; ++i) {
-    // time vector
-    t_vec(t, time_vec_z_);
+    for (int i = 0; i < n; ++i)
+    {
+        // time vector
+        t_vec(t, time_vec_z_);
 
-    // z >= zmin   =>   -z <= -z_min
-    A_ineq_.row(i).tail(nb_var_z_) = -time_vec_z_;
-    B_ineq_(i) = -std::min(start_pose(2), target_pose(2)) + 0.0001;
-    // B_ineq_(i) = std::numeric_limits<double>::max();
+        // z >= zmin   =>   -z <= -z_min
+        A_ineq_.row(i).tail(nb_var_z_) = -time_vec_z_;
+        B_ineq_(i) = -std::min(start_pose(2), target_pose(2)) + 0.0001;
+        // B_ineq_(i) = std::numeric_limits<double>::max();
 
-    // z <= z_max
-    A_ineq_.row(i + n).tail(nb_var_z_) = time_vec_z_;
-    // B_ineq_(i + n) = std::numeric_limits<double>::max();
-    B_ineq_(i + n) =
-        std::max(start_pose(2), target_pose(2)) + 1.0 * mid_air_height_;
+        // z <= z_max
+        A_ineq_.row(i + n).tail(nb_var_z_) = time_vec_z_;
+        // B_ineq_(i + n) = std::numeric_limits<double>::max();
+        B_ineq_(i + n) =
+            std::max(start_pose(2), target_pose(2)) + 1.0 * mid_air_height_;
 
-    // Update the time.
-    t += dt;
-  }
-
-  if (!qp_solver_.solve(Q_, q_, A_eq_, B_eq_, A_ineq_, B_ineq_)) {
-    std::string error = "EndEffectorTrajectory3D::compute(): "
-                        "failed to solve the QP.";
-    std::cout << "Error: " << error << std::endl;
-
-    // https://github.com/jrl-umi3218/eigen-quadprog/blob/master/src/QuadProg/c/solve.QP.compact.c#L94
-    if (qp_solver_.fail() == 1) {
-      std::cout << "EndEffectorTrajectory3D::compute -> the minimization "
-                   "problem has no "
-                   "solution!"
-                << std::endl;
-    } else {
-      std::cout
-          << "EndEffectorTrajectory3D::compute -> problems with decomposing D!"
-          << std::endl;
+        // Update the time.
+        t += dt;
     }
-    return false;
-  }
-  return true;
+
+    if (!qp_solver_.solve(Q_, q_, A_eq_, B_eq_, A_ineq_, B_ineq_))
+    {
+        std::string error =
+            "EndEffectorTrajectory3D::compute(): "
+            "failed to solve the QP.";
+        std::cout << "Error: " << error << std::endl;
+
+        // https://github.com/jrl-umi3218/eigen-quadprog/blob/master/src/QuadProg/c/solve.QP.compact.c#L94
+        if (qp_solver_.fail() == 1)
+        {
+            std::cout << "EndEffectorTrajectory3D::compute -> the minimization "
+                         "problem has no "
+                         "solution!"
+                      << std::endl;
+        }
+        else
+        {
+            std::cout << "EndEffectorTrajectory3D::compute -> problems with "
+                         "decomposing D!"
+                      << std::endl;
+        }
+        return false;
+    }
+    return true;
 }
 
 void EndEffectorTrajectory3D::get_next_state(
-    const double &next_time, Eigen::Ref<Eigen::Vector3d> next_pose,
-    Eigen::Ref<Eigen::Vector3d> next_velocity, Eigen::Ref<Eigen::Vector3d> next_acceleration) {
+    const double& next_time,
+    Eigen::Ref<Eigen::Vector3d> next_pose,
+    Eigen::Ref<Eigen::Vector3d> next_velocity,
+    Eigen::Ref<Eigen::Vector3d> next_acceleration)
+{
+    double duration = (last_end_time_seen_ - start_time_);
+    double local_current_time = (next_time - start_time_) / duration;
 
-  double duration = (last_end_time_seen_ - start_time_);
-  double local_current_time = (next_time - start_time_) / duration;
+    if (current_time_ < start_time_)
+    {
+        next_pose = start_pose_;
+        next_velocity.setZero();
+        next_acceleration.setZero();
+    }
+    else if (current_time_ >= last_end_time_seen_ - 1e-4)
+    {
+        next_pose = previous_solution_pose_;
+        next_velocity.setZero();
+        next_acceleration.setZero();
+    }
+    else
+    {
+        // Extract the information from the solution.
+        x_opt_ = qp_solver_.result();
+        t_vec(local_current_time, time_vec_x_);
+        t_vec(local_current_time, time_vec_y_);
+        t_vec(local_current_time, time_vec_z_);
 
-  if (current_time_ < start_time_) {
-    next_pose = start_pose_;
-    next_velocity.setZero();
-    next_acceleration.setZero();
-  } else if (current_time_ >= last_end_time_seen_ - 1e-4) {
-    next_pose = previous_solution_pose_;
-    next_velocity.setZero();
-    next_acceleration.setZero();
-  } else {
-    // Extract the information from the solution.
-    x_opt_ = qp_solver_.result();
-    t_vec(local_current_time, time_vec_x_);
-    t_vec(local_current_time, time_vec_y_);
-    t_vec(local_current_time, time_vec_z_);
+        next_pose << x_opt_.head(nb_var_x_).transpose() * time_vec_x_,
+            x_opt_.segment(nb_var_x_, nb_var_y_).transpose() * time_vec_y_,
+            x_opt_.tail(nb_var_z_).transpose() * time_vec_z_;
 
-    next_pose << x_opt_.head(nb_var_x_).transpose() * time_vec_x_,
-        x_opt_.segment(nb_var_x_, nb_var_y_).transpose() * time_vec_y_,
-        x_opt_.tail(nb_var_z_).transpose() * time_vec_z_;
+        dt_vec(local_current_time, time_vec_x_);
+        dt_vec(local_current_time, time_vec_y_);
+        dt_vec(local_current_time, time_vec_z_);
+        next_velocity << x_opt_.head(nb_var_x_).transpose() * time_vec_x_,
+            x_opt_.segment(nb_var_x_, nb_var_y_).transpose() * time_vec_y_,
+            x_opt_.tail(nb_var_z_).transpose() * time_vec_z_;
 
-    dt_vec(local_current_time, time_vec_x_);
-    dt_vec(local_current_time, time_vec_y_);
-    dt_vec(local_current_time, time_vec_z_);
-    next_velocity << x_opt_.head(nb_var_x_).transpose() * time_vec_x_,
-        x_opt_.segment(nb_var_x_, nb_var_y_).transpose() * time_vec_y_,
-        x_opt_.tail(nb_var_z_).transpose() * time_vec_z_;
+        ddt_vec(local_current_time, time_vec_x_);
+        ddt_vec(local_current_time, time_vec_y_);
+        ddt_vec(local_current_time, time_vec_z_);
+        next_acceleration << x_opt_.head(nb_var_x_).transpose() * time_vec_x_,
+            x_opt_.segment(nb_var_x_, nb_var_y_).transpose() * time_vec_y_,
+            x_opt_.tail(nb_var_z_).transpose() * time_vec_z_;
 
-    ddt_vec(local_current_time, time_vec_x_);
-    ddt_vec(local_current_time, time_vec_y_);
-    ddt_vec(local_current_time, time_vec_z_);
-    next_acceleration << x_opt_.head(nb_var_x_).transpose() * time_vec_x_,
-        x_opt_.segment(nb_var_x_, nb_var_y_).transpose() * time_vec_y_,
-        x_opt_.tail(nb_var_z_).transpose() * time_vec_z_;
-
-    // Rescale to non-local time.
-    next_velocity = next_velocity / duration;
-    next_acceleration = next_acceleration / (duration * duration);
-  }
-  previous_solution_pose_ = next_pose;
+        // Rescale to non-local time.
+        next_velocity = next_velocity / duration;
+        next_acceleration = next_acceleration / (duration * duration);
+    }
+    previous_solution_pose_ = next_pose;
 }
 
-std::string EndEffectorTrajectory3D::to_string() const {
-  std::ostringstream oss;
-  oss << "Solver info:" << std::endl;
-  oss << "Q:" << std::endl << Q_ << std::endl;
-  oss << "q:" << q_.transpose() << std::endl;
-  oss << "A_eq:" << std::endl << A_eq_ << std::endl;
-  oss << "B_eq:" << B_eq_.transpose() << std::endl;
-  oss << "A_ineq:" << std::endl << A_ineq_ << std::endl;
-  oss << "B_ineq:" << B_ineq_.transpose();
-  if (qp_solver_.fail() == 0) {
-    oss << "QP solution: " << qp_solver_.result() << std::endl;
-  } else {
-    oss << "QP failed with code error: " << qp_solver_.fail() << std::endl;
-  }
+std::string EndEffectorTrajectory3D::to_string() const
+{
+    std::ostringstream oss;
+    oss << "Solver info:" << std::endl;
+    oss << "Q:" << std::endl << Q_ << std::endl;
+    oss << "q:" << q_.transpose() << std::endl;
+    oss << "A_eq:" << std::endl << A_eq_ << std::endl;
+    oss << "B_eq:" << B_eq_.transpose() << std::endl;
+    oss << "A_ineq:" << std::endl << A_ineq_ << std::endl;
+    oss << "B_ineq:" << B_ineq_.transpose();
+    if (qp_solver_.fail() == 0)
+    {
+        oss << "QP solution: " << qp_solver_.result() << std::endl;
+    }
+    else
+    {
+        oss << "QP failed with code error: " << qp_solver_.fail() << std::endl;
+    }
 
-  return oss.str();
+    return oss.str();
 }
 
-void EndEffectorTrajectory3D::print_solver() const {
-  std::cout << to_string() << std::endl;
+void EndEffectorTrajectory3D::print_solver() const
+{
+    std::cout << to_string() << std::endl;
 }
 
-} // namespace reactive_planners
+}  // namespace reactive_planners

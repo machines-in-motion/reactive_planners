@@ -13,14 +13,14 @@
 
 #include <eigen-quadprog/QuadProg.h>
 #include <Eigen/Eigen>
-#include <pinocchio/spatial/se3.hpp>
-#include <iostream>
 #include <cmath>
+#include <iostream>
+#include <pinocchio/spatial/se3.hpp>
 #include <sstream>
 #include <stdexcept>
-#define RESET   "\033[0m"
-#define RED     "\033[31m"      /* Red */
-#define BLUE     "\033[34m"      /* Blue */
+#define RESET "\033[0m"
+#define RED "\033[31m"  /* Red */
+#define BLUE "\033[34m" /* Blue */
 
 namespace Eigen
 {
@@ -90,15 +90,16 @@ public:
      *
      * @copydoc DcmVrpPlanner::DcmVrpPlanner()
      */
-    void initialize(const double& l_min,
-                    const double& l_max,
-                    const double& w_min,
-                    const double& w_max,
-                    const double& t_min,
-                    const double& t_max,
-                    const double& l_p,
-                    const double& ht,
-                    const Eigen::Ref<const Eigen::Vector9d>& cost_weights_local);
+    void initialize(
+        const double& l_min,
+        const double& l_max,
+        const double& w_min,
+        const double& w_max,
+        const double& t_min,
+        const double& t_max,
+        const double& l_p,
+        const double& ht,
+        const Eigen::Ref<const Eigen::Vector9d>& cost_weights_local);
 
     /**
      * @brief Computes adapted step location.
@@ -363,7 +364,8 @@ public:
      */
     double cost()
     {
-        return (0.5 * x_opt_.transpose() * Q_ * x_opt_ + q_.transpose() * x_opt_)(0, 0);
+        return (0.5 * x_opt_.transpose() * Q_ * x_opt_ +
+                q_.transpose() * x_opt_)(0, 0);
     }
 
     /**
@@ -374,7 +376,6 @@ public:
         A_eq_(2, 2) = 1;
         B_eq_(2) = exp(omega_ * time);
     }
-
 
     /*
      * Private methods
@@ -389,8 +390,9 @@ private:
      * - 2 if right leg is in contact
      * @param v_des_local in the local frame.
      */
-    void compute_nominal_step_values(const bool& is_left_leg_in_contact,
-                                     const Eigen::Ref<const Eigen::Vector3d>& v_des_local);
+    void compute_nominal_step_values(
+        const bool& is_left_leg_in_contact,
+        const Eigen::Ref<const Eigen::Vector3d>& v_des_local);
 
     /*
      * Attributes

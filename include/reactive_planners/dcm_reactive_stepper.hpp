@@ -10,11 +10,11 @@
 
 #pragma once
 
+#include <iostream>
 #include "reactive_planners/dcm_vrp_planner.hpp"
 #include "reactive_planners/end_effector_trajectory_3d.hpp"
 #include "reactive_planners/new_end_effector_trajectory_3d.hpp"
 #include "reactive_planners/stepper_head.hpp"
-#include <iostream>
 
 namespace reactive_planners
 {
@@ -41,21 +41,22 @@ public:
      * @param mid_air_foot_height
      * @param control_period
      */
-    void initialize(const bool &is_left_leg_in_contact,
-                    const double &l_min,
-                    const double &l_max,
-                    const double &w_min,
-                    const double &w_max,
-                    const double &t_min,
-                    const double &t_max,
-                    const double &l_p,
-                    const double &com_height,
-                    const Eigen::Vector9d &weight,
-                    const double &mid_air_foot_height,
-                    const double &control_period,
-                    const Eigen::Ref<const Eigen::Vector3d>& left_foot_position,
-                    const Eigen::Ref<const Eigen::Vector3d>& right_foot_position,
-                    const Eigen::Ref<const Eigen::Vector3d>& v_des);
+    void initialize(
+        const bool &is_left_leg_in_contact,
+        const double &l_min,
+        const double &l_max,
+        const double &w_min,
+        const double &w_max,
+        const double &t_min,
+        const double &t_max,
+        const double &l_p,
+        const double &com_height,
+        const Eigen::Vector9d &weight,
+        const double &mid_air_foot_height,
+        const double &control_period,
+        const Eigen::Ref<const Eigen::Vector3d> &left_foot_position,
+        const Eigen::Ref<const Eigen::Vector3d> &right_foot_position,
+        const Eigen::Ref<const Eigen::Vector3d> &v_des);
 
     /**
      * @brief
@@ -69,14 +70,14 @@ public:
      * @return bool, true upon success.
      */
     bool run(double time,
-             const Eigen::Ref<const Eigen::Vector3d>& left_foot_position,
-             const Eigen::Ref<const Eigen::Vector3d>& right_foot_position,
-             const Eigen::Ref<const Eigen::Vector3d>& left_foot_vel,
-             const Eigen::Ref<const Eigen::Vector3d>& right_foot_vel,
-             const Eigen::Ref<const Eigen::Vector3d>& com_position,
-             const Eigen::Ref<const Eigen::Vector3d>& com_velocity,
+             const Eigen::Ref<const Eigen::Vector3d> &left_foot_position,
+             const Eigen::Ref<const Eigen::Vector3d> &right_foot_position,
+             const Eigen::Ref<const Eigen::Vector3d> &left_foot_vel,
+             const Eigen::Ref<const Eigen::Vector3d> &right_foot_vel,
+             const Eigen::Ref<const Eigen::Vector3d> &com_position,
+             const Eigen::Ref<const Eigen::Vector3d> &com_velocity,
              const double &base_yaw,
-             const Eigen::Ref<const Eigen::Vector2d>& contact,
+             const Eigen::Ref<const Eigen::Vector2d> &contact,
              const bool &is_closed_loop);
     /**
      * @brief
@@ -90,16 +91,15 @@ public:
      * @return bool, true upon success.
      */
     bool run(double time,
-             const Eigen::Ref<const Eigen::Vector3d>& left_foot_position,
-             const Eigen::Ref<const Eigen::Vector3d>& right_foot_position,
-             const Eigen::Ref<const Eigen::Vector3d>& left_foot_vel,
-             const Eigen::Ref<const Eigen::Vector3d>& right_foot_vel,
-             const Eigen::Ref<const Eigen::Vector3d>& com_position,
-             const Eigen::Ref<const Eigen::Vector3d>& com_velocity,
+             const Eigen::Ref<const Eigen::Vector3d> &left_foot_position,
+             const Eigen::Ref<const Eigen::Vector3d> &right_foot_position,
+             const Eigen::Ref<const Eigen::Vector3d> &left_foot_vel,
+             const Eigen::Ref<const Eigen::Vector3d> &right_foot_vel,
+             const Eigen::Ref<const Eigen::Vector3d> &com_position,
+             const Eigen::Ref<const Eigen::Vector3d> &com_velocity,
              const pinocchio::SE3 &world_M_base,
-             const Eigen::Ref<const Eigen::Vector2d>& contact,
+             const Eigen::Ref<const Eigen::Vector2d> &contact,
              const bool &is_closed_loop);
-
 
     /**
      * @brief Start the stepping.
@@ -127,14 +127,14 @@ public:
      * @param desired_com_velocity
      */
     void set_desired_com_velocity(
-        const Eigen::Ref<const Eigen::Vector3d>& desired_com_velocity)
+        const Eigen::Ref<const Eigen::Vector3d> &desired_com_velocity)
     {
         desired_com_velocity_ = desired_com_velocity;
     }
 
     void set_feet_pos(
-            const Eigen::Ref<const Eigen::Vector3d>& left_foot_position,
-            const Eigen::Ref<const Eigen::Vector3d>& right_foot_position)
+        const Eigen::Ref<const Eigen::Vector3d> &left_foot_position,
+        const Eigen::Ref<const Eigen::Vector3d> &right_foot_position)
     {
         left_foot_position_ = left_foot_position;
         right_foot_position_ = right_foot_position;
@@ -146,7 +146,7 @@ public:
      * @return const Eigen::Vector3d&
      */
     void set_right_foot_position(
-            const Eigen::Ref<const Eigen::Vector3d>& right_foot_position)
+        const Eigen::Ref<const Eigen::Vector3d> &right_foot_position)
     {
         right_foot_position_ = right_foot_position;
     }
@@ -157,9 +157,9 @@ public:
      * @return const Eigen::Vector3d&
      */
     void set_right_foot_velocity(
-            const Eigen::Ref<const Eigen::Vector3d>& right_foot_velocity)
+        const Eigen::Ref<const Eigen::Vector3d> &right_foot_velocity)
     {
-        right_foot_velocity_= right_foot_velocity;
+        right_foot_velocity_ = right_foot_velocity;
     }
 
     /**
@@ -168,7 +168,7 @@ public:
      * @return const Eigen::Vector3d&
      */
     void set_left_foot_position(
-            const Eigen::Ref<const Eigen::Vector3d>& left_foot_position)
+        const Eigen::Ref<const Eigen::Vector3d> &left_foot_position)
     {
         left_foot_position_ = left_foot_position;
     }
@@ -179,7 +179,7 @@ public:
      * @return const Eigen::Vector3d&
      */
     void set_left_foot_velocity(
-            const Eigen::Ref<const Eigen::Vector3d>& left_foot_velocity)
+        const Eigen::Ref<const Eigen::Vector3d> &left_foot_velocity)
     {
         left_foot_velocity_ = left_foot_velocity;
     }
@@ -199,7 +199,8 @@ public:
                                         const double &com_height,
                                         const Eigen::Vector9d &weight)
     {
-        dcm_vrp_planner_.initialize(l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight);
+        dcm_vrp_planner_.initialize(
+            l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight);
     }
 
     /*
@@ -344,7 +345,8 @@ public:
      */
     const Eigen::Vector3d &get_flying_foot_position() const
     {
-        return is_left_leg_in_contact_?right_foot_position_:left_foot_position_;
+        return is_left_leg_in_contact_ ? right_foot_position_
+                                       : left_foot_position_;
     }
     /**
      * @brief Get the local foot position.
@@ -415,7 +417,7 @@ public:
 
     const Eigen::Matrix<double, 12, 1> &get_force()
     {
-        if(is_left_leg_in_contact_)
+        if (is_left_leg_in_contact_)
             force << 0., 0., 0., 0., 0., 0., forces_.head(3), 0., 0., 0.;
         else
             force << forces_.head(3), 0., 0., 0., 0., 0., 0., 0., 0., 0.;
@@ -438,14 +440,14 @@ private:
      * @return false
      */
     bool walk(double time,
-              const Eigen::Ref<const Eigen::Vector3d>& left_foot_position,
-              const Eigen::Ref<const Eigen::Vector3d>& right_foot_position,
-              const Eigen::Ref<const Eigen::Vector3d>& left_foot_vel,
-              const Eigen::Ref<const Eigen::Vector3d>& right_foot_vel,
-              const Eigen::Ref<const Eigen::Vector3d>& com_position,
-              const Eigen::Ref<const Eigen::Vector3d>& com_velocity,
+              const Eigen::Ref<const Eigen::Vector3d> &left_foot_position,
+              const Eigen::Ref<const Eigen::Vector3d> &right_foot_position,
+              const Eigen::Ref<const Eigen::Vector3d> &left_foot_vel,
+              const Eigen::Ref<const Eigen::Vector3d> &right_foot_vel,
+              const Eigen::Ref<const Eigen::Vector3d> &com_position,
+              const Eigen::Ref<const Eigen::Vector3d> &com_velocity,
               pinocchio::SE3 &local_frame,
-              const Eigen::Ref<const Eigen::Vector2d>& contact,
+              const Eigen::Ref<const Eigen::Vector2d> &contact,
               const bool &is_closed_loop);
 
     /**
@@ -459,9 +461,10 @@ private:
      * @return true
      * @return false
      */
-    bool stand_still(double time,
-                     const Eigen::Ref<const Eigen::Vector3d>& left_foot_position,
-                     const Eigen::Ref<const Eigen::Vector3d>& right_foot_position);
+    bool stand_still(
+        double time,
+        const Eigen::Ref<const Eigen::Vector3d> &left_foot_position,
+        const Eigen::Ref<const Eigen::Vector3d> &right_foot_position);
 
 private:
     /** @brief Robot control period, used when computing the end-effector
@@ -563,7 +566,6 @@ private:
 
     /** @brief Nominal DCM computed from the CoM estimation and nominal time. */
     Eigen::Vector3d dcm_;
-
 };
 
 }  // namespace reactive_planners

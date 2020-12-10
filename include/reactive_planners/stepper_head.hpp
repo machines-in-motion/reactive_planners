@@ -23,18 +23,20 @@ class StepperHead
      * Public methods.
      */
 public:
-    /** @brief Construct a new StepperHead object with simple default parameters.
-     * Please call init() in order to setup this class properly. */
+    /** @brief Construct a new StepperHead object with simple default
+     * parameters. Please call init() in order to setup this class properly. */
     StepperHead();
 
     void set_support_feet_pos(
-            const Eigen::Ref<const Eigen::Vector3d>& previous_support_location,
-            const Eigen::Ref<const Eigen::Vector3d>& current_support_location){
+        const Eigen::Ref<const Eigen::Vector3d> &previous_support_location,
+        const Eigen::Ref<const Eigen::Vector3d> &current_support_location)
+    {
         previous_support_location_ = previous_support_location;
         current_support_location_ = current_support_location;
     }
     void set_support_foot_pos(
-            const Eigen::Ref<const Eigen::Vector3d>& current_support_location){
+        const Eigen::Ref<const Eigen::Vector3d> &current_support_location)
+    {
         current_support_location_ = current_support_location;
     }
 
@@ -44,7 +46,8 @@ public:
 
     void run(const double &duration_before_foot_landing,
              const Eigen::Vector3d &next_support_location,
-             const double &current_time, bool impact);
+             const double &current_time,
+             bool impact);
 
     /*
      * Getters.
