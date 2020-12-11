@@ -311,11 +311,9 @@ def closed_loop():
     global  open_loop
     open_loop = False
     if dcm_reactive_stepper.get_is_left_leg_in_contact():
-        print("!")
         dcm_reactive_stepper.set_right_foot_position(right_foot_location)
         dcm_reactive_stepper.set_right_foot_velocity(right_foot_vel)
     else:
-        print("@")
         dcm_reactive_stepper.set_left_foot_position(left_foot_location)
         dcm_reactive_stepper.set_left_foot_velocity(left_foot_vel)
 
@@ -421,19 +419,20 @@ if __name__ == "__main__":
     w_min = -0.08
     w_max = 0.2
     t_min = 0.1
-    t_max = 0.8# Lhum TODO if you change it you should change stepper_head.cpp line 71 or looking for *
+    t_max = 0.8
     l_p = 0.1035 * 1
     com_height = 0.36487417
     weight = [1, 1, 5, 1000, 1000, 100000, 100000, 100000, 100000]
     mid_air_foot_height = .05
     control_period = 0.001
+    planner_loop = 0.010
     x_des_local = [q[0], q[1] + 0.02, 0., q[0], q[1] - 0.02, 0.]
     past_x = [q[0], q[1] + 0.02, 0., q[0], q[1] - 0.02, 0.]
     v_des = [.0, .0, .0]
     sim = LipmSimpulator(com_height)
     dcm_reactive_stepper = DcmReactiveStepper()
     dcm_reactive_stepper.initialize(is_left_leg_in_contact, l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height,
-                                    weight, mid_air_foot_height, control_period, x_des_local[:3], x_des_local[3:], v_des)
+                                    weight, mid_air_foot_height, control_period, planner_loop, x_des_local[:3], x_des_local[3:], v_des)
 
     dcm_reactive_stepper.set_desired_com_velocity(v_des)
 
@@ -496,7 +495,6 @@ if __name__ == "__main__":
     plt_F_M = []
     dcm_force = [0., 0., 0.]
     offset = 0.0171
-
     dcm_reactive_stepper.start()
     inv_kin = PointContactInverseKinematics(robot.pin_robot.model, robot.end_effector_names)
 
@@ -513,7 +511,6 @@ if __name__ == "__main__":
         #     p.applyExternalForce(objectUniqueId=robot.robotId, linkIndex=-1, forceObj=force,
         #                          posObj=[q[0], q[1], q[2]], flags=p.WORLD_FRAME)
 
-        # print(dcm_reactive_stepper.get_is_left_leg_in_contact())
         if warmup <= i:
             ###### mass matrix
             m_q = np.matrix(q).transpose()
@@ -526,7 +523,6 @@ if __name__ == "__main__":
             # if  i > 10 and t_min + 0.001 > dcm_reactive_stepper.get_time_from_last_step_touchdown() \
             #         and t_min < dcm_reactive_stepper.get_time_from_last_step_touchdown() and not force_flag:
             #     # additional_time = random() * 0.15
-            #     print("EEEEEEEEE", i)
             #     external_force(x_com)
             #     force_flag = True
             #     # dcm_reactive_stepper.dcm_vrp_planner_initialization(l_min, l_max, w_min, w_max, t_min + additional_time,
@@ -620,12 +616,11 @@ if __name__ == "__main__":
             dcm_reactive_stepper.run(time, [left_foot_location[0], left_foot_location[1], left_foot_location[2] - offset,],
                                      [right_foot_location[0], right_foot_location[1], right_foot_location[2] - offset,],
                                      left_foot_vel, right_foot_vel,
-                                     x_com, xd_com, yaw(q), contact_array, not open_loop)
+                                     x_com, xd_com, yaw(q), not open_loop)
             dcm_force = dcm_reactive_stepper.get_forces().copy() #feed forward
             # if (i + 5) % 1 == 0 and i > 85:# and int(dcm_reactive_stepper.get_time_from_last_step_touchdown() * 1000) == 0:
             #    d = dcm_reactive_stepper.get_forces().copy()
-            #    plot(d)#Lhum make sure you update the mass matrix with traj's mass matrix
-            #    print(d[:3])
+            #    plot(d)
             # if dcm_reactive_stepper.time_from_last_step_touchdown == 0:
             #     desired_q = np.array(q.copy())[:, 0]
             # else:

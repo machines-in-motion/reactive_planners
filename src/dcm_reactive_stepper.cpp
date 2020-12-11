@@ -51,6 +51,7 @@ void DcmReactiveStepper::initialize(
     const Eigen::Vector9d& weight,
     const double& mid_air_foot_height,
     const double& control_period,
+    const double& planner_loop,
     const Eigen::Ref<const Eigen::Vector3d>& left_foot_position,
     const Eigen::Ref<const Eigen::Vector3d>& right_foot_position,
     const Eigen::Ref<const Eigen::Vector3d>& v_des)
@@ -58,20 +59,10 @@ void DcmReactiveStepper::initialize(
     // Initialize the dcm vrp planner and initialize it.
     dcm_vrp_planner_.initialize(
         l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight);
-    // Initialize the end-effector trajectory generator.
-    if (new_)
-    {
-        new_end_eff_trajectory_3d_.set_mid_air_height(mid_air_foot_height);
-        new_end_eff_trajectory_3d_.init_calculate_dcm(
-            v_des, com_height, t_min, t_max);
-    }
-    else
-    {
-        end_eff_trajectory_3d_.set_mid_air_height(mid_air_foot_height);
-    }
 
     // Parameters
     control_period_ = control_period;
+    planner_loop_ = planner_loop;
     is_left_leg_in_contact_ = is_left_leg_in_contact;
     step_duration_ = 0.0;
     time_from_last_step_touchdown_ = 0.0;
@@ -92,6 +83,17 @@ void DcmReactiveStepper::initialize(
     local_left_foot_position_.setZero();
     local_left_foot_velocity_.setZero();
     feasible_com_velocity_.setZero();
+
+    // Initialize the end-effector trajectory generator.
+    if (new_)
+    {
+        new_end_eff_trajectory_3d_.set_mid_air_height(mid_air_foot_height);
+        new_end_eff_trajectory_3d_.set_planner_loop(planner_loop_);
+    }
+    else
+    {
+        end_eff_trajectory_3d_.set_mid_air_height(mid_air_foot_height);
+    }
     if (is_left_leg_in_contact_)
     {
         stepper_head_.set_support_feet_pos(right_foot_position,
@@ -119,7 +121,6 @@ bool DcmReactiveStepper::run(
     const Eigen::Ref<const Eigen::Vector3d>& com_position,
     const Eigen::Ref<const Eigen::Vector3d>& com_velocity,
     const double& base_yaw,
-    const Eigen::Ref<const Eigen::Vector2d>& contact,
     const bool& is_closed_loop)
 {
     Eigen::Vector3d support_foot;
@@ -142,7 +143,6 @@ bool DcmReactiveStepper::run(
                com_position,
                com_velocity,
                world_M_base,
-               contact,
                is_closed_loop);
 }
 
@@ -155,7 +155,6 @@ bool DcmReactiveStepper::run(
     const Eigen::Ref<const Eigen::Vector3d>& com_position,
     const Eigen::Ref<const Eigen::Vector3d>& com_velocity,
     const pinocchio::SE3& world_M_base,
-    const Eigen::Ref<const Eigen::Vector2d>& contact,
     const bool& is_closed_loop)
 {
     local_frame_ = world_M_base;
@@ -173,7 +172,6 @@ bool DcmReactiveStepper::run(
              com_position,
              com_velocity,
              local_frame_,
-             contact,
              is_closed_loop);
     }
     else
@@ -192,7 +190,6 @@ bool DcmReactiveStepper::walk(
     const Eigen::Ref<const Eigen::Vector3d>& com_position,
     const Eigen::Ref<const Eigen::Vector3d>& com_velocity,
     pinocchio::SE3& local_frame,
-    const Eigen::Ref<const Eigen::Vector2d>& contact,
     const bool& is_closed_loop)
 {
     Eigen::Vector3d left_on_ground = left_foot_position;
@@ -201,28 +198,13 @@ bool DcmReactiveStepper::walk(
     right_on_ground[2] = 0;
     bool succeed = true;
     // Run the scheduler of the planner.
-    if (contact[0] == 0 && contact[1] == 0)
+    if (is_left_leg_in_contact_)
     {
-        if (is_left_leg_in_contact_)
-        {
-            stepper_head_.run(step_duration_, right_on_ground, time);
-        }
-        else
-        {
-            stepper_head_.run(step_duration_, left_on_ground, time);
-        }
+        stepper_head_.run(step_duration_, right_on_ground, time);
     }
     else
     {
-        if (is_left_leg_in_contact_)
-        {
-            stepper_head_.run(
-                step_duration_, right_on_ground, time, contact[1]);
-        }
-        else
-        {
-            stepper_head_.run(step_duration_, left_on_ground, time, contact[0]);
-        }
+        stepper_head_.run(step_duration_, left_on_ground, time);
     }
     // Extract the useful information.
     is_left_leg_in_contact_ = stepper_head_.get_is_left_leg_in_contact();

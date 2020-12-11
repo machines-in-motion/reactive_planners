@@ -54,6 +54,7 @@ public:
         const Eigen::Vector9d &weight,
         const double &mid_air_foot_height,
         const double &control_period,
+        const double &planner_loop,
         const Eigen::Ref<const Eigen::Vector3d> &left_foot_position,
         const Eigen::Ref<const Eigen::Vector3d> &right_foot_position,
         const Eigen::Ref<const Eigen::Vector3d> &v_des);
@@ -77,7 +78,6 @@ public:
              const Eigen::Ref<const Eigen::Vector3d> &com_position,
              const Eigen::Ref<const Eigen::Vector3d> &com_velocity,
              const double &base_yaw,
-             const Eigen::Ref<const Eigen::Vector2d> &contact,
              const bool &is_closed_loop);
     /**
      * @brief
@@ -98,7 +98,6 @@ public:
              const Eigen::Ref<const Eigen::Vector3d> &com_position,
              const Eigen::Ref<const Eigen::Vector3d> &com_velocity,
              const pinocchio::SE3 &world_M_base,
-             const Eigen::Ref<const Eigen::Vector2d> &contact,
              const bool &is_closed_loop);
 
     /**
@@ -447,7 +446,6 @@ private:
               const Eigen::Ref<const Eigen::Vector3d> &com_position,
               const Eigen::Ref<const Eigen::Vector3d> &com_velocity,
               pinocchio::SE3 &local_frame,
-              const Eigen::Ref<const Eigen::Vector2d> &contact,
               const bool &is_closed_loop);
 
     /**
@@ -467,9 +465,11 @@ private:
         const Eigen::Ref<const Eigen::Vector3d> &right_foot_position);
 
 private:
-    /** @brief Robot control period, used when computing the end-effector
-     * trajectory. */
+    /** @brief Robot control loop period. */
     double control_period_;
+
+    /** @brief Robot planner loop period. */
+    double planner_loop_;
 
     /** @brief Scheduler of the stepping. */
     StepperHead stepper_head_;

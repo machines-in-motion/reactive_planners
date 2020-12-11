@@ -51,31 +51,4 @@ void StepperHead::run(const double& duration_before_foot_landing,
     }
 }
 
-void StepperHead::run(const double& duration_before_foot_landing,
-                      const Eigen::Vector3d& next_support_location,
-                      const double& current_time,
-                      bool impact)
-{
-    // copy the argument
-    duration_before_foot_landing_ = duration_before_foot_landing;
-    next_support_location_ = next_support_location;
-    current_time_ = current_time;
-
-    // Compute the time_from_last_step_touchdown_
-    time_from_last_step_touchdown_ = current_time_ - time_support_switch_;
-
-    if ((impact &&
-         time_from_last_step_touchdown_ > duration_before_foot_landing_ / 2) ||
-        time_from_last_step_touchdown_ > 0.3)  // Lhum TODO
-    {
-        // Switch the contact phase.
-        is_left_leg_in_contact_ = !is_left_leg_in_contact_;
-        time_support_switch_ = current_time;
-        time_from_last_step_touchdown_ = 0.0;
-
-        previous_support_location_ = current_support_location_;
-        current_support_location_ = next_support_location_;
-    }
-}
-
 }  // namespace reactive_planners

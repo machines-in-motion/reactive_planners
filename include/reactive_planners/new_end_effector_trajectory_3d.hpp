@@ -48,11 +48,6 @@ public:
                  const double& end_time,
                  const bool& is_left_leg_in_contact);
 
-    void init_calculate_dcm(const Eigen::Ref<const Eigen::Vector3d>& v_des,
-                            const double& ht,
-                            const double& t_lower_bound,
-                            const double& t_upper_bound);
-
     void update_robot_status(Eigen::Ref<Eigen::Vector3d> next_pose,
                              Eigen::Ref<Eigen::Vector3d> next_velocity,
                              Eigen::Ref<Eigen::Vector3d> next_acceleration);
@@ -75,7 +70,7 @@ public:
      */
 
     /** @brief Get the height of the flying foot. */
-    double get_mid_air_height()
+    double get_mid_air_height() const
     {
         return mid_air_height_;
     }
@@ -83,6 +78,14 @@ public:
     /*
      * Setters
      */
+    /** @brief Set the height of the flying foot.
+     *
+     * @param mid_air_height
+     */
+    void set_planner_loop(double planner_loop)
+    {
+        planner_loop_ = planner_loop;
+    }
 
     /** @brief Set the height of the flying foot.
      *
@@ -163,15 +166,9 @@ private:
         qp_solver_t_min_.problem(3 * index, 2, 2 * 3 * index);
     }
 
-    void calculate_acceleration();
-
-    Eigen::MatrixXd* acceleration_terms_x_;
-    Eigen::MatrixXd* acceleration_terms_y_;
-    Eigen::MatrixXd* acceleration_terms_z_;
-
-    Eigen::MatrixXd* velocity_terms_x_;
-    Eigen::MatrixXd* velocity_terms_y_;
-    Eigen::MatrixXd* velocity_terms_z_;
+    /** @brief initialie acceleration_terms and velocity_terms.
+     */
+    void init_acceleration_velocity_terms();
 
     /*
      * Constant problem parameters.
@@ -184,9 +181,37 @@ private:
      * one of the axes. */
     int nb_local_sampling_time_;
 
+    /** @brief non_linear_terms.
+     */
+    Eigen::Vector3d h_c;
+
     /*
      * Variable problem parameters.
      */
+
+    /** @brief affect of forces_x to the positions.
+     * There are two separate matrices for each leg.
+     */
+    Eigen::MatrixXd* position_terms_F_x_;
+
+    /** @brief affect of forces_y to the positions.
+     * There are two separate matrices for each leg.
+     */
+    Eigen::MatrixXd* position_terms_F_y_;
+
+    /** @brief affect of forces_z to the positions.
+     * There are two separate matrices for each leg.
+     */
+    Eigen::MatrixXd* position_terms_F_z_;
+
+    /** @brief Desired velocity. */
+    Eigen::Vector3d v_des_;
+
+    /** @brief Slack variable values corresponding to last solution. */
+    Eigen::Vector3d slack_variables_;
+
+    /** @brief affect of non_linear_terms in position. */
+    Eigen::MatrixXd* non_linear_terms;
 
     /** @brief Initial position before the motion. */
     Eigen::Vector3d start_pose_;
@@ -215,11 +240,11 @@ private:
     /** @brief Last end time register when we computed the QP. */
     double last_end_time_seen_;
 
-    /** @brief Sampling time. */
-    double sampling_time;
-
     /** @brief Control loop. */
-    double control_loop;
+    double control_loop_;
+
+    /** @brief planner loop. */
+    double planner_loop_;
 
     /*
      * QP variables
@@ -233,9 +258,6 @@ private:
 
     /** @brief Number of inequality in the optimization problem. */
     int nb_ineq_;
-
-    /** @brief Number of sampling time in the optimization problem. */
-    int nb_sampling_time;
 
     /** @brief Quadratic program solver.
      *
@@ -290,18 +312,6 @@ private:
     /** @brief Cost weights for the epsilon_z. */
     double cost_epsilon_vel_;
 
-    /** @brief Cost weights for the desired x[i]. */
-    double cost_epsilon_x_i_;
-
-    /** @brief Cost weights for the desired x[i]. */
-    double cost_epsilon_y_i_;
-
-    /** @brief Cost weights for the dcm x[i]. */
-    double cost_dcm_epsilon_x_i_;
-
-    /** @brief Cost weights for the dcm y[i]. */
-    double cost_dcm_epsilon_y_i_;
-
     /** @brief Linear term of the quadratic cost.
      * @see NewEndEffectorTrajectory3D */
     Eigen::VectorXd q_;
@@ -341,41 +351,6 @@ private:
     /** @brief Linear inequality vector.
      * @see NewEndEffectorTrajectory3D */
     Eigen::VectorXd B_ineq_t_min_;
-
-    /** @brief Natural frequency of the pendulum: \f$ \omega =
-     * \sqrt{\frac{g}{z_0}} \f$. */
-    double omega_;
-
-    /** @brief Nominal step time. */
-    double t_nom_ = 0.1;
-
-    /** @brief Nominal step time in logarithmic scale:
-     * \f$ e^{\omega t_{nom}} \f$*/
-    double tau_nom_;
-
-    /** @brief Nominal step length in the x direction (in the direction of
-     * forward motion). */
-    double l_nom_;
-
-    /** @brief Nominal DCM offset along the Y-axis. */
-    double bx_nom_;
-
-    /** @brief Nominal DCM offset along the Y-axis. */
-    double by_nom_;
-
-    /** @brief Average desired height of the com above the ground. */
-    double ht_;
-
-    /** @brief Desired velocity. */
-    Eigen::Vector3d v_des_;
-
-    Eigen::Vector3d u_;  // Lhum TODO rename them
-
-    Eigen::Vector3d slack_variables_;
-
-    Eigen::MatrixXd* g;
-
-    Eigen::Vector3d h;
 };
 
 }  // namespace reactive_planners

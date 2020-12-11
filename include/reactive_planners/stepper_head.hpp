@@ -44,11 +44,6 @@ public:
              const Eigen::Vector3d &next_support_location,
              const double &current_time);
 
-    void run(const double &duration_before_foot_landing,
-             const Eigen::Vector3d &next_support_location,
-             const double &current_time,
-             bool impact);
-
     /*
      * Getters.
      */
