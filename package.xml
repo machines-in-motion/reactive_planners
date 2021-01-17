@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version='1.0' encoding='utf-8'?>
 <package format="2">
   <name>reactive_planners</name>
   <version>1.0.0</version>
@@ -6,14 +6,24 @@
   <author email="mnaveau@tue.mpg.de">Maximilien Naveau</author>
   <maintainer email="mnaveau@tue.mpg.de">Maximilien Naveau</maintainer>
   <license>BSD 3-Clause</license>
-  <buildtool_depend>catkin</buildtool_depend>
 
-  <depend>yaml_cpp_catkin</depend>
-  <depend>mpi_cmake_modules</depend>
-  <depend>pybind11_catkin</depend>
+  <!-- Build tools -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+  <buildtool_depend>mpi_cmake_modules</buildtool_depend>
+
+  <!-- Dependencies -->
+  <depend>yaml_utils</depend>
+  <depend>pybind11</depend>
+  <depend>Eigen3</depend>
   <depend>eigen-quadprog</depend>
   <depend>pinocchio</depend>
-  
+
+  <!-- Unit tests -->
+  <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>ament_cmake_nose</test_depend>
+
   <export>
+    <build_type>ament_cmake</build_type>
   </export>
 </package>
