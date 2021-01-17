@@ -29,8 +29,25 @@ set(LIBRARY_DIRS ${ament_cmake_LIBRARY_DIRS} ${mpi_cmake_modules_LIBRARY_DIRS}
 link_directories(${LIBRARY_DIRS})
 
 set(LIBS ${ament_cmake_LIBRARIES} ${mpi_cmake_modules_LIBRARIES}
-  ${yaml_utils_LIBRARIES} ${pybind11_LIBRARIES} ${eigen-quadprog_INCLUDE})
+  ${yaml_utils_LIBRARIES} ${pybind11_LIBRARIES} ${eigen-quadprog_LIBRARIES}  ${pinocchio_LIBRARIES})
+#set(LIBSB ${eigen-quadprog_LIBRARIES})
 
+set(my_src_SRC_FILES
+        SHARED src/stepper_head.cpp
+        src/dcm_vrp_planner.cpp
+        src/end_effector_trajectory_3d.cpp
+        src/new_end_effector_trajectory_3d.cpp
+        src/dcm_reactive_stepper.cpp)
+
+add_library(my_src SHARED ${my_src_SRC_FILES})
+list(APPEND all_targets my_src)
+
+target_link_libraries(my_src eigen-quadprog::eigen-quadprog)
+target_link_libraries(my_src Eigen3::Eigen)
+target_include_directories(
+        my_src PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>)
+#target_link_libraries(${my_src} ${LIBSB})
 # required to use std::shared_ptr in code and to link the python bindings
 if(NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wl,--no-as-needed")
@@ -50,20 +67,20 @@ set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/lib)
 # Dependencies #
 ################
 
-search_for_boost()
-search_for_eigen()
+#search_for_boost()
+#search_for_eigen()
 set(catkin_INCLUDE_DIRS ${catkin_INCLUDE_DIRS} ${Eigen_INCLUDE_DIRS})
 
 # Depend on eigen-quadprog
-ament_export_dependencies(eigen-quadprog)
-#set(catkin_LIBRARIES ${catkin_LIBRARIES} eigen-quadprog::eigen_quadprog)
-ament_export_dependencies(pinocchio)
+#ament_export_dependencies(eigen-quadprog)
+##set(catkin_LIBRARIES ${catkin_LIBRARIES} eigen-quadprog::eigen_quadprog)
+#ament_export_dependencies(pinocchio)
 
-add_library(${PROJECT_NAME}
-  SHARED src/stepper_head.cpp src/dcm_vrp_planner.cpp
-  src/end_effector_trajectory_3d.cpp src/new_end_effector_trajectory_3d.cpp
-  src/dcm_reactive_stepper.cpp)
-target_link_libraries(${PROJECT_NAME} ${LIBS})
+#add_library(${PROJECT_NAME}
+#  SHARED src/stepper_head.cpp src/dcm_vrp_planner.cpp
+#  src/end_effector_trajectory_3d.cpp src/new_end_effector_trajectory_3d.cpp
+#  src/dcm_reactive_stepper.cpp)
+#target_link_libraries(${PROJECT_NAME} ${LIBS})
 
 #####################################################################
 # Stores the path to the config folder in the CONFIG_PATH variable. #
@@ -110,22 +127,19 @@ pybind11_add_module(py_${PROJECT_NAME} srcpy/reactive_planners
 target_link_libraries(py_${PROJECT_NAME} PRIVATE ${PROJECT_NAME} ${LIBS})
 
 # then we build the different entities in a dynamic-graph plugin.
-set(cpp_source_files
-        src/dcm_reactive_stepper.cpp
-        src/dcm_vrp_planner.cpp
-        src/end_effector_trajectory.cpp
-        src/new_end_effector_trajectory_3d.cpp
-        src/stepper_head.cpp
-        )
+#set(cpp_source_files
+#        src/dcm_reactive_stepper.cpp
+#        src/dcm_vrp_planner.cpp
+#        src/end_effector_trajectory.cpp
+#        src/new_end_effector_trajectory_3d.cpp
+#        src/stepper_head.cpp
+#        )
 
-add_library(${lib_name} SHARED ${cpp_source_files})
+#add_library(${lib_name} SHARED ${cpp_source_files})
 # Add the include dependencies.
-target_include_directories(
-        ${lib_name} $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>)
 
-target_link_libraries(${PROJECT_NAME} eigen-quadprog::eigen-quadprog)
-target_link_libraries(${PROJECT_NAME} pinocchio::pinocchio)
+#target_link_libraries(${PROJECT_NAME} eigen-quadprog::eigen-quadprog)
+#target_link_libraries(${PROJECT_NAME} pinocchio::pinocchio)
 set_target_properties(py_${PROJECT_NAME}
   PROPERTIES
   LIBRARY_OUTPUT_DIRECTORY
@@ -143,5 +157,7 @@ ament_export_dependencies(mpi_cmake_modules)
 ament_export_dependencies(yaml_utils)
 ament_export_dependencies(pybind11)
 ament_export_include_directories(${INCLUDE_DIRS})
+
+#add_subdirectory(src)
 
 ament_package()
