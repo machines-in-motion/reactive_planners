@@ -1,0 +1,14 @@
+
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Targets.cmake")
+
+include(CMakeFindDependencyMacro)
+
+# we do not add the other dependencies because these are header files lib
+find_dependency(yaml-cpp CONFIG REQUIRED)
+find_dependency(Eigen3 REQUIRED)
+find_dependency(pinocchio REQUIRED)
+find_dependency(eigen-quadprog REQUIRED)
+
+check_required_components(@PROJECT_NAME@)
