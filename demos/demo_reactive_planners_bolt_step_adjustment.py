@@ -10,9 +10,9 @@ import pybullet as p
 from matplotlib import pyplot as plt
 from robot_properties_bolt.config import BoltConfig
 from robot_properties_bolt.bolt_wrapper import BoltRobot
-from py_blmc_controllers.bolt_centroidal_controller import BoltCentroidalController
-from py_blmc_controllers.bolt_impedance_controller import BoltImpedanceController
-from py_blmc_controllers.qp_solver import quadprog_solve_qp
+from mim_control.robot_centroidal_controller import RobotCentroidalController
+from mim_control.robot_impedance_controller import RobotImpedanceController
+from mim_control.qp_solver import quadprog_solve_qp
 from py_reactive_planners.lipm_simulator import LipmSimpulator
 from reactive_planners import DcmReactiveStepper
 import pinocchio as se3
@@ -22,6 +22,7 @@ from scipy.spatial.transform import Rotation as R
 from numpy.linalg import inv, det, pinv
 from math import sqrt, sin, cos, pi
 from random import random
+from bullet_utils.env import BulletEnvWithGround
 
 def zero_cnt_gain(kp, cnt_array):
     gain = np.array(kp).copy()
@@ -362,7 +363,8 @@ def external_force(com):
 
 if __name__ == "__main__":
     # Create a robot instance. This initializes the simulator as well.
-    robot = BoltRobot(useFixedBase=False)
+    env = BulletEnvWithGround()
+    robot = env.add_robot(BoltRobot)
     tau = np.zeros(6)
     p.resetDebugVisualizerCamera(1.6, 50, -35, (0., 0., 0.))
     p.setTimeStep(0.0001)
@@ -400,7 +402,6 @@ if __name__ == "__main__":
     # create_box([0.25, 0.1, 0.01], [0.25, 0.15, 0.])
 
     q = np.matrix(BoltConfig.initial_configuration).T
-    q[2] += 0.09
     qdot = np.matrix(BoltConfig.initial_velocity).T
     robot.reset_state(q, qdot)
     total_mass = sum([i.mass for i in robot.pin_robot.model.inertias[1:]])
@@ -409,9 +410,11 @@ if __name__ == "__main__":
     kd = [5., 5., 5., 5., 5., 5.]
     x_ori = [0., 0., 0., 1.]
     x_angvel = [0., 0., 0]
-    bolt_leg_ctrl = BoltImpedanceController(robot)
-    centr_controller = BoltCentroidalController(robot.pin_robot, total_mass, mu=1, kp=[0, 0, 100], kd=[0, 0, 10],
-                                                kpa=[10, 10, 10], kda=[1., 1, 1], eff_ids=robot.pinocchio_endeff_ids)
+    robot_config = BoltConfig()
+    config_file = robot_config.paths["imp_ctrl_yaml"]
+    bolt_leg_ctrl = RobotImpedanceController(robot, config_file)
+    centr_controller = RobotCentroidalController(robot_config, mu=1, kc=[0, 0, 100], dc=[0, 0, 10],
+                                                kb=[10, 10, 10], db=[1., 1, 1])
 
     is_left_leg_in_contact = True
     l_min = -0.1
@@ -426,8 +429,8 @@ if __name__ == "__main__":
     mid_air_foot_height = .05
     control_period = 0.001
     planner_loop = 0.010
-    x_des_local = [q[0], q[1] + 0.02, 0., q[0], q[1] - 0.02, 0.]
-    past_x = [q[0], q[1] + 0.02, 0., q[0], q[1] - 0.02, 0.]
+    x_des_local = [q[0].item(), q[1].item() + 0.02, 0., q[0].item(), q[1].item() - 0.02, 0.]
+    past_x = [q[0].item(), q[1].item() + 0.02, 0., q[0].item(), q[1].item() - 0.02, 0.]
     v_des = [.0, .0, .0]
     sim = LipmSimpulator(com_height)
     dcm_reactive_stepper = DcmReactiveStepper()
@@ -498,7 +501,7 @@ if __name__ == "__main__":
     dcm_reactive_stepper.start()
     inv_kin = PointContactInverseKinematics(robot.pin_robot.model, robot.end_effector_names)
 
-    for i in range(1005):#data#1466):#1500):
+    for i in range(5005):#data#1466):#1500):
         last_qdot = qdot
         q, qdot = robot.get_state()
         robot.pin_robot.com(q, qdot)
@@ -583,14 +586,14 @@ if __name__ == "__main__":
 
 
 
-            left = bolt_leg_ctrl.imps[0]
-            right = bolt_leg_ctrl.imps[1]
+            left = bolt_leg_ctrl.imp_ctrl_array[0]
+            right = bolt_leg_ctrl.imp_ctrl_array[1]
             left_foot_location = np.array(left.pin_robot.data.oMf[left.frame_end_idx].translation).reshape(-1)
             right_foot_location = np.array(right.pin_robot.data.oMf[right.frame_end_idx].translation).reshape(-1)
             left_foot_vel = np.array(se3.SE3(left.pin_robot.data.oMf[left.frame_end_idx].rotation, np.zeros((3,1))) *\
-                            se3.frameJacobian(robot.pin_robot.model, robot.pin_robot.data, q, left.frame_end_idx).dot(qdot)[0:3])
+                            se3.computeFrameJacobian(robot.pin_robot.model, robot.pin_robot.data, q, left.frame_end_idx).dot(qdot)[0:3])
             right_foot_vel = np.array(se3.SE3(right.pin_robot.data.oMf[right.frame_end_idx].rotation, np.zeros((3,1))) *\
-                             se3.frameJacobian(robot.pin_robot.model, robot.pin_robot.data, q, right.frame_end_idx).dot(qdot)[0:3])
+                             se3.computeFrameJacobian(robot.pin_robot.model, robot.pin_robot.data, q, right.frame_end_idx).dot(qdot)[0:3])
 
             # closed_loop()
             contact_array = [0, 0]
@@ -659,9 +662,8 @@ if __name__ == "__main__":
             time += 0.001
 
         for j in range(2):
-            imp = bolt_leg_ctrl.imps[j]
-            x_des_local[3 * j:3 * (j + 1)] -= np.array(imp.pin_robot.data.oMf[imp.frame_root_idx].translation).\
-                                                       reshape(-1)
+            imp = bolt_leg_ctrl.imp_ctrl_array[j]
+            x_des_local[3 * j:3 * (j + 1)] -= imp.pin_robot.data.oMf[imp.frame_root_idx].translation
             if j == 0:
                 plt_left_eef_real_pos.append(
                     np.array(imp.pin_robot.data.oMf[imp.frame_end_idx].translation).reshape(-1))
@@ -672,7 +674,7 @@ if __name__ == "__main__":
                                                     [0, 0., 0, 1.], [0., 0., 0.])
         w_com[0] = 0.0
         w_com[1] = 0.0
-        w_com[2] += total_mass * 9.81
+        # w_com[2] += total_mass * 9.81
 
         F = centr_controller.compute_force_qp(q, qdot, cnt_array, w_com)
 
@@ -685,8 +687,7 @@ if __name__ == "__main__":
             F[3:] = -dcm_force[:3]
         elif cnt_array[0] == 0 and cnt_array[1] == 1:
             F[:3] = -dcm_force[:3]
-
-        tau, r = bolt_leg_ctrl.return_joint_torques(q.copy(), qdot.copy(), zero_cnt_gain(kp, cnt_array),
+        tau = bolt_leg_ctrl.return_joint_torques(q.copy(), qdot.copy(), zero_cnt_gain(kp, cnt_array),
                                                  zero_cnt_gain(kd, cnt_array), x_des_local, des_vel, F)
         control_time += 0.001
         if warmup <= i:
@@ -711,16 +712,16 @@ if __name__ == "__main__":
             p.stepSimulation()
 
     dcm_reactive_stepper.stop()
-
-    FIGSIZE = 3.7
-    FONT_SIZE = 8
-    FONT_WEIGHT = "normal"
-    # set the parameters
-    font = {'family' : 'normal',
-            'weight' : FONT_WEIGHT,
-            'size'   : FONT_SIZE}
-    plt.rc('font', **font)
-    FIGURE_SIZE = ( FIGSIZE , FIGSIZE * 9.0/16.0)
+    #
+    # FIGSIZE = 3.7
+    # FONT_SIZE = 8
+    # FONT_WEIGHT = "normal"
+    # # set the parameters
+    # font = {'family' : 'normal',
+    #         'weight' : FONT_WEIGHT,
+    #         'size'   : FONT_SIZE}
+    # plt.rc('font', **font)
+    # FIGURE_SIZE = ( FIGSIZE , FIGSIZE * 9.0/16.0)
 
     # p.stopStateLogging()
 
@@ -964,7 +965,7 @@ if __name__ == "__main__":
     plt.plot(plt_time[:], plt_is_left_in_contact[:], label="is_left_in_contact")
     plt.plot(plt_time, np.array(plt_left_foot_position)[:, 2], label="left")
     plt.plot(plt_time, np.array(plt_right_foot_position)[:, 2], label="right")
-    # plt.plot(plt_control_time, np.array(plt_x_com)[warmup:, 2], label="com")
+    plt.plot(plt_control_time, np.array(plt_x_com)[warmup:, 2], label="com")
     # plt.plot(plt_time, np.array(plt_dcm_local)[:, 2], label="dcm_local")
     plt.plot(plt_time, np.array(plt_left_eef_real_pos)[warmup:, 2], label="left_eef_real_pos")
     plt.plot(plt_time, np.array(plt_right_eef_real_pos)[warmup:, 2], label="right_eef_real_pos")
