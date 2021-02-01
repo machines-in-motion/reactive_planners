@@ -229,7 +229,7 @@ double NewEndEffectorTrajectory3D::calculate_t_min(
             //            - 1).segment(2 * MAX_VAR, index);//vn[2]
             B_eq_t_min_ << -current_pose(2) + 0.0 -
                                current_velocity(2) * planner_loop_ * index +
-                                non_linear_terms[is_left_leg_in_contact](index, 2);  //,
+                                non_linear_terms[is_left_leg_in_contact](index, 2), 0;  //,
             //                    -current_pose(2) + 0.0 - current_velocity(2) *
             //                    planner_loop_ * (index - 1) +
             //                    g[is_left_leg_in_contact](index - 1, 2);
