@@ -414,7 +414,8 @@ if __name__ == "__main__":
     config_file = robot_config.paths["imp_ctrl_yaml"]
     bolt_leg_ctrl = RobotImpedanceController(robot, config_file)
     centr_controller = RobotCentroidalController(robot_config, mu=1, kc=[0, 0, 100], dc=[0, 0, 10],
-                                                kb=[10, 10, 10], db=[1., 1, 1])
+                                                kb=[100, 100, 100], db=[10., 10, 10],
+                                                qp_penalty_lin=[1, 1, 1e6], qp_penalty_ang=[1e6, 1e6, 1])
 
     is_left_leg_in_contact = True
     l_min = -0.1
