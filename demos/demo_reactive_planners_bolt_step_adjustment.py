@@ -252,10 +252,10 @@ if __name__ == "__main__":
             )
         )
 
-        if cnt_array[0] == 1 and cnt_array[1] == 0:
-            F[3:] = -dcm_force[:3]
-        elif cnt_array[0] == 0 and cnt_array[1] == 1:
-            F[:3] = -dcm_force[:3]
+        # if cnt_array[0] == 1 and cnt_array[1] == 0:
+        #     F[3:] = -dcm_force[:3]
+        # elif cnt_array[0] == 0 and cnt_array[1] == 1:
+        #     F[:3] = -dcm_force[:3]
         tau = bolt_leg_ctrl.return_joint_torques(
             q.copy(),
             qdot.copy(),
