@@ -87,12 +87,14 @@ void DcmReactiveStepper::initialize(
     // Initialize the end-effector trajectory generator.
     if (new_)
     {
-        new_end_eff_trajectory_3d_.set_mid_air_height(mid_air_foot_height);
-        new_end_eff_trajectory_3d_.set_planner_loop(planner_loop_);
+        dynamically_consistent_end_eff_trajectory_.set_mid_air_height(
+            mid_air_foot_height);
+        dynamically_consistent_end_eff_trajectory_.set_planner_loop(
+            planner_loop_);
     }
     else
     {
-        end_eff_trajectory_3d_.set_mid_air_height(mid_air_foot_height);
+        polynomial_end_eff_trajectory_.set_mid_air_height(mid_air_foot_height);
     }
     if (is_left_leg_in_contact_)
     {
@@ -246,7 +248,7 @@ bool DcmReactiveStepper::walk(
         if (is_left_leg_in_contact_)  // check which foot is in contact
         {
             // flying foot is the right foot
-            new_end_eff_trajectory_3d_.update_robot_status(
+            dynamically_consistent_end_eff_trajectory_.update_robot_status(
                 right_foot_position_,
                 right_foot_velocity_,
                 right_foot_acceleration_);
@@ -258,7 +260,7 @@ bool DcmReactiveStepper::walk(
         else
         {
             // flying foot is the left foot
-            new_end_eff_trajectory_3d_.update_robot_status(
+            dynamically_consistent_end_eff_trajectory_.update_robot_status(
                 left_foot_position_,
                 left_foot_velocity_,
                 left_foot_acceleration_);
@@ -287,15 +289,17 @@ bool DcmReactiveStepper::walk(
     if (new_)
     {
         if (is_left_leg_in_contact_)
-            new_t_min = new_end_eff_trajectory_3d_.calculate_t_min(
-                right_foot_position_,
-                right_foot_velocity_,
-                is_left_leg_in_contact_);
+            new_t_min =
+                dynamically_consistent_end_eff_trajectory_.calculate_t_min(
+                    right_foot_position_,
+                    right_foot_velocity_,
+                    is_left_leg_in_contact_);
         else
-            new_t_min = new_end_eff_trajectory_3d_.calculate_t_min(
-                left_foot_position_,
-                left_foot_velocity_,
-                is_left_leg_in_contact_);
+            new_t_min =
+                dynamically_consistent_end_eff_trajectory_.calculate_t_min(
+                    left_foot_position_,
+                    left_foot_velocity_,
+                    is_left_leg_in_contact_);
     }
     dcm_vrp_planner_.update(current_support_foot_position_,
                             time_from_last_step_touchdown_,
@@ -320,26 +324,27 @@ bool DcmReactiveStepper::walk(
         // flying foot is the right foot
         if (new_)
         {
-            succeed = succeed && new_end_eff_trajectory_3d_.compute(
-                                     previous_support_foot_position_,
-                                     right_foot_position_,
-                                     right_foot_velocity_,
-                                     next_support_foot_position_,
-                                     start_time,
-                                     current_time,
-                                     end_time,
-                                     is_left_leg_in_contact_);
-            nb_force_ =
-                new_end_eff_trajectory_3d_.get_forces(forces_,
-                                                      right_foot_position_,
-                                                      right_foot_velocity_,
-                                                      right_foot_acceleration_);
-            Eigen::Vector3d slack =
-                new_end_eff_trajectory_3d_.get_slack_variables();
+            succeed =
+                succeed && dynamically_consistent_end_eff_trajectory_.compute(
+                               previous_support_foot_position_,
+                               right_foot_position_,
+                               right_foot_velocity_,
+                               next_support_foot_position_,
+                               start_time,
+                               current_time,
+                               end_time,
+                               is_left_leg_in_contact_);
+            nb_force_ = dynamically_consistent_end_eff_trajectory_.get_forces(
+                forces_,
+                right_foot_position_,
+                right_foot_velocity_,
+                right_foot_acceleration_);
+            Eigen::Vector3d slack = dynamically_consistent_end_eff_trajectory_
+                                        .get_slack_variables();
         }
         else
         {
-            succeed = succeed && end_eff_trajectory_3d_.compute(
+            succeed = succeed && polynomial_end_eff_trajectory_.compute(
                                      previous_support_foot_position_,
                                      right_foot_position_,
                                      right_foot_velocity_,
@@ -348,7 +353,7 @@ bool DcmReactiveStepper::walk(
                                      start_time,
                                      current_time,
                                      end_time);
-            end_eff_trajectory_3d_.get_next_state(
+            polynomial_end_eff_trajectory_.get_next_state(
                 current_time + control_period_,
                 right_foot_position_,
                 right_foot_velocity_,
@@ -364,26 +369,27 @@ bool DcmReactiveStepper::walk(
         // flying foot is the left foot
         if (new_)
         {
-            succeed = succeed && new_end_eff_trajectory_3d_.compute(
-                                     previous_support_foot_position_,
-                                     left_foot_position_,
-                                     left_foot_velocity_,
-                                     next_support_foot_position_,
-                                     start_time,
-                                     current_time,
-                                     end_time,
-                                     is_left_leg_in_contact_);
-            nb_force_ =
-                new_end_eff_trajectory_3d_.get_forces(forces_,
-                                                      left_foot_position_,
-                                                      left_foot_velocity_,
-                                                      left_foot_acceleration_);
-            Eigen::Vector3d slack =
-                new_end_eff_trajectory_3d_.get_slack_variables();
+            succeed =
+                succeed && dynamically_consistent_end_eff_trajectory_.compute(
+                               previous_support_foot_position_,
+                               left_foot_position_,
+                               left_foot_velocity_,
+                               next_support_foot_position_,
+                               start_time,
+                               current_time,
+                               end_time,
+                               is_left_leg_in_contact_);
+            nb_force_ = dynamically_consistent_end_eff_trajectory_.get_forces(
+                forces_,
+                left_foot_position_,
+                left_foot_velocity_,
+                left_foot_acceleration_);
+            Eigen::Vector3d slack = dynamically_consistent_end_eff_trajectory_
+                                        .get_slack_variables();
         }
         else
         {
-            succeed = succeed && end_eff_trajectory_3d_.compute(
+            succeed = succeed && polynomial_end_eff_trajectory_.compute(
                                      previous_support_foot_position_,
                                      left_foot_position_,
                                      left_foot_velocity_,
@@ -392,7 +398,7 @@ bool DcmReactiveStepper::walk(
                                      start_time,
                                      current_time,
                                      end_time);
-            end_eff_trajectory_3d_.get_next_state(
+            polynomial_end_eff_trajectory_.get_next_state(
                 current_time + control_period_,
                 left_foot_position_,
                 left_foot_velocity_,

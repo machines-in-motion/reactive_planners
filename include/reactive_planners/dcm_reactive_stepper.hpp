@@ -12,8 +12,8 @@
 
 #include <iostream>
 #include "reactive_planners/dcm_vrp_planner.hpp"
-#include "reactive_planners/end_effector_trajectory_3d.hpp"
-#include "reactive_planners/new_end_effector_trajectory_3d.hpp"
+#include "reactive_planners/dynamically_consistent_end_effector_trajectory.hpp"
+#include "reactive_planners/polynomial_end_effector_trajectory.hpp"
 #include "reactive_planners/stepper_head.hpp"
 
 namespace reactive_planners
@@ -482,8 +482,9 @@ private:
     bool new_;
 
     /** @brief Computes the end-effector flying trajectory. */
-    EndEffectorTrajectory3D end_eff_trajectory_3d_;
-    NewEndEffectorTrajectory3D new_end_eff_trajectory_3d_;
+    PolynomialEndEffectorTrajectory polynomial_end_eff_trajectory_;
+    DynamicallyConsistentEndEffectorTrajectory
+        dynamically_consistent_end_eff_trajectory_;
 
     /** @brief Is the left foot in contact? otherwise the right foot is. */
     bool is_left_leg_in_contact_;

@@ -19,17 +19,17 @@ namespace reactive_planners
 /**
  * @brief
  */
-class EndEffectorTrajectory3D
+class PolynomialEndEffectorTrajectory
 {
     /*
      * Private methods
      */
 public:
     /** @brief Constructor. */
-    EndEffectorTrajectory3D();
+    PolynomialEndEffectorTrajectory();
 
     /** @brief Destructor. */
-    ~EndEffectorTrajectory3D();
+    ~PolynomialEndEffectorTrajectory();
 
     bool compute(const Eigen::Ref<const Eigen::Vector3d> &start_pose,
                  const Eigen::Ref<const Eigen::Vector3d> &current_pose,
@@ -242,24 +242,24 @@ private:
     Eigen::QuadProgDense qp_solver_;
 
     /** @brief Solution of the optimization problem.
-     * @see EndEffectorTrajectory3D */
+     * @see PolynomialEndEffectorTrajectory */
     Eigen::VectorXd x_opt_;
 
     /** @brief Lower Bound on the solution of the optimization problem.
-     * @see EndEffectorTrajectory3D */
+     * @see PolynomialEndEffectorTrajectory */
     Eigen::VectorXd x_opt_lb_;
 
     /** @brief Upper Bound on the solution of the optimization problem.
-     * @see EndEffectorTrajectory3D */
+     * @see PolynomialEndEffectorTrajectory */
     Eigen::VectorXd x_opt_ub_;
 
     /** @brief Quadratic term of the quadratic cost.
-     * @see EndEffectorTrajectory3D */
+     * @see PolynomialEndEffectorTrajectory */
     Eigen::MatrixXd Q_;
 
     /** @brief Quadratic term added to the quadratic cost in order regularize
      * the system.
-     * @see EndEffectorTrajectory3D */
+     * @see PolynomialEndEffectorTrajectory */
     Eigen::MatrixXd Q_regul_;
 
     /** @brief Cost weights for the X-axis. */
@@ -272,23 +272,23 @@ private:
     double cost_z_;
 
     /** @brief Linear term of the quadratic cost.
-     * @see EndEffectorTrajectory3D */
+     * @see PolynomialEndEffectorTrajectory */
     Eigen::VectorXd q_;
 
     /** @brief Linear equality matrix.
-     * @see EndEffectorTrajectory3D */
+     * @see PolynomialEndEffectorTrajectory */
     Eigen::MatrixXd A_eq_;
 
     /** @brief Linear equality vector.
-     * @see EndEffectorTrajectory3D */
+     * @see PolynomialEndEffectorTrajectory */
     Eigen::VectorXd B_eq_;
 
     /** @brief Linear inequality matrix.
-     * @see EndEffectorTrajectory3D */
+     * @see PolynomialEndEffectorTrajectory */
     Eigen::MatrixXd A_ineq_;
 
     /** @brief Linear inequality vector.
-     * @see EndEffectorTrajectory3D */
+     * @see PolynomialEndEffectorTrajectory */
     Eigen::VectorXd B_ineq_;
 };
 

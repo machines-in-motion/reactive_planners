@@ -45,7 +45,7 @@ def joint_controller(q, desired_q, qdot, desired_qdot, kp, kd, cnt_array):
     return torque
 
 
-class EquationalSpaceDynamics(object):
+class OperationalSpaceDynamics(object):
     def __init__(self, model, endeff_frame_names):
         def getFrameId(name):
             idx = model.getFrameId(name)
@@ -109,20 +109,23 @@ class EquationalSpaceDynamics(object):
             foot_mass[3 * i : 3 * (i + 1), :] = M
         return foot_mass
 
-    def null_space_projection(self, q):
+    def update_null_space_projection(self, q):
         J_c = self.get_world_oriented_frame_jacobian(q, self.stance_id)[:3]
         self.p = np.matrix(eye(self.nv)) - np.matrix(pinv(J_c)) * J_c
         self.pdot = (self.p - self.last_p) * 1000
 
-    def constraint_consistent_inertia(self, q):
+    def update_constraint_consistent_inertia(self, q):
         mass_matrix = se3.crba(self.model, self.data, q)
         self.m_c = self.p * mass_matrix + eye(self.nv) - self.p
 
-    def Constrained_swing_foot_inertia(self, q):
+    def update_constrained_swing_foot_inertia(self, q):
         self.null_space_projection(q)
         self.constraint_consistent_inertia(q)
         J = self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3]
         self.lambda_c = inv(J * inv(self.m_c) * self.p * J.T)
+
+    def constrained_swing_foot_inertia(self, q):
+        self.update_constrained_swing_foot_inertia(q)
         return self.lambda_c
 
     def update_c(self, freq=1000):
@@ -143,7 +146,7 @@ class EquationalSpaceDynamics(object):
         return self.lambda_c * J * inv(self.m_c) * self.p * h
 
     def projected_gravity(self, q, qdot):
-        self.Constrained_swing_foot_inertia(q)
+        self.update_constrained_swing_foot_inertia(q)
         J = np.matrix(
             self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3]
         )
@@ -159,7 +162,7 @@ class EquationalSpaceDynamics(object):
         return (self.xdot - self.last_xdot) * 1000
 
     def projected_nonlinear_terms_v(self, q, qdot):
-        self.Constrained_swing_foot_inertia(q)
+        self.update_onstrained_swing_foot_inertia(q)
         self.update_c()
         J = self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3]
         return (
@@ -273,8 +276,8 @@ class EquationalSpaceDynamics(object):
 
         return result
 
-    def equation_fifteen(self, q, qdot):  # second article
-        self.Constrained_swing_foot_inertia(q)
+    def evaluate_swing_force_boundaries(self, q, qdot):
+        self.update_constrained_swing_foot_inertia(q)
         self.update_c()
         J = np.matrix(
             self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3]
@@ -396,6 +399,7 @@ def plot(f):
 def dist(a, b):
     return sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2)
 
+
 def closed_loop():
     global open_loop
     open_loop = False
@@ -405,6 +409,7 @@ def closed_loop():
     else:
         dcm_reactive_stepper.set_left_foot_position(left_foot_location)
         dcm_reactive_stepper.set_left_foot_velocity(left_foot_vel)
+
 
 def detect_contact():
     for contact in p.getContactPoints():
@@ -475,6 +480,7 @@ def plot_all_contact_points():
     dcm_reactive_stepper.dcm_vrp_planner_initialization(
         l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight
     )
+
 
 def external_force(com):
     force = np.array(
@@ -666,11 +672,11 @@ if __name__ == "__main__":
     dcm_force = [0.0, 0.0, 0.0]
     offset = 0.0171
     dcm_reactive_stepper.start()
-    inv_kin = EquationalSpaceDynamics(
+    inv_kin = OperationalSpaceDynamics(
         robot.pin_robot.model, robot.end_effector_names
     )
 
-    for i in range(5005):  # data#1466):#1500):
+    for i in range(5005):
         last_qdot = qdot
         q, qdot = robot.get_state()
         robot.pin_robot.com(q, qdot)
@@ -718,13 +724,13 @@ if __name__ == "__main__":
             # # print(inv_kin.foot_mass_matrix(m_q))
             # if dcm_reactive_stepper.get_is_left_leg_in_contact() == 1:
             #     plt_foot_mass_r.append(inv_kin.foot_mass_matrix(m_q)[3:6])
-            #     plt_eq_11_r.append(inv_kin.Constrained_swing_foot_inertia(m_q))
+            #     plt_eq_11_r.append(inv_kin.constrained_swing_foot_inertia(m_q))
             #     plt_time_r.append(dcm_reactive_stepper.get_time_from_last_step_touchdown())
             # else:
             #     plt_foot_mass_l.append(inv_kin.foot_mass_matrix(m_q)[:3])
-            #     plt_eq_11_l.append(inv_kin.Constrained_swing_foot_inertia(m_q))
+            #     plt_eq_11_l.append(inv_kin.constrained_swing_foot_inertia(m_q))
             #     plt_time_l.append(dcm_reactive_stepper.get_time_from_last_step_touchdown())
-            # # print(inv_kin.Constrained_swing_foot_inertia(m_q).dot(inv_kin.xddot(m_q, m_qdot)))
+            # # print(inv_kin.constrained_swing_foot_inertia(m_q).dot(inv_kin.xddot(m_q, m_qdot)))
             #
             # contact_array = [0, 0]
             # left = bolt_leg_ctrl.imps[0]
@@ -737,24 +743,24 @@ if __name__ == "__main__":
             #     plt_eq_h.append(inv_kin.projected_nonlinear_terms_h(m_q, m_qdot))
             #     plt_eq_g.append(inv_kin.projected_gravity(m_q, m_qdot))
             #     plt_eq_qdot.append(inv_kin.projected_nonlinear_terms_v(m_q, m_qdot))
-            #     plt_eq_qddot.append(inv_kin.Constrained_swing_foot_inertia(m_q).dot(inv_kin.xddot(m_q, m_qdot)))
+            #     plt_eq_qddot.append(inv_kin.constrained_swing_foot_inertia(m_q).dot(inv_kin.xddot(m_q, m_qdot)))
             #     plt_F_M.append(MM.dot(inv_kin.xddot(m_q, m_qdot)))
             #     plt_F_M_new.append(M.dot(inv_kin.xddot(m_q, m_qdot)))
             #     plt_time_all.append(dcm_reactive_stepper.get_time_from_last_step_touchdown())#if you uncomment this line, you should comment below similar line
             # else:
             #     inv_kin.projected_nonlinear_terms_h(m_q, m_qdot)
             #     inv_kin.projected_nonlinear_terms_v(m_q, m_qdot)
-            #     inv_kin.Constrained_swing_foot_inertia(m_q).dot(inv_kin.xddot(m_q, m_qdot))
+            #     inv_kin.constrained_swing_foot_inertia(m_q).dot(inv_kin.xddot(m_q, m_qdot))
             #     dcm_reactive_stepper.get_time_from_last_step_touchdown()
             #
             # contact_array = [0, 0]
-            # s = inv_kin.equation_fifteen(m_q, m_qdot)
+            # s = inv_kin.evaluate_swing_force_boundaries(m_q, m_qdot)
             # if s[0].item() > 0.00001:
-            #     plt_eq_fifteen.append(inv_kin.equation_fifteen(m_q, m_qdot))
+            #     plt_eq_fifteen.append(inv_kin.evaluate_swing_force_boundaries(m_q, m_qdot))
             #     # plt_time_all.append(dcm_reactive_stepper.get_time_from_last_step_touchdown())#if you uncomment this line, you should comment above similar line
             #
-            # # if(len(inv_kin.equation_fifteen(m_q, m_qdot) != 6)):
-            # #     print(inv_kin.equation_fifteen(m_q, m_qdot))
+            # # if(len(inv_kin.evaluate_swing_force_boundaries(m_q, m_qdot) != 6)):
+            # #     print(inv_kin.evaluate_swing_force_boundaries(m_q, m_qdot))
             # ##### mass matrix done
 
             left = bolt_leg_ctrl.imp_ctrl_array[0]

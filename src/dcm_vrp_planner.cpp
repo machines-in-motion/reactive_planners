@@ -74,7 +74,7 @@ void DcmVrpPlanner::initialize(
     q_.resize(nb_var_);
     q_.setZero();
 
-    nb_eq_ = 3;
+    nb_eq_ = 2;
     A_eq_.resize(nb_eq_, nb_var_);
     A_eq_.setZero();
     B_eq_.resize(nb_eq_);
@@ -236,11 +236,9 @@ void DcmVrpPlanner::update(
 
     // clang-format off
     A_eq_ << 1.0, 0.0, -1.0 * tmp0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-             0.0, 1.0, -1.0 * tmp1, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
-             0.0, 0.0,  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+             0.0, 1.0, -1.0 * tmp1, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0;
 
     B_eq_ << 0.0,
-             0.0,
              0.0;
     // clang-format on
 }
@@ -327,10 +325,10 @@ bool DcmVrpPlanner::internal_checks()
                     by_max_in_) assert_DcmVrpPlanner(Q_.rows() == x_opt_.size())
                     assert_DcmVrpPlanner(Q_.cols() == x_opt_.size())
                         assert_DcmVrpPlanner(q_.size() == x_opt_.size())
-                            assert_DcmVrpPlanner(A_eq_.rows() == 3)
+                            assert_DcmVrpPlanner(A_eq_.rows() == 2)
                                 assert_DcmVrpPlanner(A_eq_.cols() ==
                                                      x_opt_.size())
-                                    assert_DcmVrpPlanner(B_eq_.size() == 3)
+                                    assert_DcmVrpPlanner(B_eq_.size() == 2)
                                         assert_DcmVrpPlanner(A_ineq_.rows() ==
                                                              10)
                                             assert_DcmVrpPlanner(

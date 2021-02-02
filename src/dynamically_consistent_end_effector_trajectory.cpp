@@ -4,15 +4,17 @@
  * @copyright Copyright (c) 2020, New York University and Max Planck
  * Gesellschaft
  *
- * @brief Implement the reactive_planners::NewEndEffectorTrajectory3D class
+ * @brief Implement the
+ * reactive_planners::DynamicallyConsistentEndEffectorTrajectory class
  */
 
-#include "reactive_planners/new_end_effector_trajectory_3d.hpp"
+#include "reactive_planners/dynamically_consistent_end_effector_trajectory.hpp"
 #include <iostream>
 
 namespace reactive_planners
 {
-NewEndEffectorTrajectory3D::NewEndEffectorTrajectory3D()
+DynamicallyConsistentEndEffectorTrajectory::
+    DynamicallyConsistentEndEffectorTrajectory()
 {
     // Constant problem parameter.
     mid_air_height_ = 0.05;
@@ -88,9 +90,11 @@ NewEndEffectorTrajectory3D::NewEndEffectorTrajectory3D()
     init_acceleration_velocity_terms();
 }
 
-NewEndEffectorTrajectory3D::~NewEndEffectorTrajectory3D() = default;
+DynamicallyConsistentEndEffectorTrajectory::
+    ~DynamicallyConsistentEndEffectorTrajectory() = default;
 
-void NewEndEffectorTrajectory3D::init_acceleration_velocity_terms()
+void DynamicallyConsistentEndEffectorTrajectory::
+    init_acceleration_velocity_terms()
 {
     position_terms_F_x_ = new Eigen::MatrixXd[2];
     position_terms_F_y_ = new Eigen::MatrixXd[2];
@@ -191,7 +195,7 @@ void NewEndEffectorTrajectory3D::init_acceleration_velocity_terms()
     }
 }
 
-double NewEndEffectorTrajectory3D::calculate_t_min(
+double DynamicallyConsistentEndEffectorTrajectory::calculate_t_min(
     const Eigen::Ref<const Eigen::Vector3d>& current_pose,
     const Eigen::Ref<const Eigen::Vector3d>& current_velocity,
     const bool& is_left_leg_in_contact)
@@ -255,7 +259,7 @@ double NewEndEffectorTrajectory3D::calculate_t_min(
     return index * planner_loop_;
 }
 
-bool NewEndEffectorTrajectory3D::compute(
+bool DynamicallyConsistentEndEffectorTrajectory::compute(
     const Eigen::Ref<const Eigen::Vector3d>& start_pose,
     const Eigen::Ref<const Eigen::Vector3d>& current_pose,
     const Eigen::Ref<const Eigen::Vector3d>& current_velocity,
@@ -521,23 +525,24 @@ bool NewEndEffectorTrajectory3D::compute(
     if (!qp_solver_.solve(Q_, q_, A_eq_, B_eq_, A_ineq_, B_ineq_))
     {
         std::string error =
-            "NewEndEffectorTrajectory3D::compute(): "
+            "DynamicallyConsistentEndEffectorTrajectory::compute(): "
             "failed to solve the QP.";
         std::cout << RED << "Error: " << error << RESET << std::endl;
         // https://github.com/jrl-umi3218/eigen-quadprog/blob/master/src/QuadProg/c/solve.QP.compact.c#L94
         if (qp_solver_.fail() == 1)
         {
-            std::cout
-                << RED
-                << "NewEndEffectorTrajectory3D::compute -> the minimization "
-                   "problem has no "
-                   "solution!"
-                << RESET << std::endl;
+            std::cout << RED
+                      << "DynamicallyConsistentEndEffectorTrajectory::compute "
+                         "-> the minimization "
+                         "problem has no "
+                         "solution!"
+                      << RESET << std::endl;
         }
         else
         {
             std::cout << RED
-                      << "NewEndEffectorTrajectory3D::compute -> problems with "
+                      << "DynamicallyConsistentEndEffectorTrajectory::compute "
+                         "-> problems with "
                          "decomposing D!"
                       << RESET << std::endl;
         }
@@ -546,7 +551,7 @@ bool NewEndEffectorTrajectory3D::compute(
     return true;
 }
 
-int NewEndEffectorTrajectory3D::get_forces(
+int DynamicallyConsistentEndEffectorTrajectory::get_forces(
     Eigen::Ref<Eigen::VectorXd> forces,
     Eigen::Ref<Eigen::Vector3d> next_pose,
     Eigen::Ref<Eigen::Vector3d> next_velocity,
@@ -606,7 +611,7 @@ int NewEndEffectorTrajectory3D::get_forces(
     return nb_local_sampling_time_ * 3;
 }
 
-void NewEndEffectorTrajectory3D::update_robot_status(
+void DynamicallyConsistentEndEffectorTrajectory::update_robot_status(
     Eigen::Ref<Eigen::Vector3d> next_pose,
     Eigen::Ref<Eigen::Vector3d> next_velocity,
     Eigen::Ref<Eigen::Vector3d> next_acceleration)
@@ -647,7 +652,7 @@ void NewEndEffectorTrajectory3D::update_robot_status(
             current_velocity_(2) * control_loop_ + current_pose_(2);
 }
 
-std::string NewEndEffectorTrajectory3D::to_string() const
+std::string DynamicallyConsistentEndEffectorTrajectory::to_string() const
 {
     std::ostringstream oss;
     oss << "Solver info:" << std::endl;
@@ -669,7 +674,7 @@ std::string NewEndEffectorTrajectory3D::to_string() const
     return oss.str();
 }
 
-void NewEndEffectorTrajectory3D::print_solver() const
+void DynamicallyConsistentEndEffectorTrajectory::print_solver() const
 {
     std::cout << to_string() << std::endl;
 }

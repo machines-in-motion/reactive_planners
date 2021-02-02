@@ -37,8 +37,10 @@ find_package(Eigen3 REQUIRED)
 
 # Source files.
 set(main_lib_src
-    src/stepper_head.cpp src/dcm_vrp_planner.cpp
-    src/end_effector_trajectory_3d.cpp src/new_end_effector_trajectory_3d.cpp
+    src/stepper_head.cpp
+    src/dcm_vrp_planner.cpp
+    src/polynomial_end_effector_trajectory.cpp
+    src/dynamically_consistent_end_effector_trajectory.cpp
     src/dcm_reactive_stepper.cpp)
 # Create library target.
 add_library(${PROJECT_NAME} SHARED ${main_lib_src})
@@ -81,7 +83,7 @@ install_scripts(
 #
 set(py_lib_src
     srcpy/reactive_planners srcpy/stepper_head.cpp srcpy/dcm_vrp_planner.cpp
-    srcpy/end_effector_trajectory_3d.cpp srcpy/dcm_reactive_stepper.cpp)
+    srcpy/polynomial_end_effector_trajectory.cpp srcpy/dcm_reactive_stepper.cpp)
 pybind11_add_module(${PROJECT_NAME}_python_binding MODULE ${py_lib_src})
 target_include_directories(
   ${PROJECT_NAME}_python_binding

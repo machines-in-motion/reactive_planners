@@ -27,17 +27,17 @@ namespace reactive_planners
 /**
  * @brief
  */
-class NewEndEffectorTrajectory3D
+class DynamicallyConsistentEndEffectorTrajectory
 {
     /*
      * Private methods
      */
 public:
     /** @brief Constructor. */
-    NewEndEffectorTrajectory3D();
+    DynamicallyConsistentEndEffectorTrajectory();
 
     /** @brief Destructor. */
-    ~NewEndEffectorTrajectory3D();
+    ~DynamicallyConsistentEndEffectorTrajectory();
 
     bool compute(const Eigen::Ref<const Eigen::Vector3d>& start_pose,
                  const Eigen::Ref<const Eigen::Vector3d>& current_pose,
@@ -272,18 +272,18 @@ private:
     Eigen::QuadProgDense qp_solver_t_min_;
 
     /** @brief Solution of the optimization problem.
-     * @see NewEndEffectorTrajectory3D */
+     * @see DynamicallyConsistentEndEffectorTrajectory */
     Eigen::VectorXd x_opt_;
 
     /** @brief Quadratic term of the quadratic cost.
-     * @see NewEndEffectorTrajectory3D */
+     * @see DynamicallyConsistentEndEffectorTrajectory */
     Eigen::MatrixXd Q_;
     /** @brief Quadratic term of the quadratic cost.
-     * @see NewEndEffectorTrajectory3D */
+     * @see DynamicallyConsistentEndEffectorTrajectory */
     Eigen::MatrixXd Q_t_min_;
 
     /** @brief inverse estimation of mass matrix.
-     * @see NewEndEffectorTrajectory3D */
+     * @see DynamicallyConsistentEndEffectorTrajectory */
     Eigen::MatrixXd* M_inv_;
 
     /** @brief Is the left foot in contact? otherwise the right foot is. */
@@ -291,7 +291,7 @@ private:
 
     /** @brief Quadratic term added to the quadratic cost in order regularize
      * the system.
-     * @see NewEndEffectorTrajectory3D */
+     * @see DynamicallyConsistentEndEffectorTrajectory */
     Eigen::MatrixXd Q_regul_;
 
     /** @brief Cost weights for forces. */
@@ -313,43 +313,43 @@ private:
     double cost_epsilon_vel_;
 
     /** @brief Linear term of the quadratic cost.
-     * @see NewEndEffectorTrajectory3D */
+     * @see DynamicallyConsistentEndEffectorTrajectory */
     Eigen::VectorXd q_;
 
     /** @brief Linear equality matrix.
-     * @see NewEndEffectorTrajectory3D */
+     * @see DynamicallyConsistentEndEffectorTrajectory */
     Eigen::MatrixXd A_eq_;
 
     /** @brief Linear equality vector.
-     * @see NewEndEffectorTrajectory3D */
+     * @see DynamicallyConsistentEndEffectorTrajectory */
     Eigen::VectorXd B_eq_;
 
     /** @brief Linear inequality matrix.
-     * @see NewEndEffectorTrajectory3D */
+     * @see DynamicallyConsistentEndEffectorTrajectory */
     Eigen::MatrixXd A_ineq_;
 
     /** @brief Linear inequality vector.
-     * @see NewEndEffectorTrajectory3D */
+     * @see DynamicallyConsistentEndEffectorTrajectory */
     Eigen::VectorXd B_ineq_;
 
     /** @brief Linear term of the quadratic cost.
-     * @see NewEndEffectorTrajectory3D */
+     * @see DynamicallyConsistentEndEffectorTrajectory */
     Eigen::VectorXd q_t_min_;
 
     /** @brief Linear equality matrix.
-     * @see NewEndEffectorTrajectory3D */
+     * @see DynamicallyConsistentEndEffectorTrajectory */
     Eigen::MatrixXd A_eq_t_min_;
 
     /** @brief Linear equality vector.
-     * @see NewEndEffectorTrajectory3D */
+     * @see DynamicallyConsistentEndEffectorTrajectory */
     Eigen::VectorXd B_eq_t_min_;
 
     /** @brief Linear inequality matrix.
-     * @see NewEndEffectorTrajectory3D */
+     * @see DynamicallyConsistentEndEffectorTrajectory */
     Eigen::MatrixXd A_ineq_t_min_;
 
     /** @brief Linear inequality vector.
-     * @see NewEndEffectorTrajectory3D */
+     * @see DynamicallyConsistentEndEffectorTrajectory */
     Eigen::VectorXd B_ineq_t_min_;
 };
 

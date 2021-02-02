@@ -4,15 +4,15 @@
  * @copyright Copyright (c) 2020, New York University and Max Planck
  * Gesellschaft
  *
- * @brief Implement the reactive_planners::EndEffectorTrajectory3D class
+ * @brief Implement the reactive_planners::PolynomialEndEffectorTrajectory class
  */
 
-#include "reactive_planners/end_effector_trajectory_3d.hpp"
+#include "reactive_planners/polynomial_end_effector_trajectory.hpp"
 #include <iostream>
 
 namespace reactive_planners
 {
-EndEffectorTrajectory3D::EndEffectorTrajectory3D()
+PolynomialEndEffectorTrajectory::PolynomialEndEffectorTrajectory()
 {
     // Constant problem parameter.
     mid_air_height_ = 0.05;
@@ -72,9 +72,9 @@ EndEffectorTrajectory3D::EndEffectorTrajectory3D()
     qp_solver_.problem(nb_var_, nb_eq_, nb_ineq_);
 }
 
-EndEffectorTrajectory3D::~EndEffectorTrajectory3D() = default;
+PolynomialEndEffectorTrajectory::~PolynomialEndEffectorTrajectory() = default;
 
-bool EndEffectorTrajectory3D::compute(
+bool PolynomialEndEffectorTrajectory::compute(
     const Eigen::Ref<const Eigen::Vector3d>& start_pose,
     const Eigen::Ref<const Eigen::Vector3d>& current_pose,
     const Eigen::Ref<const Eigen::Vector3d>& current_velocity,
@@ -225,30 +225,32 @@ bool EndEffectorTrajectory3D::compute(
     if (!qp_solver_.solve(Q_, q_, A_eq_, B_eq_, A_ineq_, B_ineq_))
     {
         std::string error =
-            "EndEffectorTrajectory3D::compute(): "
+            "PolynomialEndEffectorTrajectory::compute(): "
             "failed to solve the QP.";
         std::cout << "Error: " << error << std::endl;
 
         // https://github.com/jrl-umi3218/eigen-quadprog/blob/master/src/QuadProg/c/solve.QP.compact.c#L94
         if (qp_solver_.fail() == 1)
         {
-            std::cout << "EndEffectorTrajectory3D::compute -> the minimization "
+            std::cout << "PolynomialEndEffectorTrajectory::compute -> the "
+                         "minimization "
                          "problem has no "
                          "solution!"
                       << std::endl;
         }
         else
         {
-            std::cout << "EndEffectorTrajectory3D::compute -> problems with "
-                         "decomposing D!"
-                      << std::endl;
+            std::cout
+                << "PolynomialEndEffectorTrajectory::compute -> problems with "
+                   "decomposing D!"
+                << std::endl;
         }
         return false;
     }
     return true;
 }
 
-void EndEffectorTrajectory3D::get_next_state(
+void PolynomialEndEffectorTrajectory::get_next_state(
     const double& next_time,
     Eigen::Ref<Eigen::Vector3d> next_pose,
     Eigen::Ref<Eigen::Vector3d> next_velocity,
@@ -302,7 +304,7 @@ void EndEffectorTrajectory3D::get_next_state(
     previous_solution_pose_ = next_pose;
 }
 
-std::string EndEffectorTrajectory3D::to_string() const
+std::string PolynomialEndEffectorTrajectory::to_string() const
 {
     std::ostringstream oss;
     oss << "Solver info:" << std::endl;
@@ -324,7 +326,7 @@ std::string EndEffectorTrajectory3D::to_string() const
     return oss.str();
 }
 
-void EndEffectorTrajectory3D::print_solver() const
+void PolynomialEndEffectorTrajectory::print_solver() const
 {
     std::cout << to_string() << std::endl;
 }
