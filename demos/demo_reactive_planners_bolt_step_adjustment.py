@@ -19,8 +19,8 @@ import pinocchio as se3
 from pinocchio import RobotWrapper
 from pinocchio.utils import zero, eye
 from scipy.spatial.transform import Rotation as R
-from numpy.linalg import inv, det, pinv
-from math import sqrt, sin, cos, pi
+from numpy.linalg import inv, pinv
+from math import sqrt
 from random import random
 from bullet_utils.env import BulletEnvWithGround
 
@@ -45,7 +45,7 @@ def joint_controller(q, desired_q, qdot, desired_qdot, kp, kd, cnt_array):
     return torque
 
 
-class PointContactInverseKinematics(object):
+class EquationalSpaceDynamics(object):
     def __init__(self, model, endeff_frame_names):
         def getFrameId(name):
             idx = model.getFrameId(name)
@@ -78,6 +78,7 @@ class PointContactInverseKinematics(object):
             :3
         ].dot(qdot)[:3]
         self.last_xdot = self.xdot
+        self.mu = 0.5
 
         # Allocate space for the jacobian and desired velocities.
         # Using two entires for the linear and angular velocity of the base.
@@ -108,30 +109,30 @@ class PointContactInverseKinematics(object):
             foot_mass[3 * i : 3 * (i + 1), :] = M
         return foot_mass
 
-    def update_p(self, q):
+    def null_space_projection(self, q):
         J_c = self.get_world_oriented_frame_jacobian(q, self.stance_id)[:3]
         self.p = np.matrix(eye(self.nv)) - np.matrix(pinv(J_c)) * J_c
         self.pdot = (self.p - self.last_p) * 1000
 
-    def update_m_c(self, q):
+    def constraint_consistent_inertia(self, q):
         mass_matrix = se3.crba(self.model, self.data, q)
         self.m_c = self.p * mass_matrix + eye(self.nv) - self.p
 
-    def equation_eleven_mass_matrix(self, q):
-        self.update_p(q)
-        self.update_m_c(q)
+    def Constrained_swing_foot_inertia(self, q):
+        self.null_space_projection(q)
+        self.constraint_consistent_inertia(q)
         J = self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3]
         self.lambda_c = inv(J * inv(self.m_c) * self.p * J.T)
         return self.lambda_c
 
-    def update_c(self):
+    def update_c(self, freq=1000):
         J_c = np.matrix(
             self.get_world_oriented_frame_jacobian(q, self.stance_id)[:3]
         )
-        self.J_dot = (J_c - self.last_J_c) * 1000
+        self.J_dot = (J_c - self.last_J_c) * freq
         self.c = -pinv(J_c) * self.J_dot
 
-    def equation_eleven_h(self, q, qdot):
+    def projected_nonlinear_terms_h(self, q, qdot):
         self.equation_eleven_mass_matrix(q)
         J = np.matrix(
             self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3]
@@ -141,8 +142,8 @@ class PointContactInverseKinematics(object):
         ).transpose()
         return self.lambda_c * J * inv(self.m_c) * self.p * h
 
-    def equation_eleven_g(self, q, qdot):
-        self.equation_eleven_mass_matrix(q)
+    def projected_gravity(self, q, qdot):
+        self.Constrained_swing_foot_inertia(q)
         J = np.matrix(
             self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3]
         )
@@ -157,8 +158,8 @@ class PointContactInverseKinematics(object):
         ].dot(qdot)[:3]
         return (self.xdot - self.last_xdot) * 1000
 
-    def equation_eleven_q_dot(self, q, qdot):
-        self.equation_eleven_mass_matrix(q)
+    def projected_nonlinear_terms_v(self, q, qdot):
+        self.Constrained_swing_foot_inertia(q)
         self.update_c()
         J = self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3]
         return (
@@ -177,7 +178,7 @@ class PointContactInverseKinematics(object):
             index,
         )
 
-    def QP(self, h, B, t, q, qdot):  # equation 38
+    def swing_force_boundaries(self, h, B, t, q, qdot):  # equation 38
         I = np.matrix(eye(self.nv))
         M = np.matrix(se3.crba(self.robot.model, self.robot.data, q))
         J_c = np.matrix(
@@ -198,7 +199,6 @@ class PointContactInverseKinematics(object):
                 + M * inv(self.m_c) * self.pdot * qdot
             )
         )
-        mu = 0.5
         Q = np.eye(12) * 0.000001
         # p = np.zeros(12)
         p = np.array([1.0 for i in range(12)])
@@ -215,22 +215,22 @@ class PointContactInverseKinematics(object):
 
         for i in range(12):
             G[0, i] = (
-                sqrt(2) / 2 * mu * eta[2, i]
+                sqrt(2) / 2 * self.mu * eta[2, i]
             )  # -sqrt(2) / 2 * (eta_z + rho_z) <= eta_x + rho_x
             G[0, i] -= eta[0, i]
 
             G[1, i] = (
-                sqrt(2) / 2 * mu * eta[2, i]
+                sqrt(2) / 2 * self.mu * eta[2, i]
             )  # eta_x + rho_x <= sqrt(2) / 2 * (eta_z + rho_z)
             G[1, i] += eta[0, i]
 
             G[2, i] = (
-                sqrt(2) / 2 * mu * eta[2, i]
+                sqrt(2) / 2 * self.mu * eta[2, i]
             )  # -sqrt(2) / 2 * (eta_z + rho_z) <= eta_y + rho_y
             G[2, i] += -eta[1, i]
 
             G[3, i] = (
-                sqrt(2) / 2 * mu * eta[2, i]
+                sqrt(2) / 2 * self.mu * eta[2, i]
             )  # eta_y + rho_y <= sqrt(2) / 2 * (eta_z + rho_z)
             G[3, i] += eta[1, i]
 
@@ -243,10 +243,10 @@ class PointContactInverseKinematics(object):
         G[4 + 12 * 2, :] = eta[2, :]
         h[4 + 12 * 2] = -rho[2]
 
-        h[0] = rho[0] - sqrt(2) / 2 * mu * rho[2]
-        h[1] = -rho[0] - sqrt(2) / 2 * mu * rho[2]
-        h[2] = rho[1] - sqrt(2) / 2 * mu * rho[2]
-        h[3] = -rho[1] - sqrt(2) / 2 * mu * rho[2]
+        h[0] = rho[0] - sqrt(2) / 2 * self.mu * rho[2]
+        h[1] = -rho[0] - sqrt(2) / 2 * self.mu * rho[2]
+        h[2] = rho[1] - sqrt(2) / 2 * self.mu * rho[2]
+        h[3] = -rho[1] - sqrt(2) / 2 * self.mu * rho[2]
 
         alpha = self.lambda_c * J_X * inv(self.m_c) * self.p * B
 
@@ -274,7 +274,7 @@ class PointContactInverseKinematics(object):
         return result
 
     def equation_fifteen(self, q, qdot):  # second article
-        self.equation_eleven_mass_matrix(q)
+        self.Constrained_swing_foot_inertia(q)
         self.update_c()
         J = np.matrix(
             self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3]
@@ -285,7 +285,7 @@ class PointContactInverseKinematics(object):
         B = np.zeros((self.nv, self.nv))
         B[6:, 6:] = eye(self.nv - 6)
         t = 2
-        tau = self.QP(h, B, t, q, qdot)
+        tau = self.swing_force_boundaries(h, B, t, q, qdot)
         tau = tau.T
         return tau
 
@@ -396,7 +396,6 @@ def plot(f):
 def dist(a, b):
     return sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2)
 
-
 def closed_loop():
     global open_loop
     open_loop = False
@@ -406,7 +405,6 @@ def closed_loop():
     else:
         dcm_reactive_stepper.set_left_foot_position(left_foot_location)
         dcm_reactive_stepper.set_left_foot_velocity(left_foot_vel)
-
 
 def detect_contact():
     for contact in p.getContactPoints():
@@ -478,14 +476,6 @@ def plot_all_contact_points():
         l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight
     )
 
-
-def parabola(collisionFramePosition, halfExtents, x_angles=30, y_angles=30):
-    collisionFrameOrientation = R.from_euler(
-        "zyx", [[0, 0, 0], [0, -y_angles, 0], [-x_angles, 0, 0]], degrees=True
-    ).as_quat()[:]
-    create_box(halfExtents, collisionFramePosition, collisionFrameOrientation)
-
-
 def external_force(com):
     force = np.array(
         [
@@ -540,22 +530,6 @@ if __name__ == "__main__":
     M = np.matrix([[0.045, 0.0, 0.0], [0.0, 0.045, 0.0], [0.0, 0.0, 0.09]])
 
     # p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "new_traj_obj_fall_2.mp4")
-
-    ## create obtacles
-    # parabola([0., 0., 0], [.2, .4, 0.00001], 0, 0)
-    # parabola([0.35, -0.1, 0.025], [.1, .1, 0.00001], 90, 00)
-    # parabola([0.55, 0.1, 0.05], [.1, .1, 0.00001], 0, 0)
-    # parabola([0.85, -0.1, 0.075], [.1, .1, 0.00001], 0, 0)
-    # parabola([1., 0., 0.1], [.2, .4, 0.00001], 0, 0)
-    # create_box([0.05, 0.4, 0.01], [0.15, 0., 0.])
-    # create_box([0.05, 0.2, 0.02], [0.1, -0.1, 0.])
-    # create_box([0.06, 0.4, 0.03], [0.25, 0.1, 0.])
-    # create_box([0.25, 0.1, 0.01], [0.25, 0.15, 0.])
-    # create_box([0.08, 0.4, 0.01], [0.15, 0., 0.])
-    # create_box([0.05, 0.2, 0.02], [0.1, -0.1, 0.])
-    # create_box([0.03, 0.4, 0.03], [0.3, 0.1, 0.])
-    # create_box([0.25, 0.1, 0.01], [0.25, 0.15, 0.])
-
     q = np.matrix(BoltConfig.initial_configuration).T
     qdot = np.matrix(BoltConfig.initial_velocity).T
     robot.reset_state(q, qdot)
@@ -692,7 +666,7 @@ if __name__ == "__main__":
     dcm_force = [0.0, 0.0, 0.0]
     offset = 0.0171
     dcm_reactive_stepper.start()
-    inv_kin = PointContactInverseKinematics(
+    inv_kin = EquationalSpaceDynamics(
         robot.pin_robot.model, robot.end_effector_names
     )
 
@@ -744,13 +718,13 @@ if __name__ == "__main__":
             # # print(inv_kin.foot_mass_matrix(m_q))
             # if dcm_reactive_stepper.get_is_left_leg_in_contact() == 1:
             #     plt_foot_mass_r.append(inv_kin.foot_mass_matrix(m_q)[3:6])
-            #     plt_eq_11_r.append(inv_kin.equation_eleven_mass_matrix(m_q))
+            #     plt_eq_11_r.append(inv_kin.Constrained_swing_foot_inertia(m_q))
             #     plt_time_r.append(dcm_reactive_stepper.get_time_from_last_step_touchdown())
             # else:
             #     plt_foot_mass_l.append(inv_kin.foot_mass_matrix(m_q)[:3])
-            #     plt_eq_11_l.append(inv_kin.equation_eleven_mass_matrix(m_q))
+            #     plt_eq_11_l.append(inv_kin.Constrained_swing_foot_inertia(m_q))
             #     plt_time_l.append(dcm_reactive_stepper.get_time_from_last_step_touchdown())
-            # # print(inv_kin.equation_eleven_mass_matrix(m_q).dot(inv_kin.xddot(m_q, m_qdot)))
+            # # print(inv_kin.Constrained_swing_foot_inertia(m_q).dot(inv_kin.xddot(m_q, m_qdot)))
             #
             # contact_array = [0, 0]
             # left = bolt_leg_ctrl.imps[0]
@@ -760,17 +734,17 @@ if __name__ == "__main__":
             # detect_contact()
             # if 0.003 < dcm_reactive_stepper.get_time_from_last_step_touchdown() and\
             #     contact_array[dcm_reactive_stepper.get_is_left_leg_in_contact()] == 0:
-            #     plt_eq_h.append(inv_kin.equation_eleven_h(m_q, m_qdot))
-            #     plt_eq_g.append(inv_kin.equation_eleven_g(m_q, m_qdot))
-            #     plt_eq_qdot.append(inv_kin.equation_eleven_q_dot(m_q, m_qdot))
-            #     plt_eq_qddot.append(inv_kin.equation_eleven_mass_matrix(m_q).dot(inv_kin.xddot(m_q, m_qdot)))
+            #     plt_eq_h.append(inv_kin.projected_nonlinear_terms_h(m_q, m_qdot))
+            #     plt_eq_g.append(inv_kin.projected_gravity(m_q, m_qdot))
+            #     plt_eq_qdot.append(inv_kin.projected_nonlinear_terms_v(m_q, m_qdot))
+            #     plt_eq_qddot.append(inv_kin.Constrained_swing_foot_inertia(m_q).dot(inv_kin.xddot(m_q, m_qdot)))
             #     plt_F_M.append(MM.dot(inv_kin.xddot(m_q, m_qdot)))
             #     plt_F_M_new.append(M.dot(inv_kin.xddot(m_q, m_qdot)))
             #     plt_time_all.append(dcm_reactive_stepper.get_time_from_last_step_touchdown())#if you uncomment this line, you should comment below similar line
             # else:
-            #     inv_kin.equation_eleven_h(m_q, m_qdot)
-            #     inv_kin.equation_eleven_q_dot(m_q, m_qdot)
-            #     inv_kin.equation_eleven_mass_matrix(m_q).dot(inv_kin.xddot(m_q, m_qdot))
+            #     inv_kin.projected_nonlinear_terms_h(m_q, m_qdot)
+            #     inv_kin.projected_nonlinear_terms_v(m_q, m_qdot)
+            #     inv_kin.Constrained_swing_foot_inertia(m_q).dot(inv_kin.xddot(m_q, m_qdot))
             #     dcm_reactive_stepper.get_time_from_last_step_touchdown()
             #
             # contact_array = [0, 0]
