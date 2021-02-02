@@ -8,7 +8,8 @@
 
 import numpy as np
 
-class LipmSimpulator():
+
+class LipmSimpulator:
     def __init__(self, com_height):
         self.omega = np.sqrt(9.8 / com_height)
         self.last_x_com = np.zeros((3, 1))
@@ -26,17 +27,51 @@ class LipmSimpulator():
             self.last_xd_com[:] = previous_xd_com
         self.u_current_step[:] = u_current_step
 
-        self.x_com[:] = (0.5 * (self.last_x_com - self.u_current_step + (self.last_xd_com / self.omega)) * pow(np.e, (self.omega * time))) + \
-                (0.5 * (self.last_x_com - self.u_current_step - (self.last_xd_com / self.omega)) * pow(np.e, (-self.omega * time))) + \
-                self.u_current_step
-        self.xd_com[:] = (self.omega * 0.5 * (self.last_x_com - self.u_current_step + (self.last_xd_com / self.omega)) *
-                  pow(np.e, (self.omega * time))) - \
-                 (self.omega * 0.5 * (self.last_x_com - self.u_current_step - (self.last_xd_com / self.omega)) *
-                  pow(np.e, (-self.omega * time)))
-        self.xdd_com[:] = (self.omega ** 2) * (self.last_x_com - self.u_current_step)
+        self.x_com[:] = (
+            (
+                0.5
+                * (
+                    self.last_x_com
+                    - self.u_current_step
+                    + (self.last_xd_com / self.omega)
+                )
+                * pow(np.e, (self.omega * time))
+            )
+            + (
+                0.5
+                * (
+                    self.last_x_com
+                    - self.u_current_step
+                    - (self.last_xd_com / self.omega)
+                )
+                * pow(np.e, (-self.omega * time))
+            )
+            + self.u_current_step
+        )
+        self.xd_com[:] = (
+            self.omega
+            * 0.5
+            * (
+                self.last_x_com
+                - self.u_current_step
+                + (self.last_xd_com / self.omega)
+            )
+            * pow(np.e, (self.omega * time))
+        ) - (
+            self.omega
+            * 0.5
+            * (
+                self.last_x_com
+                - self.u_current_step
+                - (self.last_xd_com / self.omega)
+            )
+            * pow(np.e, (-self.omega * time))
+        )
+        self.xdd_com[:] = (self.omega ** 2) * (
+            self.last_x_com - self.u_current_step
+        )
 
         self.x_com[2] = self.last_x_com[2]
         self.xd_com[2] = 0
         self.xdd_com[2] = 0
         return self.x_com, self.xd_com, self.xdd_com
-

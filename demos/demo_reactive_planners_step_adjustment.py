@@ -12,12 +12,34 @@ from reactive_planners import DcmVrpPlanner
 
 
 class StepAdjustment:
-    def __init__(self, is_left_leg_in_contact, l_min, l_max, w_min, w_max , t_min, t_max, l_p, com_height, weight):
-        self.kp = np.array(6 * [200.])
-        self.kd = 6 * [5.]
+    def __init__(
+        self,
+        is_left_leg_in_contact,
+        l_min,
+        l_max,
+        w_min,
+        w_max,
+        t_min,
+        t_max,
+        l_p,
+        com_height,
+        weight,
+    ):
+        self.kp = np.array(6 * [200.0])
+        self.kd = 6 * [5.0]
         self.com_height = com_height
         self.dcm_vrp_planner = DcmVrpPlanner()
-        self.dcm_vrp_planner.initialize(l_min, l_max, w_min, w_max, t_min, t_max, l_p, self.com_height, weight)
+        self.dcm_vrp_planner.initialize(
+            l_min,
+            l_max,
+            w_min,
+            w_max,
+            t_min,
+            t_max,
+            l_p,
+            self.com_height,
+            weight,
+        )
         self.is_left_leg_in_contact = is_left_leg_in_contact
         self.omega = np.sqrt(9.8 / self.com_height)
 
@@ -50,12 +72,17 @@ class StepAdjustment:
         for i in range(1000):
             print(i)
             t += 0.001
-            if i is not 0 and t > self.dcm_vrp_planner.get_duration_before_step_landing():
+            if (
+                i is not 0
+                and t > self.dcm_vrp_planner.get_duration_before_step_landing()
+            ):
                 self.time_step.append(i)
                 last_x_com = x_com
                 last_xd_com = xd_com
-                u_current_step = self.dcm_vrp_planner.get_next_step_location().copy()
-                t = 0.
+                u_current_step = (
+                    self.dcm_vrp_planner.get_next_step_location().copy()
+                )
+                t = 0.0
                 self.is_left_leg_in_contact = not self.is_left_leg_in_contact
 
             # Analytical solution of x and xd (just for testing)
@@ -64,15 +91,42 @@ class StepAdjustment:
             xdPh = xddPh * 0.001 + xd_com
 
             # Numerical solution of x and xd
-            x_com = (0.5 * (last_x_com - u_current_step + (last_xd_com / self.omega)) * pow(np.e, (self.omega * t))) +\
-                    (0.5 * (last_x_com - u_current_step - (last_xd_com / self.omega)) * pow(np.e, (-self.omega * t))) +\
-                    u_current_step
-            xd_com = (self.omega * 0.5 * (last_x_com - u_current_step + (last_xd_com / self.omega)) *
-                      pow(np.e, (self.omega * t))) -\
-                     (self.omega * 0.5 * (last_x_com - u_current_step - (last_xd_com / self.omega)) *
-                      pow(np.e, (-self.omega * t)))
+            x_com = (
+                (
+                    0.5
+                    * (
+                        last_x_com
+                        - u_current_step
+                        + (last_xd_com / self.omega)
+                    )
+                    * pow(np.e, (self.omega * t))
+                )
+                + (
+                    0.5
+                    * (
+                        last_x_com
+                        - u_current_step
+                        - (last_xd_com / self.omega)
+                    )
+                    * pow(np.e, (-self.omega * t))
+                )
+                + u_current_step
+            )
+            xd_com = (
+                self.omega
+                * 0.5
+                * (last_x_com - u_current_step + (last_xd_com / self.omega))
+                * pow(np.e, (self.omega * t))
+            ) - (
+                self.omega
+                * 0.5
+                * (last_x_com - u_current_step - (last_xd_com / self.omega))
+                * pow(np.e, (-self.omega * t))
+            )
 
-            self.update_planner(u_current_step, t * 1.0, v_des, x_com, xd_com, 0)
+            self.update_planner(
+                u_current_step, t * 1.0, v_des, x_com, xd_com, 0
+            )
 
             self.xPhHistory.append(xPh.copy())
             self.xdPhHistory.append(xdPh.copy())
@@ -85,18 +139,34 @@ class StepAdjustment:
             self.bx_nom.append(self.dcm_vrp_planner.get_bx_nom())
             self.by_nom.append(self.dcm_vrp_planner.get_by_nom())
             self.dcm_local.append(self.dcm_vrp_planner.get_dcm_local().copy())
-            self.current_step_location_local.append(self.dcm_vrp_planner.get_current_step_location_local().copy())
-            self.dcm_nominal.append(self.dcm_vrp_planner.get_dcm_nominal().copy())
-            self.next_step_location.append(self.dcm_vrp_planner.get_next_step_location().copy())
+            self.current_step_location_local.append(
+                self.dcm_vrp_planner.get_current_step_location_local().copy()
+            )
+            self.dcm_nominal.append(
+                self.dcm_vrp_planner.get_dcm_nominal().copy()
+            )
+            self.next_step_location.append(
+                self.dcm_vrp_planner.get_next_step_location().copy()
+            )
             self.current_step_location.append(u_current_step.copy())
-            self.duration_before_step_landing.append(self.dcm_vrp_planner.get_duration_before_step_landing())
+            self.duration_before_step_landing.append(
+                self.dcm_vrp_planner.get_duration_before_step_landing()
+            )
             self.last_x_com_history.append(last_x_com)
             self.last_xd_com_history.append(last_xd_com)
 
         self.plot()
 
     def update_planner(self, u_current_step, t, v_des, x_com, xd_com, yaw):
-        self.dcm_vrp_planner.update(u_current_step, t, self.is_left_leg_in_contact, v_des, x_com, xd_com, yaw)
+        self.dcm_vrp_planner.update(
+            u_current_step,
+            t,
+            self.is_left_leg_in_contact,
+            v_des,
+            x_com,
+            xd_com,
+            yaw,
+        )
         self.dcm_vrp_planner.solve()
 
     def plot(self):
@@ -104,10 +174,21 @@ class StepAdjustment:
         ax1.plot(np.array(self.x_com_history)[:, 1], label="x_com_history")
         ax1.plot(self.by_nom, label="by_nom")
         ax1.plot(np.array(self.dcm_local)[:, 1], label="dcm_local")
-        ax1.plot(np.array(self.current_step_location_local)[:, 1], label="current_step_location_local")
-        ax1.plot(np.array(self.next_step_location)[:, 1], label="next_step_location")
-        ax1.plot(np.array(self.current_step_location)[:, 1], label="current_step_location")
-        ax1.plot(self.duration_before_step_landing, label="duration_before_step_landing")
+        ax1.plot(
+            np.array(self.current_step_location_local)[:, 1],
+            label="current_step_location_local",
+        )
+        ax1.plot(
+            np.array(self.next_step_location)[:, 1], label="next_step_location"
+        )
+        ax1.plot(
+            np.array(self.current_step_location)[:, 1],
+            label="current_step_location",
+        )
+        ax1.plot(
+            self.duration_before_step_landing,
+            label="duration_before_step_landing",
+        )
         for t in self.time_step:
             ax1.axvline(t)
         ax1.grid()
@@ -138,13 +219,26 @@ class StepAdjustment:
         gain = np.array(kp).copy()
         for i, v in enumerate(cnt_array):
             if v == 1:
-                gain[3 * i:3 * (i + 1)] = 0.
+                gain[3 * i : 3 * (i + 1)] = 0.0
         return gain
 
 
 if __name__ == "__main__":
-    planner = StepAdjustment(is_left_leg_in_contact=True, l_min=-0.5, l_max=0.5, w_min=-0.5, w_max=0.5, t_min=0.1,
-                             t_max=0.2, l_p=0.1235 * 2, com_height=0.26487417,
-                             weight=[1, 1, 5, 100, 100, 100, 100, 100, 100])
-    planner.simulator(u_current_step=np.array([.0, 0.1235, .0]), v_des=np.array([.0, .0, .0]),
-                      x_com=np.array([.0, .0, .2]), xd_com=np.array([.0, .0, .0]))
+    planner = StepAdjustment(
+        is_left_leg_in_contact=True,
+        l_min=-0.5,
+        l_max=0.5,
+        w_min=-0.5,
+        w_max=0.5,
+        t_min=0.1,
+        t_max=0.2,
+        l_p=0.1235 * 2,
+        com_height=0.26487417,
+        weight=[1, 1, 5, 100, 100, 100, 100, 100, 100],
+    )
+    planner.simulator(
+        u_current_step=np.array([0.0, 0.1235, 0.0]),
+        v_des=np.array([0.0, 0.0, 0.0]),
+        x_com=np.array([0.0, 0.0, 0.2]),
+        xd_com=np.array([0.0, 0.0, 0.0]),
+    )

@@ -18,11 +18,11 @@ if __name__ == "__main__":
 
     end_eff_traj3d.set_mid_air_height(0.05)
 
-    previous_support_location = np.zeros((3,1))
-    foot_position = np.zeros((3,1))
-    foot_velocity = np.zeros((3,1))
-    foot_acceleration = np.zeros((3,1))
-    next_support_location = np.zeros((3,1))
+    previous_support_location = np.zeros((3, 1))
+    foot_position = np.zeros((3, 1))
+    foot_velocity = np.zeros((3, 1))
+    foot_acceleration = np.zeros((3, 1))
+    next_support_location = np.zeros((3, 1))
 
     start_time = 0.0
     end_time = 1.0
@@ -30,23 +30,28 @@ if __name__ == "__main__":
 
     plt_foot_position = []
 
-    for i in range(int(1/control_period)):
+    for i in range(int(1 / control_period)):
         current_time = i * control_period
-    
+
         end_eff_traj3d.compute(
             previous_support_location,
-            foot_position, foot_velocity,
+            foot_position,
+            foot_velocity,
             foot_acceleration,
             next_support_location,
-            start_time, current_time, end_time)
+            start_time,
+            current_time,
+            end_time,
+        )
 
         end_eff_traj3d.get_next_state(
             current_time + control_period,
             foot_position,
             foot_velocity,
-            foot_acceleration)
+            foot_acceleration,
+        )
 
         plt_foot_position += [foot_position.copy()]
 
-    plt.plot(np.array(plt_foot_position)[:,2])
+    plt.plot(np.array(plt_foot_position)[:, 2])
     plt.show()
