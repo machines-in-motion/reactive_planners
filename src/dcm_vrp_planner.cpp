@@ -311,36 +311,36 @@ bool DcmVrpPlanner::solve()
     oss << "Warning: " << #test << " not true!";    \
     std::cout << oss.str() << std::endl;            \
     return false;                                   \
-  }
+  }                                                 \
+  static_assert(true, "")
 // clang-format on
 
 bool DcmVrpPlanner::internal_checks()
 {
-    assert_DcmVrpPlanner(l_min_ <= l_max_) assert_DcmVrpPlanner(
-        w_min_ <= w_max_) assert_DcmVrpPlanner(t_min_ <= t_max_)
-        assert_DcmVrpPlanner(l_p_ == l_p_) assert_DcmVrpPlanner(ht_ > 0.0)
-            assert_DcmVrpPlanner((cost_weights_local_.array() >= 0.0).all())
-                assert_DcmVrpPlanner(bx_min_ < bx_max_) assert_DcmVrpPlanner(
-                    by_max_out_ <=
-                    by_max_in_) assert_DcmVrpPlanner(Q_.rows() == x_opt_.size())
-                    assert_DcmVrpPlanner(Q_.cols() == x_opt_.size())
-                        assert_DcmVrpPlanner(q_.size() == x_opt_.size())
-                            assert_DcmVrpPlanner(A_eq_.rows() == 2)
-                                assert_DcmVrpPlanner(A_eq_.cols() ==
-                                                     x_opt_.size())
-                                    assert_DcmVrpPlanner(B_eq_.size() == 2)
-                                        assert_DcmVrpPlanner(A_ineq_.rows() ==
-                                                             10)
-                                            assert_DcmVrpPlanner(
-                                                A_ineq_.cols() == x_opt_.size())
-                                                assert_DcmVrpPlanner(
-                                                    B_ineq_.size() == 10)
-        //    assert_DcmVrpPlanner((t_min_ - log(tau_min_) / omega_) *
-        //                             (t_min_ - log(tau_min_) / omega_) <
-        //                         1e-8)// Lhum TODO
-        assert_DcmVrpPlanner((t_max_ - log(tau_max_) / omega_) *
-                                 (t_max_ - log(tau_max_) / omega_) <
-                             1e-8) return true;
+    assert_DcmVrpPlanner(l_min_ <= l_max_);
+    assert_DcmVrpPlanner(w_min_ <= w_max_);
+    assert_DcmVrpPlanner(t_min_ <= t_max_);
+    assert_DcmVrpPlanner(l_p_ == l_p_);
+    assert_DcmVrpPlanner(ht_ > 0.0);
+    assert_DcmVrpPlanner((cost_weights_local_.array() >= 0.0).all());
+    assert_DcmVrpPlanner(bx_min_ < bx_max_);
+    assert_DcmVrpPlanner(by_max_out_ <= by_max_in_);
+    assert_DcmVrpPlanner(Q_.rows() == x_opt_.size());
+    assert_DcmVrpPlanner(Q_.cols() == x_opt_.size());
+    assert_DcmVrpPlanner(q_.size() == x_opt_.size());
+    assert_DcmVrpPlanner(A_eq_.rows() == 2);
+    assert_DcmVrpPlanner(A_eq_.cols() == x_opt_.size());
+    assert_DcmVrpPlanner(B_eq_.size() == 2);
+    assert_DcmVrpPlanner(A_ineq_.rows() == 10);
+    assert_DcmVrpPlanner(A_ineq_.cols() == x_opt_.size());
+    assert_DcmVrpPlanner(B_ineq_.size() == 10);
+    //    assert_DcmVrpPlanner((t_min_ - log(tau_min_) / omega_) *
+    //                             (t_min_ - log(tau_min_) / omega_) <
+    //                         1e-8)// Lhum TODO
+    assert_DcmVrpPlanner((t_max_ - log(tau_max_) / omega_) *
+                             (t_max_ - log(tau_max_) / omega_) <
+                         1e-8);
+    return true;
 }
 
 std::string DcmVrpPlanner::to_string() const
