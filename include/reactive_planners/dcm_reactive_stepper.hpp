@@ -11,6 +11,7 @@
 #pragma once
 
 #include <iostream>
+
 #include "reactive_planners/dcm_vrp_planner.hpp"
 #include "reactive_planners/dynamically_consistent_end_effector_trajectory.hpp"
 #include "reactive_planners/polynomial_end_effector_trajectory.hpp"
@@ -26,20 +27,25 @@ public:
     ~DcmReactiveStepper();
 
     /**
-     * @brief
+     * @brief Initialize the reactive stepper for biped.
      *
-     * @param is_left_leg_in_contact
-     * @param l_min
-     * @param l_max
-     * @param w_min
-     * @param w_max
-     * @param t_min
-     * @param t_max
-     * @param l_p
-     * @param com_height
-     * @param weight
-     * @param mid_air_foot_height
-     * @param control_period
+     * @param is_left_leg_in_contact Left foot is in contact with the ground, if
+     * not then the right foot is.
+     * @param l_min Lower bound in the forward direction where to step.
+     * @param l_max Upper bound in the forward direction where to step.
+     * @param w_min Lower bound in the lateral direction where to step.
+     * @param w_max Upper bound in the lateral direction where to step.
+     * @param t_min The minimum time required to step.
+     * @param t_max The maximum time required to step.
+     * @param l_p The nominal stride length.
+     * @param com_height Center of mass height from the ground.
+     * @param weight Total weight of the robot.
+     * @param mid_air_foot_height Maximum height of the foot in mid-air.
+     * @param control_period Robot control period.
+     * @param planner_loop Period of the end-effector trajectory update.
+     * @param left_foot_position 3D position of the left foot.
+     * @param right_foot_position 3D position of the right foot.
+     * @param v_des Desired velocity.
      */
     void initialize(
         const bool &is_left_leg_in_contact,
@@ -60,14 +66,17 @@ public:
         const Eigen::Ref<const Eigen::Vector3d> &v_des);
 
     /**
-     * @brief
+     * @brief Compute the plan trajectory from input variable.
      *
-     * @param time
-     * @param current_flying_foot_position
-     * @param com_position
-     * @param com_velocity
-     * @param base_yaw
-     *
+     * @param time Duration from the beginning of the experiment
+     * @param left_foot_position 3D left foot position.
+     * @param right_foot_position 3D right foot position.
+     * @param left_foot_vel 3D left foot velocity.
+     * @param right_foot_vel 3D right foot velocity.
+     * @param com_position Center of Mass position.
+     * @param com_velocity Center of mass position.
+     * @param base_yaw Current orientation of the base.
+     * @param is_closed_loop ????
      * @return bool, true upon success.
      */
     bool run(double time,
@@ -80,14 +89,18 @@ public:
              const double &base_yaw,
              const bool &is_closed_loop);
     /**
-     * @brief
+     * @brief Compute the plan trajectory from input variable.
      *
-     * @param time
-     * @param current_flying_foot_position
-     * @param com_position
-     * @param com_velocity
-     * @param world_M_base
-     *
+     * @param time Duration from the beginning of the experiment
+     * @param left_foot_position 3D left foot position.
+     * @param right_foot_position 3D right foot position.
+     * @param left_foot_vel 3D left foot velocity.
+     * @param right_foot_vel 3D right foot velocity.
+     * @param com_position Center of Mass position.
+     * @param com_velocity Center of mass position.
+     * @param world_M_base SE3 placement of the base frame with respect to
+     *                     the world frame.
+     * @param is_closed_loop  ???
      * @return bool, true upon success.
      */
     bool run(double time,
@@ -409,7 +422,7 @@ public:
 
     /**
      * @brief Get force until the foot land.
-     * Don't ues it for non biped robot.
+     * Don't use it for non biped robot.
      *
      * @return const Eigen::Matrix12,1d&
      */

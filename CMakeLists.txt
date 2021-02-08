@@ -31,6 +31,18 @@ find_package(pinocchio REQUIRED)
 find_package(pybind11 REQUIRED)
 find_package(Eigen3 REQUIRED)
 
+# Optionnal
+find_package(dynamic-graph QUIET)
+find_package(dynamic-graph-python QUIET)
+find_package(real_time_tools QUIET)
+
+set(build_dynamic_graph_plugins FALSE)
+if(${dynamic-graph_FOUND}
+   AND ${dynamic-graph-python_FOUND}
+   AND ${real_time_tools_FOUND})
+  set(build_dynamic_graph_plugins TRUE)
+endif()
+
 #
 # Main library
 #
@@ -96,6 +108,40 @@ install(TARGETS ${PROJECT_NAME}_python_binding
         DESTINATION ${python_install_dir})
 set_target_properties(${PROJECT_NAME}_python_binding PROPERTIES OUTPUT_NAME
                                                                 ${PROJECT_NAME})
+
+#
+# Entities
+#
+if(${build_dynamic_graph_plugins})
+  # plugin name
+  set(plugin_name walking)
+  # Create the library
+  add_library(${plugin_name} SHARED src/dynamic_graph/stepper_head.cpp
+                                    src/dynamic_graph/dcm_reactive_stepper.cpp)
+  # Add the include dependencies.
+  target_include_directories(
+    ${plugin_name} PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+                          $<INSTALL_INTERFACE:include>)
+  # Link the dependencies.
+  target_link_libraries(${plugin_name} ${PROJECT_NAME})
+  target_link_libraries(${plugin_name} dynamic-graph::dynamic-graph)
+  target_link_libraries(${plugin_name}
+                        dynamic-graph-python::dynamic-graph-python)
+  target_link_libraries(${plugin_name} real_time_tools::real_time_tools)
+  # Install the target and it's python bindings.
+  install_dynamic_graph_plugin_python_bindings(${plugin_name})
+  # Install the plugin.
+  get_dynamic_graph_plugin_install_path(plugin_install_path)
+  install(
+    TARGETS ${plugin_name}
+    EXPORT ${PROJECT_NAME}Targets
+    LIBRARY DESTINATION ${plugin_install_path}
+    ARCHIVE DESTINATION ${plugin_install_path}
+    RUNTIME DESTINATION ${plugin_install_path}
+    INCLUDES
+    DESTINATION include)
+
+endif()
 
 #
 # Unit tests
