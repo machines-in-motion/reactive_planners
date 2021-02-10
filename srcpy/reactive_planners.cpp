@@ -14,7 +14,7 @@ void bind_dcm_vrp_planner(pybind11::module &module);
 void bind_end_effector_trajectory_3d(pybind11::module &module);
 void bind_dcm_reactive_stepper(pybind11::module &module);
 
-PYBIND11_MODULE(reactive_planners, m)
+PYBIND11_MODULE(reactive_planners_cpp, m)
 {
     m.doc() = R"pbdoc(
         reactive_planners python bindings

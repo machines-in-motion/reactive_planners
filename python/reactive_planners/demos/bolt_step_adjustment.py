@@ -13,8 +13,8 @@ from robot_properties_bolt.bolt_wrapper import BoltRobot
 from mim_control.robot_centroidal_controller import RobotCentroidalController
 from mim_control.robot_impedance_controller import RobotImpedanceController
 from mim_control.qp_solver import quadprog_solve_qp
-from py_reactive_planners.lipm_simulator import LipmSimpulator
-from reactive_planners import DcmReactiveStepper
+from reactive_planners.lipm_simulator import LipmSimpulator
+from reactive_planners_cpp import DcmReactiveStepper
 import pinocchio as se3
 from pinocchio import RobotWrapper
 from pinocchio.utils import zero, eye

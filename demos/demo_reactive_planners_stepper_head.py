@@ -14,7 +14,7 @@ from __future__ import print_function, division
 import numpy as np
 
 # Import the class to demo from.
-from reactive_planners import StepperHead
+from reactive_planners_cpp import StepperHead
 
 
 def log_traj(data):

@@ -15,20 +15,20 @@ from pinocchio.utils import se3ToXYZQUAT
 from robot_properties_solo.config import Solo12Config
 from robot_properties_solo.quadruped12wrapper import Quadruped12Robot
 
-from py_blmc_controllers.solo_impedance_controller import (
+from mim_control.solo_impedance_controller import (
     SoloImpedanceController,
 )
 from py_blmc_controllers.solo_centroidal_controller import (
     SoloCentroidalController,
 )
 
-from py_dcm_vrp_planner.re_split_dcm_planner import DCMStepPlanner
-from py_dcm_vrp_planner.solo_step_planner import SoloStepPlanner
-from py_centroidal_controller.lipm_centroidal_controller import (
+from reactive_planners.dcm_vrp_planner.re_split_dcm_planner import DCMStepPlanner
+from reactive_planners.dcm_vrp_planner.solo_step_planner import SoloStepPlanner
+from reactive_planners.centroidal_controller.lipm_centroidal_controller import (
     LipmCentroidalController,
 )
-from py_utils.trajectory_generator import TrajGenerator
-from py_utils.solo_state_estimator import SoloStateEstimator
+from reactive_planners.utils.trajectory_generator import TrajGenerator
+from reactive_planners.utils.solo_state_estimator import SoloStateEstimator
 
 
 from pinocchio.utils import zero
