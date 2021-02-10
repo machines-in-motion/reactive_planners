@@ -19,6 +19,15 @@ if __name__ == "__main__":
 
     # Create the controller.
     dcm_reactive_stepper = DcmReactiveStepper()
+
+    # Default parameters.
+    v_des = np.zeros((3, 1))
+    x_com = np.array([[0], [0], [0.2]])
+    xd_com = np.zeros((3, 1))
+    left_foot_position = np.zeros((3, 1))
+    right_foot_position = np.zeros((3, 1))
+    time = 0
+
     # controller initialization.
     is_left_leg_in_contact = True
     l_min = -0.5
@@ -32,6 +41,7 @@ if __name__ == "__main__":
     weight = [1, 1, 5, 100, 100, 100, 100, 100, 100]
     mid_air_foot_height = 0.05
     control_period = 0.001
+    loop_period = 0.001
     dcm_reactive_stepper.initialize(
         is_left_leg_in_contact,
         l_min,
@@ -44,15 +54,12 @@ if __name__ == "__main__":
         com_height,
         weight,
         mid_air_foot_height,
+        loop_period,
         control_period,
+        left_foot_position,
+        right_foot_position,
+        v_des
     )
-
-    # Default parameters.
-    v_des = np.zeros((3, 1))
-    x_com = np.zeros((3, 1))
-    x_com[:] = [[0.0], [0.0], [0.2]]
-    xd_com = np.zeros((3, 1))
-    time = 0
 
     # Plot lists.
     plt_time = []
@@ -93,9 +100,12 @@ if __name__ == "__main__":
             time,
             dcm_reactive_stepper.get_left_foot_position(),
             dcm_reactive_stepper.get_right_foot_position(),
+            dcm_reactive_stepper.get_left_foot_velocity(),
+            dcm_reactive_stepper.get_right_foot_velocity(),
             x_com,
             xd_com,
             0.0,
+            False
         )
         # simulate a linearized inverted pendulum
         x_com, xd_com, _ = sim.step(
