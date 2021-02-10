@@ -16,6 +16,7 @@
 #include "reactive_planners/dynamically_consistent_end_effector_trajectory.hpp"
 #include "reactive_planners/polynomial_end_effector_trajectory.hpp"
 #include "reactive_planners/stepper_head.hpp"
+#include "reactive_planners/com_planner.hpp"
 
 namespace reactive_planners
 {
@@ -87,6 +88,7 @@ public:
              const Eigen::Ref<const Eigen::Vector3d> &com_position,
              const Eigen::Ref<const Eigen::Vector3d> &com_velocity,
              const double &base_yaw,
+             const Eigen::Ref<const Eigen::Vector2d>& contact,
              const bool &is_closed_loop);
     /**
      * @brief Compute the plan trajectory from input variable.
@@ -111,6 +113,7 @@ public:
              const Eigen::Ref<const Eigen::Vector3d> &com_position,
              const Eigen::Ref<const Eigen::Vector3d> &com_velocity,
              const pinocchio::SE3 &world_M_base,
+             const Eigen::Ref<const Eigen::Vector2d>& contact,
              const bool &is_closed_loop);
 
     /**
@@ -212,7 +215,7 @@ public:
                                         const Eigen::Vector9d &weight)
     {
         dcm_vrp_planner_.initialize(
-            l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight);
+            l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, flying_phase_duration_, omega_, weight);
     }
 
     /*
@@ -436,6 +439,36 @@ public:
         return force;
     }
 
+    /**
+     * @brief Get the desired com height.
+     *
+     * @return const double&
+     */
+    Eigen::Vector3d &get_com()
+    {
+        return com_;
+    }
+
+    /**
+     * @brief Get the desired com height.
+     *
+     * @return const double&
+     */
+    Eigen::Vector3d &get_v_com()
+    {
+        std::cout << "G v_com " << v_com_ << std::endl;
+        return v_com_;
+    }
+
+    /** @brief Get if the left foot is in contact. If not then it is the right
+     * foot.
+     * @return const double&
+     */
+    Eigen::Vector2d &get_contact_phase()
+    {
+        return contact_;
+    }
+
     /*
      * Private methods
      */
@@ -459,6 +492,7 @@ private:
               const Eigen::Ref<const Eigen::Vector3d> &com_position,
               const Eigen::Ref<const Eigen::Vector3d> &com_velocity,
               pinocchio::SE3 &local_frame,
+              const Eigen::Ref<const Eigen::Vector2d> &contact,
               const bool &is_closed_loop);
 
     /**
@@ -491,13 +525,22 @@ private:
      * tracking at best a reference CoM velocity. */
     DcmVrpPlanner dcm_vrp_planner_;
 
+    /** @brief Computes the position and velocity of center of mass. */
+    ComPlanner com_planner_;
+
     /** @brief Set it to one if you want use the article's trajectory. */
     bool new_;
 
-    /** @brief Computes the end-effector flying trajectory. */
+    /** @brief Computes the end-effector flying trajectory
+     * based on the PolynomialEndEffectorTrajectory. */
     PolynomialEndEffectorTrajectory polynomial_end_eff_trajectory_;
+
+    /** @brief Computes the end-effector flying trajectory
+     * based on the DynamicallyConsistentEndEffectorTrajectory. */
     DynamicallyConsistentEndEffectorTrajectory
         dynamically_consistent_end_eff_trajectory_;
+
+    DynamicallyConsistentEndEffectorTrajectory swing_end_eff_traj3d_;
 
     /** @brief Is the left foot in contact? otherwise the right foot is. */
     bool is_left_leg_in_contact_;
@@ -560,6 +603,9 @@ private:
     /** @brief All of forces calculated until the next contact. */
     Eigen::VectorXd forces_;
 
+    /** @brief All of forces calculated until the next contact for swing foot. */
+    Eigen::VectorXd f_swing_;
+
     /** @brief This frame is located at a the constant CoM height, and at the
      * current CoM XY position. The roll and pitch are null and the yaw comes
      * from the current robot base yaw orientation.
@@ -580,6 +626,32 @@ private:
 
     /** @brief Nominal DCM computed from the CoM estimation and nominal time. */
     Eigen::Vector3d dcm_;
+
+    /** @brief Center of mass position. */
+    Eigen::Vector3d com_;
+
+    /** @brief Center of mass velocity. */
+    Eigen::Vector3d v_com_;
+
+    /** @brief desired swing foot position. */
+    Eigen::Vector3d des_swing_position_;
+
+    /** @brief [is_left_leg_in_contact, is_right_leg_in_contact] */
+    Eigen::Vector2d contact_;
+
+    /** @brief Flying phase duration. */
+    double flying_phase_duration_;
+
+    /** @brief Stance phase duration. */
+    double stance_phase_duration_;
+
+    /** @brief Omega. */
+    double omega_;
+
+    Eigen::Vector3d x_T_s_;
+
+    Eigen::Vector3d x_d_T_s_;
+
 };
 
 }  // namespace reactive_planners

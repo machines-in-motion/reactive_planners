@@ -300,6 +300,7 @@ bool &DcmReactiveStepper::inner(bool &s, int time)
     }  // Lhum closed loop
 
     // Compute the planner.
+    Eigen::Vector2d contact;
     s = dcm_reactive_stepper_.run(time * control_period_,
                                   current_left_foot_position,
                                   current_right_foot_position,
@@ -308,6 +309,7 @@ bool &DcmReactiveStepper::inner(bool &s, int time)
                                   com_position,
                                   com_velocity,
                                   nb_switch_yaw_ * 3.141592 + base_yaw(5),
+                                  contact,//Lhum running
                                   false);
     start_stop_mutex_.unlock();
 

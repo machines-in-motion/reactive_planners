@@ -30,6 +30,7 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
                  const Eigen::Ref<const Eigen::Vector3d> &,
                  const Eigen::Ref<const Eigen::Vector3d> &,
                  const double &,
+                 const Eigen::Ref<const Eigen::Vector2d> &,
                  const bool &)) &
                  DcmReactiveStepper::run)
         .def("run",
@@ -42,6 +43,7 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
                  const Eigen::Ref<const Eigen::Vector3d> &,
                  const Eigen::Ref<const Eigen::Vector3d> &,
                  const pinocchio::SE3 &,
+                 const Eigen::Ref<const Eigen::Vector2d> &,
                  const bool &)) &
                  DcmReactiveStepper::run)
 
@@ -58,6 +60,8 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
              &DcmReactiveStepper::set_left_foot_velocity)
         .def("dcm_vrp_planner_initialization",
              &DcmReactiveStepper::dcm_vrp_planner_initialization)
+        .def("set_desired_com_velocity",
+             &DcmReactiveStepper::set_desired_com_velocity)
 
         // Getters.
         .def("get_right_foot_position",
@@ -88,7 +92,13 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
         .def("get_forces", &DcmReactiveStepper::get_forces)
         // Setters
         .def("set_desired_com_velocity",
-             &DcmReactiveStepper::set_desired_com_velocity);
+             &DcmReactiveStepper::set_desired_com_velocity)
+        .def("get_com",
+             &DcmReactiveStepper::get_com)
+        .def("get_v_com",
+             &DcmReactiveStepper::get_v_com)
+        .def("get_contact_phase",
+             &DcmReactiveStepper::get_contact_phase);
     //        .def("set_end_eff_traj_costs",
     //             &DcmReactiveStepper::set_end_eff_traj_costs);
 }

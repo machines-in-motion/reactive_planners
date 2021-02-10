@@ -30,7 +30,10 @@ void bind_dcm_vrp_planner(pybind11::module &module)
                                       const Eigen::Ref<const Eigen::Vector3d> &,
                                       const Eigen::Ref<const Eigen::Vector3d> &,
                                       const pinocchio::SE3 &,
-                                      const double &)) &
+                                      const double &,
+                                      const double &,
+                                      const Eigen::Ref<const Eigen::Vector3d> &,
+                                      const Eigen::Ref<const Eigen::Vector3d> &)) &
                  DcmVrpPlanner::update)
         .def("update",
              (void (DcmVrpPlanner::*)(const Eigen::Ref<const Eigen::Vector3d> &,
@@ -40,7 +43,10 @@ void bind_dcm_vrp_planner(pybind11::module &module)
                                       const Eigen::Ref<const Eigen::Vector3d> &,
                                       const Eigen::Ref<const Eigen::Vector3d> &,
                                       const double &,
-                                      const double &)) &
+                                      const double &,
+                                      const double &,
+                                      const Eigen::Ref<const Eigen::Vector3d> &,
+                                      const Eigen::Ref<const Eigen::Vector3d> &)) &
                  DcmVrpPlanner::update)
 
         // getters

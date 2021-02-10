@@ -318,7 +318,7 @@ bool DynamicallyConsistentEndEffectorTrajectory::compute(
     Q_(nb_var_ - 4, nb_var_ - 4) = 1 * cost_epsilon_z_;
     Q_(nb_var_ - 3, nb_var_ - 3) = 1 * cost_epsilon_vel_;
     Q_(nb_var_ - 2, nb_var_ - 2) = 1 * cost_epsilon_vel_;
-    Q_(nb_var_ - 1, nb_var_ - 1) = 1 * cost_epsilon_vel_ * 1000;
+    Q_(nb_var_ - 1, nb_var_ - 1) = 1 * cost_epsilon_vel_;
     // Q_regul
     const double hess_regul = 1e-9;
     Q_regul_ = Eigen::MatrixXd::Identity(nb_var_, nb_var_) * hess_regul;
@@ -478,42 +478,42 @@ bool DynamicallyConsistentEndEffectorTrajectory::compute(
                     nb_local_sampling_time_ - 1, 2)),
         mid_z;
 
-    for (int i = 1; i < nb_local_sampling_time_; ++i)
-    {
-        // z >= zmin   =>   -z <= -z_min
-        A_ineq_.row(i - 1).head(nb_local_sampling_time_) =
-            -position_terms_F_z_[is_left_leg_in_contact_].row(i).head(
-                nb_local_sampling_time_);
-        A_ineq_.row(i - 1).segment(nb_local_sampling_time_,
-                                   nb_local_sampling_time_) =
-            -position_terms_F_z_[is_left_leg_in_contact_].row(i).segment(
-                MAX_VAR, nb_local_sampling_time_);
-        A_ineq_.row(i - 1).segment(2 * nb_local_sampling_time_,
-                                   nb_local_sampling_time_) =
-            -position_terms_F_z_[is_left_leg_in_contact_].row(i).segment(
-                2 * MAX_VAR, nb_local_sampling_time_);
-        B_ineq_(i - 1) = current_pose_(2) -
-                         std::min(start_pose(2), target_pose(2)) + 0.0001 +
-                         current_velocity_(2) * planner_loop_ * i +
-                         non_linear_terms[is_left_leg_in_contact_](i, 2);
-        // z <= z_max, i <= n/2 || z_i <= z_i - 1, i > n/2
-        A_ineq_.row(i - 1 + nb_local_sampling_time_)
-            .head(nb_local_sampling_time_) =
-            position_terms_F_z_[is_left_leg_in_contact_].row(i).head(
-                nb_local_sampling_time_);
-        A_ineq_.row(i - 1 + nb_local_sampling_time_)
-            .segment(nb_local_sampling_time_, nb_local_sampling_time_) =
-            position_terms_F_z_[is_left_leg_in_contact_].row(i).segment(
-                MAX_VAR, nb_local_sampling_time_);
-        A_ineq_.row(i - 1 + nb_local_sampling_time_)
-            .segment(2 * nb_local_sampling_time_, nb_local_sampling_time_) =
-            position_terms_F_z_[is_left_leg_in_contact_].row(i).segment(
-                2 * MAX_VAR, nb_local_sampling_time_);
-        B_ineq_(i - 1 + nb_local_sampling_time_) =
-            -current_pose_(2) + std::max(start_pose(2), target_pose(2)) +
-            mid_air_height_ - current_velocity_(2) * planner_loop_ * i +
-            non_linear_terms[is_left_leg_in_contact_](i, 2);
-    }
+//    for (int i = 1; i < nb_local_sampling_time_; ++i)//Lhum running
+//    {
+//        // z >= zmin   =>   -z <= -z_min
+//        A_ineq_.row(i - 1).head(nb_local_sampling_time_) =
+//            -position_terms_F_z_[is_left_leg_in_contact_].row(i).head(
+//                nb_local_sampling_time_);
+//        A_ineq_.row(i - 1).segment(nb_local_sampling_time_,
+//                                   nb_local_sampling_time_) =
+//            -position_terms_F_z_[is_left_leg_in_contact_].row(i).segment(
+//                MAX_VAR, nb_local_sampling_time_);
+//        A_ineq_.row(i - 1).segment(2 * nb_local_sampling_time_,
+//                                   nb_local_sampling_time_) =
+//            -position_terms_F_z_[is_left_leg_in_contact_].row(i).segment(
+//                2 * MAX_VAR, nb_local_sampling_time_);
+//        B_ineq_(i - 1) = current_pose_(2) -
+//                         std::min(start_pose(2), target_pose(2)) + 0.0001 +
+//                         current_velocity_(2) * planner_loop_ * i +
+//                         non_linear_terms[is_left_leg_in_contact_](i, 2);
+//        // z <= z_max, i <= n/2 || z_i <= z_i - 1, i > n/2
+//        A_ineq_.row(i - 1 + nb_local_sampling_time_)
+//            .head(nb_local_sampling_time_) =
+//            position_terms_F_z_[is_left_leg_in_contact_].row(i).head(
+//                nb_local_sampling_time_);
+//        A_ineq_.row(i - 1 + nb_local_sampling_time_)
+//            .segment(nb_local_sampling_time_, nb_local_sampling_time_) =
+//            position_terms_F_z_[is_left_leg_in_contact_].row(i).segment(
+//                MAX_VAR, nb_local_sampling_time_);
+//        A_ineq_.row(i - 1 + nb_local_sampling_time_)
+//            .segment(2 * nb_local_sampling_time_, nb_local_sampling_time_) =
+//            position_terms_F_z_[is_left_leg_in_contact_].row(i).segment(
+//                2 * MAX_VAR, nb_local_sampling_time_);
+//        B_ineq_(i - 1 + nb_local_sampling_time_) =
+//            -current_pose_(2) + std::max(start_pose(2), target_pose(2)) +
+//            mid_air_height_ - current_velocity_(2) * planner_loop_ * i +
+//            non_linear_terms[is_left_leg_in_contact_](i, 2);
+//    }
 
     for (int i = 0; i < nb_local_sampling_time_ * 3; i++)
     {
@@ -616,7 +616,7 @@ void DynamicallyConsistentEndEffectorTrajectory::update_robot_status(
     Eigen::Ref<Eigen::Vector3d> next_velocity,
     Eigen::Ref<Eigen::Vector3d> next_acceleration)
 {
-    if (current_time_ < start_time_)
+    if (current_time_ < start_time_ or nb_local_sampling_time_ < 1)
     {
         return;
     }

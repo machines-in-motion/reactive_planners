@@ -51,6 +51,7 @@ endif()
 set(main_lib_src
     src/stepper_head.cpp
     src/dcm_vrp_planner.cpp
+    src/com_planner.cpp
     src/polynomial_end_effector_trajectory.cpp
     src/dynamically_consistent_end_effector_trajectory.cpp
     src/dcm_reactive_stepper.cpp)
