@@ -7,8 +7,8 @@
 import numpy as np
 import pinocchio as pin
 
-from py_utils.qp_solver import quadprog_solve_qp
-from py_utils.solo_state_estimator import SoloStateEstimator
+from reactive_planners.utils.qp_solver import quadprog_solve_qp
+from reactive_planners.utils.solo_state_estimator import SoloStateEstimator
 
 arr = lambda a: np.array(a).reshape(-1)
 mat = lambda a: np.matrix(a).reshape((-1, 1))

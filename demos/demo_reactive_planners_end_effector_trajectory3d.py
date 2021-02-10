@@ -10,7 +10,7 @@
 
 import numpy as np
 from matplotlib import pyplot as plt
-from reactive_planners import EndEffectorTrajectory3D
+from reactive_planners_cpp import EndEffectorTrajectory3D
 
 if __name__ == "__main__":
 

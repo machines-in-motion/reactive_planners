@@ -17,10 +17,10 @@ from pinocchio.utils import se3ToXYZQUAT
 from robot_properties_solo.config import Solo12Config
 from robot_properties_solo.quadruped12wrapper import Quadruped12Robot
 
-from py_blmc_controllers.solo_impedance_controller import (
+from mim_control.solo_impedance_controller import (
     SoloImpedanceController,
 )
-from py_blmc_controllers.solo_centroidal_controller import (
+from mim_control.solo_centroidal_controller import (
     SoloCentroidalController,
 )
 

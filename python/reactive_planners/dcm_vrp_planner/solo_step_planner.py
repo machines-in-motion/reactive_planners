@@ -5,7 +5,7 @@
 
 import numpy as np
 from gurobipy import *
-from py_utils.solo_state_estimator import SoloStateEstimator
+from reactive_planners.utils.solo_state_estimator import SoloStateEstimator
 
 
 class SoloStepPlanner:
