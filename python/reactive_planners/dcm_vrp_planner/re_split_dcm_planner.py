@@ -4,7 +4,7 @@
 
 import numpy as np
 from gurobipy import *
-from py_utils.qp_solver import quadprog_solve_qp
+from reactive_planners.utils.qp_solver import quadprog_solve_qp
 
 
 class DCMStepPlanner:

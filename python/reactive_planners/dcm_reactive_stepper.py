@@ -8,7 +8,7 @@
 """
 
 import numpy as np
-from reactive_planners import (
+from reactive_planners_cpp import (
     StepperHead,
     DcmVrpPlanner,
     EndEffectorTrajectory3D,

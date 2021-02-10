@@ -8,7 +8,7 @@
 
 import numpy as np
 from matplotlib import pyplot as plt
-from reactive_planners import DcmVrpPlanner
+from reactive_planners_cpp import DcmVrpPlanner
 
 
 class StepAdjustment:

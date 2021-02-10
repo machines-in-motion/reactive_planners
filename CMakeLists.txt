@@ -107,8 +107,8 @@ target_link_libraries(${PROJECT_NAME}_python_binding PRIVATE ${PROJECT_NAME})
 get_python_install_dir(python_install_dir)
 install(TARGETS ${PROJECT_NAME}_python_binding
         DESTINATION ${python_install_dir})
-set_target_properties(${PROJECT_NAME}_python_binding PROPERTIES OUTPUT_NAME
-                                                                ${PROJECT_NAME})
+set_target_properties(${PROJECT_NAME}_python_binding
+                      PROPERTIES OUTPUT_NAME ${PROJECT_NAME}_cpp)
 
 #
 # Entities

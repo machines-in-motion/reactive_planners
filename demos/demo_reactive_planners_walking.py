@@ -9,8 +9,8 @@
 """
 
 from matplotlib import pyplot as plt
-from py_reactive_planners.dcm_reactive_stepper import DcmReactiveStepper
-from py_reactive_planners.lipm_simulator import LipmSimpulator
+from reactive_planners.dcm_reactive_stepper import DcmReactiveStepper
+from reactive_planners.lipm_simulator import LipmSimpulator
 import numpy as np
 
 if __name__ == "__main__":
