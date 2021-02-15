@@ -64,8 +64,7 @@ public:
         const double &control_period,
         const double &planner_loop,
         const Eigen::Ref<const Eigen::Vector3d> &left_foot_position,
-        const Eigen::Ref<const Eigen::Vector3d> &right_foot_position,
-        const Eigen::Ref<const Eigen::Vector3d> &v_des);
+        const Eigen::Ref<const Eigen::Vector3d> &right_foot_position);
 
     /**
      * @brief Compute the plan trajectory from input variable.

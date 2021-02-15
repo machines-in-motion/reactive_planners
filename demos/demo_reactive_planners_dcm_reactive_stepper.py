@@ -57,8 +57,7 @@ if __name__ == "__main__":
         loop_period,
         control_period,
         left_foot_position,
-        right_foot_position,
-        v_des
+        right_foot_position
     )
 
     # Plot lists.

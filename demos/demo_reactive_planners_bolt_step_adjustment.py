@@ -117,8 +117,7 @@ if __name__ == "__main__":
         control_period,
         planner_loop,
         x_des_local[:3],
-        x_des_local[3:],
-        v_des,
+        x_des_local[3:]
     )
 
     dcm_reactive_stepper.set_desired_com_velocity(v_des)
