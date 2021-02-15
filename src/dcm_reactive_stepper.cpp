@@ -4,7 +4,7 @@
  * @copyright Copyright (c) 2020, New York University and Max Planck
  * Gesellschaft
  *
- * @brief Define the DcmReactiveStepper class
+ * @brief Define the DcmReactiveStepper class.
  */
 
 #include "reactive_planners/dcm_reactive_stepper.hpp"

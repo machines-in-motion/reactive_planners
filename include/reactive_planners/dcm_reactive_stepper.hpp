@@ -4,8 +4,10 @@
  * @copyright Copyright (c) 2020, New York University and Max Planck
  * Gesellschaft
  *
- * @brief Declare a class that encapsulate the DcmVrpPlanner, the
- * EndEffectorTrajectory3D, and the StepperHead
+ * @brief Biped robots reactive stepper using the divergent component of motion.
+ * 
+ * Declare a class that encapsulate the DcmVrpPlanner, the
+ * EndEffectorTrajectory3D, and the StepperHead. 
  */
 
 #pragma once
