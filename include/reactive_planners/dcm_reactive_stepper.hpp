@@ -216,6 +216,22 @@ public:
             l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight);
     }
 
+    /**
+     * @brief Set polynomial end effector trajectory.
+     */
+    void set_polynomial_end_effector_trajectory()
+    {
+        new_ = false;
+    }
+
+    /**
+     * @brief Set dynamical end effector trajectory.
+     */
+    void set_dynamical_end_effector_trajectory()
+    {
+        new_ = true;
+    }
+
     /*
      * Getters
      */
@@ -416,7 +432,7 @@ public:
      *
      * @return const Eigen::VectorXd&
      */
-    const Eigen::Ref<const Eigen::VectorXd> get_forces()
+    Eigen::VectorXd get_forces()
     {
         return forces_.col(0).head(nb_force_);
     }
@@ -435,6 +451,17 @@ public:
         else
             force << forces_.head(3), 0., 0., 0., 0., 0., 0., 0., 0., 0.;
         return force;
+    }
+
+    /**
+     * @brief Return true if the stepper is running or if it standing still.
+     * 
+     * @return true if running
+     * @return false if standing still.
+     */
+    bool is_running()
+    {
+        return running_;
     }
 
     /*

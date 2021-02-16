@@ -5,9 +5,9 @@
  * Gesellschaft
  *
  * @brief Biped robots reactive stepper using the divergent component of motion.
- * 
+ *
  * Declare a class that encapsulate the DcmVrpPlanner, the
- * EndEffectorTrajectory3D, and the StepperHead. 
+ * EndEffectorTrajectory3D, and the StepperHead.
  */
 
 #pragma once
@@ -15,6 +15,11 @@
 #include <iostream>
 
 #include "reactive_planners/dcm_reactive_stepper.hpp"
+
+namespace Eigen
+{
+typedef Matrix<double, 7, 1> Vector7d;
+}
 
 namespace reactive_planners
 {
@@ -26,7 +31,8 @@ public:
     ~QuadrupedDcmReactiveStepper();
 
     /**
-     * @brief Initialize the reactive stepper for biped.
+     * @brief Initialize the reactive stepper for quadruped. We assume that the
+     * base is horizontal and that the feet are touching the ground.
      *
      * @param is_left_leg_in_contact Left foot is in contact with the ground, if
      * not then the right foot is.
@@ -46,7 +52,6 @@ public:
      * @param front_right_foot_position 3D position of the front right foot.
      * @param hind_left_foot_position 3D position of the hind left foot.
      * @param hind_right_foot_position 3D position of the hind right foot.
-     * @param v_des Desired velocity.
      */
     void initialize(
         const bool &is_left_leg_in_contact,
@@ -62,11 +67,11 @@ public:
         const double &mid_air_foot_height,
         const double &control_period,
         const double &planner_loop,
+        const Eigen::Ref<const Eigen::Vector7d> &base_position,
         const Eigen::Ref<const Eigen::Vector3d> &front_left_foot_position,
         const Eigen::Ref<const Eigen::Vector3d> &front_right_foot_position,
         const Eigen::Ref<const Eigen::Vector3d> &hind_left_foot_position,
-        const Eigen::Ref<const Eigen::Vector3d> &hind_right_foot_position,
-        const Eigen::Ref<const Eigen::Vector3d> &v_des);
+        const Eigen::Ref<const Eigen::Vector3d> &hind_right_foot_position);
 
     /**
      * @brief Compute the plan trajectory from input variable.
@@ -115,10 +120,14 @@ public:
      * @return bool, true upon success.
      */
     bool run(double time,
-             const Eigen::Ref<const Eigen::Vector3d> &left_foot_position,
-             const Eigen::Ref<const Eigen::Vector3d> &right_foot_position,
-             const Eigen::Ref<const Eigen::Vector3d> &left_foot_vel,
-             const Eigen::Ref<const Eigen::Vector3d> &right_foot_vel,
+             const Eigen::Ref<const Eigen::Vector3d> &front_left_foot_position,
+             const Eigen::Ref<const Eigen::Vector3d> &front_right_foot_position,
+             const Eigen::Ref<const Eigen::Vector3d> &hind_left_foot_position,
+             const Eigen::Ref<const Eigen::Vector3d> &hind_right_foot_position,
+             const Eigen::Ref<const Eigen::Vector3d> &front_left_foot_velocity,
+             const Eigen::Ref<const Eigen::Vector3d> &front_right_foot_velocity,
+             const Eigen::Ref<const Eigen::Vector3d> &hind_left_foot_velocity,
+             const Eigen::Ref<const Eigen::Vector3d> &hind_right_foot_velocity,
              const Eigen::Ref<const Eigen::Vector3d> &com_position,
              const Eigen::Ref<const Eigen::Vector3d> &com_velocity,
              const pinocchio::SE3 &world_M_base,
@@ -129,7 +138,7 @@ public:
      */
     void start()
     {
-        running_ = true;
+        biped_stepper_.start();
     }
 
     /**
@@ -137,7 +146,7 @@ public:
      */
     void stop()
     {
-        running_ = false;
+        biped_stepper_.stop();
     }
 
     /*
@@ -150,447 +159,263 @@ public:
      * @param desired_com_velocity
      */
     void set_desired_com_velocity(
-        const Eigen::Ref<const Eigen::Vector3d> &desired_com_velocity)
+        Eigen::Ref<const Eigen::Vector3d> desired_com_velocity)
     {
-        desired_com_velocity_ = desired_com_velocity;
+        biped_stepper_.set_desired_com_velocity(desired_com_velocity);
     }
 
     void set_feet_pos(
-        const Eigen::Ref<const Eigen::Vector3d> &left_foot_position,
-        const Eigen::Ref<const Eigen::Vector3d> &right_foot_position)
+        const Eigen::Ref<const Eigen::Vector3d> &front_left_foot_position,
+        const Eigen::Ref<const Eigen::Vector3d> &front_right_foot_position,
+        const Eigen::Ref<const Eigen::Vector3d> &hind_left_foot_position,
+        const Eigen::Ref<const Eigen::Vector3d> &hind_right_foot_position)
     {
-        left_foot_position_ = left_foot_position;
-        right_foot_position_ = right_foot_position;
+        front_left_foot_position_ = front_left_foot_position;
+        front_right_foot_position_ = front_right_foot_position;
+        hind_left_foot_position_ = hind_left_foot_position;
+        hind_right_foot_position_ = hind_right_foot_position;
+    }
+    
+    /**
+     * @brief Set polynomial end effector trajectory.
+     */
+    void set_polynomial_end_effector_trajectory()
+    {
+        biped_stepper_.set_polynomial_end_effector_trajectory();
     }
 
     /**
-     * @brief Set the right foot 3d position.
-     *
-     * @return const Eigen::Vector3d&
+     * @brief Set dynamical end effector trajectory.
      */
-    void set_right_foot_position(
-        const Eigen::Ref<const Eigen::Vector3d> &right_foot_position)
+    void set_dynamical_end_effector_trajectory()
     {
-        right_foot_position_ = right_foot_position;
-    }
-
-    /**
-     * @brief Set the right foot 3d velocity.
-     *
-     * @return const Eigen::Vector3d&
-     */
-    void set_right_foot_velocity(
-        const Eigen::Ref<const Eigen::Vector3d> &right_foot_velocity)
-    {
-        right_foot_velocity_ = right_foot_velocity;
-    }
-
-    /**
-     * @brief Set the left foot 3d position.
-     *
-     * @return const Eigen::Vector3d&
-     */
-    void set_left_foot_position(
-        const Eigen::Ref<const Eigen::Vector3d> &left_foot_position)
-    {
-        left_foot_position_ = left_foot_position;
-    }
-
-    /**
-     * @brief Set the left foot 3d velocity.
-     *
-     * @return const Eigen::Vector3d&
-     */
-    void set_left_foot_velocity(
-        const Eigen::Ref<const Eigen::Vector3d> &left_foot_velocity)
-    {
-        left_foot_velocity_ = left_foot_velocity;
-    }
-
-    /**
-     * @brief Set the desired center of mass velocity.
-     *
-     * @param desired_com_velocity
-     */
-    void dcm_vrp_planner_initialization(const double &l_min,
-                                        const double &l_max,
-                                        const double &w_min,
-                                        const double &w_max,
-                                        const double &t_min,
-                                        const double &t_max,
-                                        const double &l_p,
-                                        const double &com_height,
-                                        const Eigen::Vector9d &weight)
-    {
-        dcm_vrp_planner_.initialize(
-            l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight);
+        biped_stepper_.set_dynamical_end_effector_trajectory();
     }
 
     /*
      * Getters
      */
 
+    /* front left foot */
+
     /**
-     * @brief Get the right foot 3d position.
+     * @brief Get the front left foot 3d position.
      *
      * @return const Eigen::Vector3d&
      */
-    const Eigen::Vector3d &get_right_foot_position()
+    const Eigen::Vector3d &get_front_left_foot_position()
     {
-        return right_foot_position_;
+        return front_left_foot_position_;
     }
 
     /**
-     * @brief Get the right foot 3d velocity.
+     * @brief Get the front left foot 3d velocity.
      *
      * @return const Eigen::Vector3d&
      */
-    const Eigen::Vector3d &get_right_foot_velocity()
+    const Eigen::Vector3d &get_front_left_foot_velocity()
     {
-        return right_foot_velocity_;
+        return front_left_foot_velocity_;
     }
 
     /**
-     * @brief Get the right foot 3d acceleration.
+     * @brief Get the front left foot 3d acceleration.
      *
      * @return const Eigen::Vector3d&
      */
-    const Eigen::Vector3d &get_right_foot_acceleration()
+    const Eigen::Vector3d &get_front_left_foot_acceleration()
     {
-        return right_foot_acceleration_;
+        return front_left_foot_acceleration_;
     }
 
+    /* front right foot */
+
     /**
-     * @brief Get the left foot 3d position.
+     * @brief Get the front right foot 3d position.
      *
      * @return const Eigen::Vector3d&
      */
-    const Eigen::Vector3d &get_left_foot_position()
+    const Eigen::Vector3d &get_front_right_foot_position()
     {
-        return left_foot_position_;
+        return front_right_foot_position_;
     }
 
     /**
-     * @brief Get the left foot 3d velocity.
+     * @brief Get the front right foot 3d velocity.
      *
      * @return const Eigen::Vector3d&
      */
-    const Eigen::Vector3d &get_left_foot_velocity()
+    const Eigen::Vector3d &get_front_right_foot_velocity()
     {
-        return left_foot_velocity_;
+        return front_right_foot_velocity_;
     }
 
     /**
-     * @brief Get the left foot 3d acceleration.
+     * @brief Get the front right foot 3d acceleration.
      *
      * @return const Eigen::Vector3d&
      */
-    const Eigen::Vector3d &get_left_foot_acceleration()
+    const Eigen::Vector3d &get_front_right_foot_acceleration()
     {
-        return left_foot_acceleration_;
+        return front_right_foot_acceleration_;
+    }
+
+    /* hind left foot */
+
+    /**
+     * @brief Get the hind left foot 3d position.
+     *
+     * @return const Eigen::Vector3d&
+     */
+    const Eigen::Vector3d &get_hind_left_foot_position()
+    {
+        return hind_left_foot_position_;
     }
 
     /**
-     * @brief Get the feasible velocity computed from the foot ste stride
+     * @brief Get the hind left foot 3d velocity.
+     *
+     * @return const Eigen::Vector3d&
+     */
+    const Eigen::Vector3d &get_hind_left_foot_velocity()
+    {
+        return hind_left_foot_velocity_;
+    }
+
+    /**
+     * @brief Get the hind left foot 3d acceleration.
+     *
+     * @return const Eigen::Vector3d&
+     */
+    const Eigen::Vector3d &get_hind_left_foot_acceleration()
+    {
+        return hind_left_foot_acceleration_;
+    }
+
+    /* hind right foot */
+
+    /**
+     * @brief Get the hind right foot 3d position.
+     *
+     * @return const Eigen::Vector3d&
+     */
+    const Eigen::Vector3d &get_hind_right_foot_position()
+    {
+        return hind_right_foot_position_;
+    }
+
+    /**
+     * @brief Get the hind right foot 3d velocity.
+     *
+     * @return const Eigen::Vector3d&
+     */
+    const Eigen::Vector3d &get_hind_right_foot_velocity()
+    {
+        return hind_right_foot_velocity_;
+    }
+
+    /**
+     * @brief Get the hind right foot 3d acceleration.
+     *
+     * @return const Eigen::Vector3d&
+     */
+    const Eigen::Vector3d &get_hind_right_foot_acceleration()
+    {
+        return hind_right_foot_acceleration_;
+    }
+
+    /* hind right foot */
+
+    /**
+     * @brief Get the feasible velocity computed from the foot stride
      * length.
      *
      * @return const Eigen::Vector3d&
      */
     const Eigen::Vector3d &get_feasible_com_velocity()
     {
-        return feasible_com_velocity_;
+        return biped_stepper_.get_feasible_com_velocity();
     }
 
-    /**
-     * @brief Get the previous support foot position.
-     *
-     * @return const Eigen::Vector3d&
-     */
-    const Eigen::Vector3d &get_previous_support_foot_position()
+    const Eigen::Vector4d &get_contact_array()
     {
-        return previous_support_foot_position_;
+        return contact_array_;
     }
-
-    /**
-     * @brief Get the current support foot position.
-     *
-     * @return const Eigen::Vector3d&
-     */
-    const Eigen::Vector3d &get_current_support_foot_position()
-    {
-        return current_support_foot_position_;
-    }
-
-    /**
-     * @brief Get the next support foot position.
-     *
-     * @return const Eigen::Vector3d&
-     */
-    const Eigen::Vector3d &get_next_support_foot_position()
-    {
-        return next_support_foot_position_;
-    }
-
-    /**
-     * @brief Get the step duration.
-     *
-     * @return const double&
-     */
-    const double &get_step_duration() const
-    {
-        return step_duration_;
-    }
-
-    /**
-     * @brief Get the time computed from last step touchdown.
-     *
-     * @return const double&
-     */
-    const double &get_time_from_last_step_touchdown() const
-    {
-        return time_from_last_step_touchdown_;
-    }
-
-    /**
-     * @brief Get if the left foot is in contact, else it is the right foot.
-     *
-     * @return const bool&
-     */
-    const bool &get_is_left_leg_in_contact() const
-    {
-        return is_left_leg_in_contact_;
-    }
-
-    /**
-     * @brief Get the flying foot position.
-     *
-     * @return const double&
-     */
-    const Eigen::Vector3d &get_flying_foot_position() const
-    {
-        return is_left_leg_in_contact_ ? right_foot_position_
-                                       : left_foot_position_;
-    }
-    /**
-     * @brief Get the local foot position.
-     *
-     * @return const Eigen::Vector3d&
-     */
-    const Eigen::Vector3d &get_local_right_foot_position() const
-    {
-        return local_right_foot_position_;
-    }
-
-    /**
-     * @brief Get the local right foot velocity.
-     *
-     * @return const Eigen::Vector3d&
-     */
-    const Eigen::Vector3d &get_local_right_foot_velocity() const
-    {
-        return local_right_foot_velocity_;
-    }
-
-    /**
-     * @brief Get the local foot position.
-     *
-     * @return const Eigen::Vector3d&
-     */
-    const Eigen::Vector3d &get_local_left_foot_position() const
-    {
-        return local_left_foot_position_;
-    }
-
-    /**
-     * @brief Get the local left foot velocity.
-     *
-     * @return const Eigen::Vector3d&
-     */
-    const Eigen::Vector3d &get_local_left_foot_velocity() const
-    {
-        return local_left_foot_velocity_;
-    }
-
-    /**
-     * @brief Get dcm.
-     *
-     * @return Eigen::Ref<const Eigen::Vector3d>
-     */
-    Eigen::Ref<const Eigen::Vector3d> get_dcm() const
-    {
-        return dcm_;
-    }
-
-    /**
-     * @brief Get forces until the foot land.
-     *
-     * @return const Eigen::VectorXd&
-     */
-    const Eigen::Ref<const Eigen::VectorXd> get_forces()
-    {
-        return forces_.col(0).head(nb_force_);
-    }
-
-    /**
-     * @brief Get force until the foot land.
-     * Don't use it for non biped robot.
-     *
-     * @return const Eigen::Matrix12,1d&
-     */
-
-    const Eigen::Matrix<double, 12, 1> &get_force()
-    {
-        if (is_left_leg_in_contact_)
-            force << 0., 0., 0., 0., 0., 0., forces_.head(3), 0., 0., 0.;
-        else
-            force << forces_.head(3), 0., 0., 0., 0., 0., 0., 0., 0., 0.;
-        return force;
-    }
-
-    /*
-     * Private methods
-     */
-private:
-    /**
-     * @brief Makes the robot walk.
-     *
-     * @param time
-     * @param current_flying_foot_position
-     * @param com_position
-     * @param com_velocity
-     * @param base_yaw
-     * @return true
-     * @return false
-     */
-    bool walk(double time,
-              const Eigen::Ref<const Eigen::Vector3d> &left_foot_position,
-              const Eigen::Ref<const Eigen::Vector3d> &right_foot_position,
-              const Eigen::Ref<const Eigen::Vector3d> &left_foot_vel,
-              const Eigen::Ref<const Eigen::Vector3d> &right_foot_vel,
-              const Eigen::Ref<const Eigen::Vector3d> &com_position,
-              const Eigen::Ref<const Eigen::Vector3d> &com_velocity,
-              pinocchio::SE3 &local_frame,
-              const bool &is_closed_loop);
-
-    /**
-     * @brief Makes the robot stand still.
-     *
-     * @param time
-     * @param current_flying_foot_position
-     * @param com_position
-     * @param com_velocity
-     * @param base_yaw
-     * @return true
-     * @return false
-     */
-    bool stand_still(
-        double time,
-        const Eigen::Ref<const Eigen::Vector3d> &left_foot_position,
-        const Eigen::Ref<const Eigen::Vector3d> &right_foot_position);
 
 private:
-    /** @brief Robot control loop period. */
-    double control_period_;
+    /* User inputs */
 
-    /** @brief Robot planner loop period. */
-    double planner_loop_;
+    /* Outputs */
 
-    /** @brief Scheduler of the stepping. */
-    StepperHead stepper_head_;
+    /* Front left foot trajectory. */
 
-    /** @brief Computes the next foot step location in order to avoid a fall and
-     * tracking at best a reference CoM velocity. */
-    DcmVrpPlanner dcm_vrp_planner_;
+    /** @brief The front left foot 3d position. */
+    Eigen::Vector3d front_left_foot_position_;
 
-    /** @brief Set it to one if you want use the article's trajectory. */
-    bool new_;
+    /** @brief The front left foot 3d velocity. */
+    Eigen::Vector3d front_left_foot_velocity_;
 
-    /** @brief Computes the end-effector flying trajectory. */
-    PolynomialEndEffectorTrajectory polynomial_end_eff_trajectory_;
-    DynamicallyConsistentEndEffectorTrajectory
-        dynamically_consistent_end_eff_trajectory_;
+    /** @brief The front left foot 3d acceleration. */
+    Eigen::Vector3d front_left_foot_acceleration_;
 
-    /** @brief Is the left foot in contact? otherwise the right foot is. */
-    bool is_left_leg_in_contact_;
+    /* Front right foot trajectory. */
 
-    /** @brief Duration from the last foot touchdown until the next. */
-    double step_duration_;
+    /** @brief The front right foot 3d position. */
+    Eigen::Vector3d front_right_foot_position_;
 
-    /** @brief Time from the last foot touchdown. */
-    double time_from_last_step_touchdown_;
+    /** @brief The front right foot 3d velocity. */
+    Eigen::Vector3d front_right_foot_velocity_;
 
-    /** @brief Previous support foot. The corresponding foot is now flying. */
-    Eigen::Vector3d previous_support_foot_position_;
+    /** @brief The front right foot 3d acceleration. */
+    Eigen::Vector3d front_right_foot_acceleration_;
 
-    /** @brief The current support foot. This foot is in contact. */
-    Eigen::Vector3d current_support_foot_position_;
+    /* Hind right foot trajectory. */
 
-    /** @brief The next upcoming support foot location. */
-    Eigen::Vector3d next_support_foot_position_;
+    /** @brief The hind right foot 3d position. */
+    Eigen::Vector3d hind_right_foot_position_;
 
-    /** @brief The desired center of mass velocity. */
-    Eigen::Vector3d desired_com_velocity_;
+    /** @brief The hind right foot 3d velocity. */
+    Eigen::Vector3d hind_right_foot_velocity_;
 
-    /** @brief The right foot 3d position. */
-    Eigen::Vector3d right_foot_position_;
+    /** @brief The hind right foot 3d acceleration. */
+    Eigen::Vector3d hind_right_foot_acceleration_;
 
-    /** @brief The right foot 3d velocity. */
-    Eigen::Vector3d right_foot_velocity_;
+    /* Hind left foot trajectory. */
 
-    /** @brief The right foot 3d acceleration. */
-    Eigen::Vector3d right_foot_acceleration_;
+    /** @brief The hind left foot 3d position. */
+    Eigen::Vector3d hind_left_foot_position_;
 
-    /** @brief The left foot position. */
-    Eigen::Vector3d left_foot_position_;
+    /** @brief The hind left foot 3d velocity. */
+    Eigen::Vector3d hind_left_foot_velocity_;
 
-    /** @brief The left foot 3d velocity. */
-    Eigen::Vector3d left_foot_velocity_;
+    /** @brief The hind left foot 3d acceleration. */
+    Eigen::Vector3d hind_left_foot_acceleration_;
 
-    /** @brief The left foot 3d acceleration. */
-    Eigen::Vector3d left_foot_acceleration_;
+    /* Other output */
 
-    /** @brief The right foot 3d position with respect to the base in frame
-     * parallel to the world frame with the base yaw orientation. */
-    Eigen::Vector3d local_right_foot_position_;
+    /** @brief Biped reactive stepper based on DCM. */
+    DcmReactiveStepper biped_stepper_;
 
-    /** @brief The right foot 3d velocity with respect to the base in frame
-     * parallel to the world frame with the base yaw orientation. */
-    Eigen::Vector3d local_right_foot_velocity_;
+    /** @brief Contact array containing which foot are in contact, the order is
+     * [FL, FR, HL, HR]. */
+    Eigen::Vector4d contact_array_;
 
-    /** @brief The left foot position with respect to the base in frame
-     * parallel to the world frame with the base yaw orientation. */
-    Eigen::Vector3d local_left_foot_position_;
+    /* PLanner settings. */
 
-    /** @brief The left foot 3d velocity with respect to the base in frame
-     * parallel to the world frame with the base yaw orientation. */
-    Eigen::Vector3d local_left_foot_velocity_;
+    /** @brief Position of the front right foot with respect to the base. */
+    Eigen::Vector3d fr_offset_;
 
-    /** @brief The feasible center of mass velocity achievable by the robot. */
-    Eigen::Vector3d feasible_com_velocity_;
+    /** @brief Position of the front left foot with respect to the base. */
+    Eigen::Vector3d fl_offset_;
 
-    /** @brief All of forces calculated until the next contact. */
-    Eigen::VectorXd forces_;
+    /** @brief Position of the hind right foot with respect to the base. */
+    Eigen::Vector3d hr_offset_;
 
-    /** @brief This frame is located at a the constant CoM height, and at the
-     * current CoM XY position. The roll and pitch are null and the yaw comes
-     * from the current robot base yaw orientation.
-     */
-    pinocchio::SE3 local_frame_;
+    /** @brief Position of the hind left foot with respect to the base. */
+    Eigen::Vector3d hl_offset_;
 
-    /** @brief Define if we compute a solution or stay still. */
-    bool running_;
-
-    /** @brief The number of acceptable force at forces_. */
-    int nb_force_;
-
-    /** @brief The number of acceptable force used at forces_. */
-    int nb_usage_of_force_;
-
-    /** @brief Force calculated until the next contact. */
-    Eigen::Matrix<double, 12, 1> force;
-
-    /** @brief Nominal DCM computed from the CoM estimation and nominal time. */
-    Eigen::Vector3d dcm_;
+    /** @brief Initial foot height during support. */
+    double foot_height_offset_;
 };
 
 }  // namespace reactive_planners

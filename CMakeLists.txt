@@ -16,6 +16,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 #
+# Local include module.
+#
+include(cmake/boost_python.cmake)
+
+#
 # Dependencies.
 #
 
@@ -30,6 +35,8 @@ find_package(eigen-quadprog REQUIRED)
 find_package(pinocchio REQUIRED)
 find_package(pybind11 REQUIRED)
 find_package(Eigen3 REQUIRED)
+# Specific search of boost python as it is yet not trivial.
+search_for_boost_python()
 
 # Optionnal
 find_package(dynamic-graph QUIET)
@@ -53,7 +60,8 @@ set(main_lib_src
     src/dcm_vrp_planner.cpp
     src/polynomial_end_effector_trajectory.cpp
     src/dynamically_consistent_end_effector_trajectory.cpp
-    src/dcm_reactive_stepper.cpp)
+    src/dcm_reactive_stepper.cpp
+    src/quadruped_dcm_reactive_stepper.cpp)
 # Create library target.
 add_library(${PROJECT_NAME} SHARED ${main_lib_src})
 # Includes.
@@ -93,9 +101,15 @@ install_scripts(
 #
 # Python bindings with pybind11.
 #
+# cmake-format: off
 set(py_lib_src
-    srcpy/reactive_planners srcpy/stepper_head.cpp srcpy/dcm_vrp_planner.cpp
-    srcpy/polynomial_end_effector_trajectory.cpp srcpy/dcm_reactive_stepper.cpp)
+    srcpy/reactive_planners
+    srcpy/stepper_head.cpp
+    srcpy/dcm_vrp_planner.cpp
+    srcpy/polynomial_end_effector_trajectory.cpp
+    srcpy/dcm_reactive_stepper.cpp
+    srcpy/quadruped_dcm_reactive_stepper.cpp)
+# cmake-format: on
 pybind11_add_module(${PROJECT_NAME}_python_binding MODULE ${py_lib_src})
 target_include_directories(
   ${PROJECT_NAME}_python_binding
@@ -103,6 +117,7 @@ target_include_directories(
          $<INSTALL_INTERFACE:include>)
 target_link_libraries(${PROJECT_NAME}_python_binding PRIVATE pybind11::module)
 target_link_libraries(${PROJECT_NAME}_python_binding PRIVATE ${PROJECT_NAME})
+target_link_boost_python(${PROJECT_NAME}_python_binding PRIVATE)
 get_python_install_dir(python_install_dir)
 install(TARGETS ${PROJECT_NAME}_python_binding
         DESTINATION ${python_install_dir})
