@@ -4,8 +4,10 @@
  * @copyright Copyright (c) 2020, New York University and Max Planck
  * Gesellschaft
  *
- * @brief Declare a class that encapsulate the DcmVrpPlanner, the
- * EndEffectorTrajectory3D, and the StepperHead
+ * @brief Biped robots reactive stepper using the divergent component of motion.
+ *
+ * Declare a class that encapsulate the DcmVrpPlanner, the
+ * EndEffectorTrajectory3D, and the StepperHead.
  */
 
 #pragma once
@@ -62,8 +64,7 @@ public:
         const double &control_period,
         const double &planner_loop,
         const Eigen::Ref<const Eigen::Vector3d> &left_foot_position,
-        const Eigen::Ref<const Eigen::Vector3d> &right_foot_position,
-        const Eigen::Ref<const Eigen::Vector3d> &v_des);
+        const Eigen::Ref<const Eigen::Vector3d> &right_foot_position);
 
     /**
      * @brief Compute the plan trajectory from input variable.
@@ -213,6 +214,22 @@ public:
     {
         dcm_vrp_planner_.initialize(
             l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, weight);
+    }
+
+    /**
+     * @brief Set polynomial end effector trajectory.
+     */
+    void set_polynomial_end_effector_trajectory()
+    {
+        new_ = false;
+    }
+
+    /**
+     * @brief Set dynamical end effector trajectory.
+     */
+    void set_dynamical_end_effector_trajectory()
+    {
+        new_ = true;
     }
 
     /*
@@ -415,7 +432,7 @@ public:
      *
      * @return const Eigen::VectorXd&
      */
-    const Eigen::Ref<const Eigen::VectorXd> get_forces()
+    Eigen::VectorXd get_forces()
     {
         return forces_.col(0).head(nb_force_);
     }
@@ -434,6 +451,17 @@ public:
         else
             force << forces_.head(3), 0., 0., 0., 0., 0., 0., 0., 0., 0.;
         return force;
+    }
+
+    /**
+     * @brief Return true if the stepper is running or if it standing still.
+     *
+     * @return true if running
+     * @return false if standing still.
+     */
+    bool is_running()
+    {
+        return running_;
     }
 
     /*

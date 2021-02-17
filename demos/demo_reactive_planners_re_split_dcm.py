@@ -22,7 +22,9 @@ from py_blmc_controllers.solo_centroidal_controller import (
     SoloCentroidalController,
 )
 
-from reactive_planners.dcm_vrp_planner.re_split_dcm_planner import DCMStepPlanner
+from reactive_planners.dcm_vrp_planner.re_split_dcm_planner import (
+    DCMStepPlanner,
+)
 from reactive_planners.dcm_vrp_planner.solo_step_planner import SoloStepPlanner
 from reactive_planners.centroidal_controller.lipm_centroidal_controller import (
     LipmCentroidalController,

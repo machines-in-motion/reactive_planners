@@ -58,7 +58,6 @@ if __name__ == "__main__":
         control_period,
         left_foot_position,
         right_foot_position,
-        v_des
     )
 
     # Plot lists.
@@ -105,7 +104,7 @@ if __name__ == "__main__":
             x_com,
             xd_com,
             0.0,
-            False
+            False,
         )
         # simulate a linearized inverted pendulum
         x_com, xd_com, _ = sim.step(

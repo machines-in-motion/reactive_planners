@@ -8,8 +8,11 @@
  */
 
 #include "reactive_planners/dcm_reactive_stepper.hpp"
+
 #include <pybind11/eigen.h>
 #include <pybind11/pybind11.h>
+
+#include <boost/python.hpp>
 
 using namespace reactive_planners;
 
@@ -33,21 +36,35 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
                  const bool &)) &
                  DcmReactiveStepper::run)
         .def("run",
-             (bool (DcmReactiveStepper::*)(
-                 double,
-                 const Eigen::Ref<const Eigen::Vector3d> &,
-                 const Eigen::Ref<const Eigen::Vector3d> &,
-                 const Eigen::Ref<const Eigen::Vector3d> &,
-                 const Eigen::Ref<const Eigen::Vector3d> &,
-                 const Eigen::Ref<const Eigen::Vector3d> &,
-                 const Eigen::Ref<const Eigen::Vector3d> &,
-                 const pinocchio::SE3 &,
-                 const bool &)) &
-                 DcmReactiveStepper::run)
-
+             [](DcmReactiveStepper &obj,
+                double time,
+                const Eigen::Ref<const Eigen::Vector3d> &left_foot_position,
+                const Eigen::Ref<const Eigen::Vector3d> &right_foot_position,
+                const Eigen::Ref<const Eigen::Vector3d> &left_foot_vel,
+                const Eigen::Ref<const Eigen::Vector3d> &right_foot_vel,
+                const Eigen::Ref<const Eigen::Vector3d> &com_position,
+                const Eigen::Ref<const Eigen::Vector3d> &com_velocity,
+                const pybind11::object &py_world_M_base,
+                const bool &is_closed_loop) {
+                 const pinocchio::SE3 &world_M_base =
+                     boost::python::extract<const pinocchio::SE3 &>(
+                         py_world_M_base.ptr());
+                 bool ret = obj.run(time,
+                                    left_foot_position,
+                                    right_foot_position,
+                                    left_foot_vel,
+                                    right_foot_vel,
+                                    com_position,
+                                    com_velocity,
+                                    world_M_base,
+                                    is_closed_loop);
+                 return ret;
+             })
         .def("start", &DcmReactiveStepper::start)
         .def("stop", &DcmReactiveStepper::stop)
         // Setters.
+        .def("set_desired_com_velocity",
+             &DcmReactiveStepper::set_desired_com_velocity)
         .def("set_right_foot_position",
              &DcmReactiveStepper::set_right_foot_position)
         .def("set_right_foot_velocity",
@@ -85,10 +102,5 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
              &DcmReactiveStepper::get_flying_foot_position)
         .def("get_is_left_leg_in_contact",
              &DcmReactiveStepper::get_is_left_leg_in_contact)
-        .def("get_forces", &DcmReactiveStepper::get_forces)
-        // Setters
-        .def("set_desired_com_velocity",
-             &DcmReactiveStepper::set_desired_com_velocity);
-    //        .def("set_end_eff_traj_costs",
-    //             &DcmReactiveStepper::set_end_eff_traj_costs);
+        .def("get_forces", &DcmReactiveStepper::get_forces);
 }

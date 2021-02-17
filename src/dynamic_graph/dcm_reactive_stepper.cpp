@@ -189,8 +189,7 @@ void DcmReactiveStepper::initialize(
     const double &control_period,
     const double &planner_loop,
     Eigen::Ref<const Eigen::Vector3d> left_foot_position,
-    Eigen::Ref<const Eigen::Vector3d> right_foot_position,
-    Eigen::Ref<const Eigen::Vector3d> v_des)
+    Eigen::Ref<const Eigen::Vector3d> right_foot_position)
 {
     dcm_reactive_stepper_.initialize(is_left_leg_in_contact,
                                      l_min,
@@ -206,8 +205,7 @@ void DcmReactiveStepper::initialize(
                                      control_period,
                                      planner_loop,
                                      left_foot_position,
-                                     right_foot_position,
-                                     v_des);
+                                     right_foot_position);
     control_period_ = control_period;
 }
 
@@ -561,8 +559,7 @@ void DcmReactiveStepper::initializeParamVector(
                params(19),              // control_period,
                params(20),              // planner_loop,
                params.segment<3>(21),   // Vector3d left_foot_position,
-               params.segment<3>(24),   // Vector3d right_foot_position,
-               params.segment<3>(27));  // Vector3d v_des
+               params.segment<3>(24));  // Vector3d right_foot_position
 }
 
 DcmReactiveStepper::InitializeCommand::InitializeCommand(
@@ -582,7 +579,6 @@ DcmReactiveStepper::InitializeCommand::InitializeCommand(
               dynamicgraph::command::Value::DOUBLE)(
               dynamicgraph::command::Value::DOUBLE)(
               dynamicgraph::command::Value::DOUBLE)(
-              dynamicgraph::command::Value::VECTOR)(
               dynamicgraph::command::Value::VECTOR)(
               dynamicgraph::command::Value::VECTOR),
           docstring)
@@ -609,7 +605,6 @@ dynamicgraph::command::Value DcmReactiveStepper::InitializeCommand::doExecute()
     const double &planner_loop = values[12].value();
     const Eigen::VectorXd &left_foot_position = values[13].value();
     const Eigen::VectorXd &right_foot_position = values[14].value();
-    const Eigen::VectorXd &v_des = values[15].value();
 
     if (cost_weights_local.size() != 9)
     {
@@ -633,8 +628,7 @@ dynamicgraph::command::Value DcmReactiveStepper::InitializeCommand::doExecute()
                           control_period,
                           planner_loop,
                           left_foot_position,
-                          right_foot_position,
-                          v_des);
+                          right_foot_position);
     }
     return dynamicgraph::command::Value();
 }

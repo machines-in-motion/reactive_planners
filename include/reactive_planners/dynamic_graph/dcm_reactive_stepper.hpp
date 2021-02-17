@@ -54,9 +54,8 @@ public:
                     const double &mid_air_foot_height,
                     const double &control_period,
                     const double &planner_loop,
-                    Eigen::Ref<const Eigen::Vector3d>,
-                    Eigen::Ref<const Eigen::Vector3d>,
-                    Eigen::Ref<const Eigen::Vector3d>);
+                    Eigen::Ref<const Eigen::Vector3d> left_foot_position,
+                    Eigen::Ref<const Eigen::Vector3d> right_foot_position);
 
     /**
      * @brief Command to initialize entity parameters.
