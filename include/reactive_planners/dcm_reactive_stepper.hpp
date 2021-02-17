@@ -5,9 +5,9 @@
  * Gesellschaft
  *
  * @brief Biped robots reactive stepper using the divergent component of motion.
- * 
+ *
  * Declare a class that encapsulate the DcmVrpPlanner, the
- * EndEffectorTrajectory3D, and the StepperHead. 
+ * EndEffectorTrajectory3D, and the StepperHead.
  */
 
 #pragma once
@@ -455,7 +455,7 @@ public:
 
     /**
      * @brief Return true if the stepper is running or if it standing still.
-     * 
+     *
      * @return true if running
      * @return false if standing still.
      */

@@ -175,7 +175,7 @@ public:
         hind_left_foot_position_ = hind_left_foot_position;
         hind_right_foot_position_ = hind_right_foot_position;
     }
-    
+
     /**
      * @brief Set polynomial end effector trajectory.
      */

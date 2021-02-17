@@ -605,7 +605,7 @@ dynamicgraph::command::Value DcmReactiveStepper::InitializeCommand::doExecute()
     const double &planner_loop = values[12].value();
     const Eigen::VectorXd &left_foot_position = values[13].value();
     const Eigen::VectorXd &right_foot_position = values[14].value();
-    
+
     if (cost_weights_local.size() != 9)
     {
         std::cout << "DcmReactiveStepper::InitializeCommand(): Error invalid "

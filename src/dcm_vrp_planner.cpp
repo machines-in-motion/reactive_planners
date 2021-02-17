@@ -158,8 +158,7 @@ void DcmVrpPlanner::update(
     // Local frame parallel to the world frame and aligned with the base yaw.
     world_M_local_.translation() << world_M_base.translation()(0),
         world_M_base.translation()(1), ground_height;
-    world_M_local_.rotation() =
-        world_M_base.rotation();
+    world_M_local_.rotation() = world_M_base.rotation();
 
     // Compute the DCM in the local frame.
     dcm_local_.head<2>() = com_vel.head<2>() / omega_ + com.head<2>();

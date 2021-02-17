@@ -65,8 +65,10 @@ void QuadrupedDcmReactiveStepper::initialize(
     Eigen::Matrix3d rot_mat = pinocchio::rpy::rpyToMatrix(rpy).transpose();
     fr_offset_ =
         rot_mat * (front_right_foot_position - base_placement.head<3>());
-    fl_offset_ = rot_mat * (front_left_foot_position - base_placement.head<3>());
-    hr_offset_ = rot_mat * (hind_right_foot_position - base_placement.head<3>());
+    fl_offset_ =
+        rot_mat * (front_left_foot_position - base_placement.head<3>());
+    hr_offset_ =
+        rot_mat * (hind_right_foot_position - base_placement.head<3>());
     hl_offset_ = rot_mat * (hind_left_foot_position - base_placement.head<3>());
 
     foot_height_offset_ =
@@ -155,15 +157,19 @@ bool QuadrupedDcmReactiveStepper::run(
     hind_left_foot_position_ =
         biped_stepper_.get_right_foot_position() + base_yaw_rot * hl_offset_;
 
-    if(biped_stepper_.is_running())
+    if (biped_stepper_.is_running())
     {
-        if(biped_stepper_.get_is_left_leg_in_contact())
+        if (biped_stepper_.get_is_left_leg_in_contact())
         {
-            contact_array_ << 1.0, 0.0, 0.0, 1.0 ;
-        }else{
-            contact_array_ << 0.0, 1.0, 1.0, 0.0 ;
+            contact_array_ << 1.0, 0.0, 0.0, 1.0;
         }
-    }else{
+        else
+        {
+            contact_array_ << 0.0, 1.0, 1.0, 0.0;
+        }
+    }
+    else
+    {
         contact_array_.fill(1.0);
     }
     return succeed;
