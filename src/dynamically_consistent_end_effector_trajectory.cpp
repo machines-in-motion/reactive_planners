@@ -566,7 +566,7 @@ int DynamicallyConsistentEndEffectorTrajectory::get_forces(
     {
         if (!qp_solver_.solve(Q_, q_, A_eq_, B_eq_, A_ineq_, B_ineq_))
         {
-            forces = forces.tail(forces.size() - 3);
+            forces = forces.tail(forces.size() - 3);// Lhum TODO fix bug!
         }
         else
         {

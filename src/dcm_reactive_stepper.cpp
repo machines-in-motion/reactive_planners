@@ -36,9 +36,9 @@ DcmReactiveStepper::DcmReactiveStepper()
     local_frame_.setIdentity();
     nb_usage_of_force_ = 0.;
     new_ = true;
-    flying_phase_duration_ = 0.1;
+    flying_phase_duration_ = 0.2;
     stance_phase_duration_ = 0.2;
-    omega_ = 7.2;//sqrt(9.81 / dcm_vrp_planner_.get_com_height());//Lhum TODO read it from python or DG.
+    omega_ = 8.6;//sqrt(9.81 / dcm_vrp_planner_.get_com_height());//Lhum TODO read it from python or DG.
     contact_(0) = is_left_leg_in_contact_;
     contact_(1) = !is_left_leg_in_contact_;
     des_swing_position_ << 0, 0, 0.05;
@@ -132,7 +132,6 @@ bool DcmReactiveStepper::run(
     const Eigen::Ref<const Eigen::Vector3d>& com_position,
     const Eigen::Ref<const Eigen::Vector3d>& com_velocity,
     const double& base_yaw,
-    const Eigen::Ref<const Eigen::Vector2d>& contact,
     const bool& is_closed_loop)
 {
     Eigen::Vector3d support_foot;
@@ -155,7 +154,6 @@ bool DcmReactiveStepper::run(
                com_position,
                com_velocity,
                world_M_base,
-               contact,
                is_closed_loop);
 }
 
@@ -168,7 +166,6 @@ bool DcmReactiveStepper::run(
     const Eigen::Ref<const Eigen::Vector3d>& com_position,
     const Eigen::Ref<const Eigen::Vector3d>& com_velocity,
     const pinocchio::SE3& world_M_base,
-    const Eigen::Ref<const Eigen::Vector2d>& contact,
     const bool& is_closed_loop)
 {
     local_frame_ = world_M_base;
@@ -186,7 +183,6 @@ bool DcmReactiveStepper::run(
              com_position,
              com_velocity,
              local_frame_,
-             contact,
              is_closed_loop);
     }
     else
@@ -205,7 +201,6 @@ bool DcmReactiveStepper::walk(
     const Eigen::Ref<const Eigen::Vector3d>& com_position,
     const Eigen::Ref<const Eigen::Vector3d>& com_velocity,
     pinocchio::SE3& local_frame,
-    const Eigen::Ref<const Eigen::Vector2d>& contact,
     const bool& is_closed_loop)
 {
     Eigen::Vector3d left_on_ground = left_foot_position;
@@ -214,24 +209,16 @@ bool DcmReactiveStepper::walk(
     right_on_ground[2] = 0;
     bool succeed = true;
     // Run the scheduler of the planner.
-    if(contact[0] == 0 && contact[1] == 0){
-        if (is_left_leg_in_contact_)
-        {
-            stepper_head_.run(step_duration_ - flying_phase_duration_, flying_phase_duration_, right_on_ground, time);
-        }
-        else
-        {
-            stepper_head_.run(step_duration_ - flying_phase_duration_, flying_phase_duration_, left_on_ground, time);
-        }
-        contact_ = stepper_head_.get_contact_phase();
+    if (is_left_leg_in_contact_)
+    {
+        stepper_head_.run(step_duration_ - flying_phase_duration_, flying_phase_duration_, right_on_ground, time);
     }
-    else {
-        if (is_left_leg_in_contact_) {
-            stepper_head_.run(step_duration_, right_on_ground, time);
-        } else {
-            stepper_head_.run(step_duration_, left_on_ground, time);
-        }
+    else
+    {
+        stepper_head_.run(step_duration_ - flying_phase_duration_, flying_phase_duration_, left_on_ground, time);
     }
+    contact_ = stepper_head_.get_contact_phase();
+
     // Extract the useful information.
     is_left_leg_in_contact_ = stepper_head_.get_is_left_leg_in_contact();
     if (is_left_leg_in_contact_)
@@ -300,9 +287,9 @@ bool DcmReactiveStepper::walk(
                         right_foot_velocity_,
                         right_foot_acceleration_);
                 // The current support foot does not move
-                left_foot_position_ = current_support_foot_position_;
-                left_foot_velocity_.setZero();
-                left_foot_acceleration_.setZero();
+//                left_foot_position_ = current_support_foot_position_;
+//                left_foot_velocity_.setZero();
+//                left_foot_acceleration_.setZero();
             } else {
                 // flying foot is the left foot
                 dynamically_consistent_end_eff_trajectory_.update_robot_status(
@@ -310,9 +297,9 @@ bool DcmReactiveStepper::walk(
                         left_foot_velocity_,
                         left_foot_acceleration_);
                 // The current support foot does not move
-                right_foot_position_ = current_support_foot_position_;
-                right_foot_velocity_.setZero();
-                right_foot_acceleration_.setZero();
+//                right_foot_position_ = current_support_foot_position_;
+//                right_foot_velocity_.setZero();
+//                right_foot_acceleration_.setZero();
             }
         }
         nb_usage_of_force_ += 1;
@@ -374,23 +361,24 @@ bool DcmReactiveStepper::walk(
 
     double start_time = 0.0;
     double end_time = dcm_vrp_planner_.get_duration_before_step_landing();
+
     //calculate com and vcom traj
     Eigen::Vector3d com;
     Eigen::Vector3d vcom;
     com << 0., 0., dcm_vrp_planner_.get_com_height();//Lhum TODO read it from python or DG.
-    vcom << 0., 0., -0.491985;//Lhum TODO read it from python or DG.
+    vcom << 0., 0., -1.0021252;//Lhum TODO read it from python or DG.
     if(contact_(0) != contact_(1)) {
         std::cout << "stance phase\n";
         com_planner_.update_com_single_support(omega_, current_time, stance_pos, com, vcom);
         com_ = com_planner_.get_com();
         v_com_ = com_planner_.get_com_d();
-        std::cout << "v_com " << v_com_ << std::endl;
+//        std::cout << "v_com " << v_com_ << std::endl;
     }
     else{
         std::cout << "swing phase\n";
         com_ = com_position;
         v_com_ = com_velocity;
-        std::cout << "Other v_com " << v_com_ << std::endl;
+//        std::cout << "Other v_com " << v_com_ << std::endl;
     }
 
     // Compute the flying foot trajectory.
@@ -479,15 +467,15 @@ bool DcmReactiveStepper::walk(
                     left_foot_position_,
                     left_foot_velocity_,
                     left_foot_acceleration_);
-                // The current support foot does not move
-                right_foot_position_ = current_support_foot_position_;
-                right_foot_velocity_.setZero();
-                right_foot_acceleration_.setZero();
             }
+            // The current support foot does not move
+            right_foot_position_ = current_support_foot_position_;
+            right_foot_velocity_.setZero();
+            right_foot_acceleration_.setZero();
         }
     }
     else{
-        forces_ << 0., 0., 0.;
+        forces_.setZero();
         nb_force_ = 3;
         left_foot_position_ = current_support_foot_position_;
         left_foot_velocity_.setZero();

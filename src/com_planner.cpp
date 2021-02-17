@@ -29,21 +29,18 @@ namespace reactive_planners
                                                Eigen::Ref<const Eigen::Vector3d> u_current_step,
                                                Eigen::Ref<const Eigen::Vector3d> previous_x_com,
                                                Eigen::Ref<const Eigen::Vector3d> previous_xd_com){
-        std::cout << "OMEGA " << omega << std::endl;
         if(time <= 0.02){
             last_x_com_ = previous_x_com;
             last_xd_com_ = previous_xd_com;
             r_vrp_current_step_ = u_current_step;
             r_vrp_current_step_[2] += 9.81 / (omega * omega);
         }
-        std::cout << "last_x_com_" << last_x_com_ << "last_xd_com_ " << last_xd_com_ << "r_vrp_current_step_ " << r_vrp_current_step_ << std::endl;
         com_ = 0.5 * (last_x_com_ - r_vrp_current_step_ + last_xd_com_ / omega) * exp(omega * time) +
                0.5 * (last_x_com_ - r_vrp_current_step_ - last_xd_com_ / omega) * exp(-omega * time) +
                r_vrp_current_step_;
         com_d_ = omega * 0.5 * (last_x_com_ - r_vrp_current_step_ + (last_xd_com_ / omega)) * exp(omega * time) -
                  omega * 0.5 * (last_x_com_ - r_vrp_current_step_ - (last_xd_com_ / omega)) * exp(-omega * time);
         com_dd_ = pow(omega, 2) * (last_x_com_ - r_vrp_current_step_);
-        std::cout << "get com_planner cpp v_com " << com_d_ << std::endl;
 
     }
 
@@ -51,7 +48,6 @@ namespace reactive_planners
                                                    Eigen::Ref<const Eigen::Vector3d> u_current_step,
                                                    Eigen::Ref<const Eigen::Vector3d> previous_x_com,
                                                    Eigen::Ref<const Eigen::Vector3d> previous_xd_com){
-        std::cout << "TTTTTTTTTTTT                                                                        " << time << std::endl;
         Eigen::Vector3d r_vrp_current_step = u_current_step;
         r_vrp_current_step[2] += 9.81 / (omega * omega);
 

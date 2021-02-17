@@ -309,7 +309,6 @@ bool &DcmReactiveStepper::inner(bool &s, int time)
                                   com_position,
                                   com_velocity,
                                   nb_switch_yaw_ * 3.141592 + base_yaw(5),
-                                  contact,//Lhum running
                                   false);
     start_stop_mutex_.unlock();
 

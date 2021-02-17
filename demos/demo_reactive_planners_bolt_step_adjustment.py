@@ -187,6 +187,7 @@ if __name__ == "__main__":
                     dcm_reactive_stepper.get_left_foot_velocity().copy()
                 )
 
+            contact_array = [0, 0]
             dcm_reactive_stepper.run(
                 time,
                 [

@@ -88,7 +88,6 @@ public:
              const Eigen::Ref<const Eigen::Vector3d> &com_position,
              const Eigen::Ref<const Eigen::Vector3d> &com_velocity,
              const double &base_yaw,
-             const Eigen::Ref<const Eigen::Vector2d>& contact,
              const bool &is_closed_loop);
     /**
      * @brief Compute the plan trajectory from input variable.
@@ -113,7 +112,6 @@ public:
              const Eigen::Ref<const Eigen::Vector3d> &com_position,
              const Eigen::Ref<const Eigen::Vector3d> &com_velocity,
              const pinocchio::SE3 &world_M_base,
-             const Eigen::Ref<const Eigen::Vector2d>& contact,
              const bool &is_closed_loop);
 
     /**
@@ -456,7 +454,6 @@ public:
      */
     Eigen::Vector3d &get_v_com()
     {
-        std::cout << "G v_com " << v_com_ << std::endl;
         return v_com_;
     }
 
@@ -492,7 +489,6 @@ private:
               const Eigen::Ref<const Eigen::Vector3d> &com_position,
               const Eigen::Ref<const Eigen::Vector3d> &com_velocity,
               pinocchio::SE3 &local_frame,
-              const Eigen::Ref<const Eigen::Vector2d> &contact,
               const bool &is_closed_loop);
 
     /**

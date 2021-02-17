@@ -64,7 +64,6 @@ class ComPlanner {
          */
         Eigen::Ref<const Eigen::Vector3d> get_com_d() const
         {
-            std::cout << "get com_planner v_com " << com_d_ << std::endl;
             return com_d_;
         }
 
