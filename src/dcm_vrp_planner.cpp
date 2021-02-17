@@ -158,10 +158,8 @@ void DcmVrpPlanner::update(
     // Local frame parallel to the world frame and aligned with the base yaw.
     world_M_local_.translation() << world_M_base.translation()(0),
         world_M_base.translation()(1), ground_height;
-    // Eigen::Vector3d rpy = world_M_base.rotation().eulerAngles(0, 1, 2);
     world_M_local_.rotation() =
-        world_M_base.rotation();  // Eigen::AngleAxisd(rpy[2],
-                                  // Eigen::Vector3d::UnitZ());
+        world_M_base.rotation();
 
     // Compute the DCM in the local frame.
     dcm_local_.head<2>() = com_vel.head<2>() / omega_ + com.head<2>();

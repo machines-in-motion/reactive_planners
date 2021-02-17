@@ -52,22 +52,22 @@ void QuadrupedDcmReactiveStepper::initialize(
     const double& mid_air_foot_height,
     const double& control_period,
     const double& planner_loop,
-    const Eigen::Ref<const Eigen::Vector7d>& base_position,
+    const Eigen::Ref<const Eigen::Vector7d>& base_placement,
     const Eigen::Ref<const Eigen::Vector3d>& front_left_foot_position,
     const Eigen::Ref<const Eigen::Vector3d>& front_right_foot_position,
     const Eigen::Ref<const Eigen::Vector3d>& hind_left_foot_position,
     const Eigen::Ref<const Eigen::Vector3d>& hind_right_foot_position)
 {
     Eigen::Map<const pinocchio::SE3::Quaternion> quat(
-        base_position.tail<4>().data());
+        base_placement.tail<4>().data());
     Eigen::Vector3d rpy = pinocchio::rpy::matrixToRpy(quat.matrix());
     rpy.head<2>().setZero();
     Eigen::Matrix3d rot_mat = pinocchio::rpy::rpyToMatrix(rpy).transpose();
     fr_offset_ =
-        rot_mat * (front_right_foot_position - base_position.head<3>());
-    fl_offset_ = rot_mat * (front_left_foot_position - base_position.head<3>());
-    hr_offset_ = rot_mat * (hind_right_foot_position - base_position.head<3>());
-    hl_offset_ = rot_mat * (hind_left_foot_position - base_position.head<3>());
+        rot_mat * (front_right_foot_position - base_placement.head<3>());
+    fl_offset_ = rot_mat * (front_left_foot_position - base_placement.head<3>());
+    hr_offset_ = rot_mat * (hind_right_foot_position - base_placement.head<3>());
+    hl_offset_ = rot_mat * (hind_left_foot_position - base_placement.head<3>());
 
     foot_height_offset_ =
         (front_right_foot_position(2) + front_left_foot_position(2) +

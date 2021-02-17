@@ -67,7 +67,7 @@ public:
         const double &mid_air_foot_height,
         const double &control_period,
         const double &planner_loop,
-        const Eigen::Ref<const Eigen::Vector7d> &base_position,
+        const Eigen::Ref<const Eigen::Vector7d> &base_placement,
         const Eigen::Ref<const Eigen::Vector3d> &front_left_foot_position,
         const Eigen::Ref<const Eigen::Vector3d> &front_right_foot_position,
         const Eigen::Ref<const Eigen::Vector3d> &hind_left_foot_position,

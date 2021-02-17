@@ -234,8 +234,6 @@ bool DcmReactiveStepper::walk(
         stepper_head_.get_time_from_last_step_touchdown();
     current_support_foot_position_ =
         stepper_head_.get_current_support_location();
-    // Eigen::Vector3d current_swing_foot_position =
-    //     is_left_leg_in_contact_ ? right_foot_position_ : left_foot_position_;
     previous_support_foot_position_ =
         stepper_head_.get_previous_support_location();
 
@@ -338,8 +336,6 @@ bool DcmReactiveStepper::walk(
                 right_foot_position_,
                 right_foot_velocity_,
                 right_foot_acceleration_);
-            // Eigen::Vector3d slack = dynamically_consistent_end_eff_trajectory_
-            //                             .get_slack_variables();
         }
         else
         {
@@ -383,8 +379,6 @@ bool DcmReactiveStepper::walk(
                 left_foot_position_,
                 left_foot_velocity_,
                 left_foot_acceleration_);
-            // Eigen::Vector3d slack = dynamically_consistent_end_eff_trajectory_
-            //                             .get_slack_variables();
         }
         else
         {
