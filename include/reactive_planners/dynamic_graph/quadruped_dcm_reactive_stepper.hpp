@@ -15,7 +15,7 @@
 #include <dynamic-graph/entity.h>
 #include <dynamic-graph/factory.h>
 
-#include "reactive_planners/dcm_reactive_stepper.hpp"
+#include "reactive_planners/quadruped_dcm_reactive_stepper.hpp"
 #include "real_time_tools/mutex.hpp"
 
 namespace reactive_planners
@@ -38,6 +38,25 @@ public:
      * @param name
      */
     QuadrupedDcmReactiveStepper(const std::string &name);
+
+    void initialize(const bool& is_left_leg_in_contact,
+                    const double& l_min,
+                    const double& l_max,
+                    const double& w_min,
+                    const double& w_max,
+                    const double& t_min,
+                    const double& t_max,
+                    const double& l_p,
+                    const double& com_height,
+                    const Eigen::Vector9d& weight,
+                    const double& mid_air_foot_height,
+                    const double& control_period,
+                    const double& planner_loop,
+                    const Eigen::Ref<const Eigen::Vector7d>& base_placement,
+                    const Eigen::Ref<const Eigen::Vector3d>& front_left_foot_position,
+                    const Eigen::Ref<const Eigen::Vector3d>& front_right_foot_position,
+                    const Eigen::Ref<const Eigen::Vector3d>& hind_left_foot_position,
+                    const Eigen::Ref<const Eigen::Vector3d>& hind_right_foot_position);
 
 public:
     /*
@@ -126,10 +145,10 @@ public:
     dynamicgraph::SignalTimeDependent<dynamicgraph::Vector, int> hind_right_foot_acceleration_sout_;
 
     /** @brief Feasible com velocity. */
-    dynamicgraph::SignalTimeDependent<dynamicgraph::Vector, int> feasible_com_velocity;
+    dynamicgraph::SignalTimeDependent<dynamicgraph::Vector, int> feasible_com_velocity_sout_;
 
     /** @brief Active endeffector contacts. */
-    dynamicgraph::SignalTimeDependent<dynamicgraph::Vector, int> contact_array;
+    dynamicgraph::SignalTimeDependent<dynamicgraph::Vector, int> contact_array_sout_;
 
 protected:
     /**
@@ -266,10 +285,24 @@ protected:
      */
     dynamicgraph::Vector &contact_array(dynamicgraph::Vector& signal_data, int time);
 
+    /**
+     * @brief Helper to define the name of the signals.
+     *
+     * @param is_input_signal
+     * @param signal_type
+     * @param signal_name
+     * @return std::string
+     */
+    std::string make_signal_string(const bool &is_input_signal,
+                                   const std::string &signal_type,
+                                   const std::string &signal_name);
+
 protected:
     /** @brief Inner signal to manage all other signals. */
     dynamicgraph::SignalTimeDependent<bool, int> inner_sout_;
 
+    /** @brief The central quadruped reactive stepper controller */
+    reactive_planners::QuadrupedDcmReactiveStepper stepper_;
 };
 
 }  // namespace dynamic_graph

@@ -18,10 +18,6 @@ namespace reactive_planners
 {
 namespace dynamic_graph
 {
-using ::dynamicgraph::command::docCommandVoid0;
-using ::dynamicgraph::command::docCommandVoid1;
-using ::dynamicgraph::command::makeCommandVoid0;
-using ::dynamicgraph::command::makeCommandVoid1;
 
 DYNAMICGRAPH_FACTORY_ENTITY_PLUGIN(QuadrupedDcmReactiveStepper, "QuadrupedDcmReactiveStepper");
 
@@ -53,12 +49,12 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(const std::string &name
       // Input signals.
       define_input_signal(current_front_left_foot_position_sin_, "Vector3d"),
       define_input_signal(current_front_right_foot_position_sin_, "Vector3d"),
-      define_input_signal(current_hind_left_foot_position_sin_ "Vector3d"),
+      define_input_signal(current_hind_left_foot_position_sin_, "Vector3d"),
       define_input_signal(current_hind_right_foot_position_sin_, "Vector3d"),
 
       define_input_signal(current_front_left_foot_velocity_sin_, "Vector3d"),
       define_input_signal(current_front_right_foot_velocity_sin_, "Vector3d"),
-      define_input_signal(current_hind_left_foot_velocity_sin_ "Vector3d"),
+      define_input_signal(current_hind_left_foot_velocity_sin_, "Vector3d"),
       define_input_signal(current_hind_right_foot_velocity_sin_, "Vector3d"),
 
       define_input_signal(com_position_sin_, "Vector3d"),
@@ -110,10 +106,10 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(const std::string &name
                            "Vector3d",
                            &QuadrupedDcmReactiveStepper::hind_right_foot_acceleration),
 
-      define_output_signal(feasible_com_velocity,
+      define_output_signal(feasible_com_velocity_sout_,
                            "Vector3d",
                            &QuadrupedDcmReactiveStepper::feasible_com_velocity),
-      define_output_signal(contact_array,
+      define_output_signal(contact_array_sout_,
                            "Vector4d",
                            &QuadrupedDcmReactiveStepper::contact_array),
 
@@ -133,8 +129,8 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(const std::string &name
               << base_yaw_sin_
               << xyzquat_base_sin_
               << is_closed_loop_sin_
-              << desired_com_velocity_sin_
-          make_signal_string(false, "bool", "inner_sout")),
+              << desired_com_velocity_sin_,
+          make_signal_string(false, "bool", "inner_sout"))
 {
     /*
      * Initializes the signals
@@ -154,7 +150,6 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(const std::string &name
               << xyzquat_base_sin_
               << is_closed_loop_sin_
               << desired_com_velocity_sin_
-
               << front_left_foot_position_sout_
               << front_right_foot_position_sout_
               << hind_left_foot_position_sout_
@@ -167,12 +162,54 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(const std::string &name
               << front_right_foot_acceleration_sout_
               << hind_left_foot_acceleration_sout_
               << hind_right_foot_acceleration_sout_
-              << feasible_com_velocity
-              << contact_array
+              << feasible_com_velocity_sout_
+              << contact_array_sout_
               );
 }
 
-QuadrupedDcmReactiveStepper::front_left_foot_position(
+std::string QuadrupedDcmReactiveStepper::make_signal_string(
+    const bool &is_input_signal,
+    const std::string &signal_type,
+    const std::string &signal_name)
+{
+    std::ostringstream oss;
+    oss << CLASS_NAME << "(" << name
+        << ")::" << (is_input_signal ? "input" : "output") << "(" << signal_type
+        << ")::" << signal_name;
+    return oss.str();
+}
+
+void QuadrupedDcmReactiveStepper::initialize(
+    const bool& is_left_leg_in_contact,
+    const double& l_min,
+    const double& l_max,
+    const double& w_min,
+    const double& w_max,
+    const double& t_min,
+    const double& t_max,
+    const double& l_p,
+    const double& com_height,
+    const Eigen::Vector9d& weight,
+    const double& mid_air_foot_height,
+    const double& control_period,
+    const double& planner_loop,
+    const Eigen::Ref<const Eigen::Vector7d>& base_placement,
+    const Eigen::Ref<const Eigen::Vector3d>& front_left_foot_position,
+    const Eigen::Ref<const Eigen::Vector3d>& front_right_foot_position,
+    const Eigen::Ref<const Eigen::Vector3d>& hind_left_foot_position,
+    const Eigen::Ref<const Eigen::Vector3d>& hind_right_foot_position)
+{
+    stepper_.initialize(
+        is_left_leg_in_contact,
+        l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height,
+        weight, mid_air_foot_height, control_period, planner_loop,
+        base_placement,
+        front_left_foot_position, front_right_foot_position,
+        hind_left_foot_position, hind_right_foot_position
+    );
+}
+
+dynamicgraph::Vector &QuadrupedDcmReactiveStepper::front_left_foot_position(
         dynamicgraph::Vector& signal_data, int time)
 {
     inner_sout_.access(time);
@@ -180,7 +217,7 @@ QuadrupedDcmReactiveStepper::front_left_foot_position(
     return signal_data;
 }
 
-QuadrupedDcmReactiveStepper::front_right_foot_position(
+dynamicgraph::Vector &QuadrupedDcmReactiveStepper::front_right_foot_position(
         dynamicgraph::Vector& signal_data, int time)
 {
     inner_sout_.access(time);
@@ -188,7 +225,7 @@ QuadrupedDcmReactiveStepper::front_right_foot_position(
     return signal_data;
 }
 
-QuadrupedDcmReactiveStepper::hind_left_foot_position(
+dynamicgraph::Vector &QuadrupedDcmReactiveStepper::hind_left_foot_position(
         dynamicgraph::Vector& signal_data, int time)
 {
     inner_sout_.access(time);
@@ -196,7 +233,7 @@ QuadrupedDcmReactiveStepper::hind_left_foot_position(
     return signal_data;
 }
 
-QuadrupedDcmReactiveStepper::hind_right_foot_position(
+dynamicgraph::Vector &QuadrupedDcmReactiveStepper::hind_right_foot_position(
         dynamicgraph::Vector& signal_data, int time)
 {
     inner_sout_.access(time);
@@ -204,7 +241,7 @@ QuadrupedDcmReactiveStepper::hind_right_foot_position(
     return signal_data;
 }
 
-QuadrupedDcmReactiveStepper::front_left_foot_velocity(
+dynamicgraph::Vector &QuadrupedDcmReactiveStepper::front_left_foot_velocity(
         dynamicgraph::Vector& signal_data, int time)
 {
     inner_sout_.access(time);
@@ -212,7 +249,7 @@ QuadrupedDcmReactiveStepper::front_left_foot_velocity(
     return signal_data;
 }
 
-QuadrupedDcmReactiveStepper::front_right_foot_velocity(
+dynamicgraph::Vector &QuadrupedDcmReactiveStepper::front_right_foot_velocity(
         dynamicgraph::Vector& signal_data, int time)
 {
     inner_sout_.access(time);
@@ -220,7 +257,7 @@ QuadrupedDcmReactiveStepper::front_right_foot_velocity(
     return signal_data;
 }
 
-QuadrupedDcmReactiveStepper::hind_left_foot_velocity(
+dynamicgraph::Vector &QuadrupedDcmReactiveStepper::hind_left_foot_velocity(
         dynamicgraph::Vector& signal_data, int time)
 {
     inner_sout_.access(time);
@@ -228,7 +265,7 @@ QuadrupedDcmReactiveStepper::hind_left_foot_velocity(
     return signal_data;
 }
 
-QuadrupedDcmReactiveStepper::hind_right_foot_velocity(
+dynamicgraph::Vector &QuadrupedDcmReactiveStepper::hind_right_foot_velocity(
         dynamicgraph::Vector& signal_data, int time)
 {
     inner_sout_.access(time);
@@ -236,7 +273,7 @@ QuadrupedDcmReactiveStepper::hind_right_foot_velocity(
     return signal_data;
 }
 
-QuadrupedDcmReactiveStepper::front_left_foot_acceleration(
+dynamicgraph::Vector &QuadrupedDcmReactiveStepper::front_left_foot_acceleration(
         dynamicgraph::Vector& signal_data, int time)
 {
     inner_sout_.access(time);
@@ -244,7 +281,7 @@ QuadrupedDcmReactiveStepper::front_left_foot_acceleration(
     return signal_data;
 }
 
-QuadrupedDcmReactiveStepper::front_right_foot_acceleration(
+dynamicgraph::Vector &QuadrupedDcmReactiveStepper::front_right_foot_acceleration(
         dynamicgraph::Vector& signal_data, int time)
 {
     inner_sout_.access(time);
@@ -252,7 +289,7 @@ QuadrupedDcmReactiveStepper::front_right_foot_acceleration(
     return signal_data;
 }
 
-QuadrupedDcmReactiveStepper::hind_left_foot_acceleration(
+dynamicgraph::Vector &QuadrupedDcmReactiveStepper::hind_left_foot_acceleration(
         dynamicgraph::Vector& signal_data, int time)
 {
     inner_sout_.access(time);
@@ -260,7 +297,7 @@ QuadrupedDcmReactiveStepper::hind_left_foot_acceleration(
     return signal_data;
 }
 
-QuadrupedDcmReactiveStepper::hind_right_foot_acceleration(
+dynamicgraph::Vector &QuadrupedDcmReactiveStepper::hind_right_foot_acceleration(
         dynamicgraph::Vector& signal_data, int time)
 {
     inner_sout_.access(time);
@@ -268,7 +305,7 @@ QuadrupedDcmReactiveStepper::hind_right_foot_acceleration(
     return signal_data;
 }
 
-QuadrupedDcmReactiveStepper::feasible_com_velocity(
+dynamicgraph::Vector &QuadrupedDcmReactiveStepper::feasible_com_velocity(
         dynamicgraph::Vector& signal_data, int time)
 {
     inner_sout_.access(time);
@@ -276,7 +313,7 @@ QuadrupedDcmReactiveStepper::feasible_com_velocity(
     return signal_data;
 }
 
-QuadrupedDcmReactiveStepper::contact_array(
+dynamicgraph::Vector &QuadrupedDcmReactiveStepper::contact_array(
         dynamicgraph::Vector& signal_data, int time)
 {
     inner_sout_.access(time);
@@ -284,5 +321,5 @@ QuadrupedDcmReactiveStepper::contact_array(
     return signal_data;
 }
 
-
-
+} // namespace dynamic_graph
+} // namespace reactive_planners
