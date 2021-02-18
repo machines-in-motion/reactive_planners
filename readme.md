@@ -11,6 +11,7 @@ Contains a list of reactive planners specialized in locomotion of legged robots.
 - Julian Viereck
 - Majid Kadhiv
 - Maximilien Naveau
+- Elham Daneshmand
 
 ## Copyrights
 
