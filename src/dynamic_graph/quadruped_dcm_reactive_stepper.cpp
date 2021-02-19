@@ -209,6 +209,27 @@ void QuadrupedDcmReactiveStepper::initialize(
     );
 }
 
+bool &QuadrupedDcmReactiveStepper::inner(bool &s, int time)
+{
+    stepper_.run(
+        time * 0.001,
+        current_front_left_foot_position_sin_.access(time),
+        current_front_right_foot_position_sin_.access(time),
+        current_hind_left_foot_position_sin_.access(time),
+        current_hind_right_foot_position_sin_.access(time),
+        current_front_left_foot_velocity_sin_.access(time),
+        current_front_right_foot_velocity_sin_.access(time),
+        current_hind_left_foot_velocity_sin_.access(time),
+        current_hind_right_foot_velocity_sin_.access(time),
+        com_position_sin_.access(time),
+        com_velocity_sin_.access(time),
+        rpy(2),
+        is_closed_loop_sin_.access(time)
+    );
+    s = true;
+    return s;
+}
+
 dynamicgraph::Vector &QuadrupedDcmReactiveStepper::front_left_foot_position(
         dynamicgraph::Vector& signal_data, int time)
 {
