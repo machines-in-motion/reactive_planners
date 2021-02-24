@@ -111,9 +111,32 @@ void DcmVrpPlanner::compute_nominal_step_values(
     const bool& is_left_leg_in_contact,
     const Eigen::Ref<const Eigen::Vector3d>& v_des_local)
 {
-    const double contact_switcher = is_left_leg_in_contact ? 2.0 : 1.0;
-    t_nom_ = 0.25;
-    t_nom_ = (t_min_ + t_max_) * 0.5;//Lhum running TODO !!!
+    double contact_switcher = is_left_leg_in_contact ? 2.0 : 1.0;
+    double t_lower_bound(0.0), t_upper_bound(0.0);
+    Eigen::Vector3d max_or_min_time;
+    /** @todo Better manage the lower and upper bound on `t`. */
+    // if ((v_des_local.head<2>().array().abs() < 1e-5).any()) {
+    double fabs_l_min = std::min(fabs(l_min_), fabs(l_max_));
+    if(l_min_ < 0 && 0 < l_max_)
+        fabs_l_min = 0;
+    double fabs_l_max = std::max(fabs(l_min_), fabs(l_max_));
+    double fabs_w_min = std:: min(fabs(w_min_), fabs(w_max_));
+    if(w_min_ < 0 && w_max_ > 0)
+        fabs_w_min = 0;
+    double fabs_w_max = std::max(fabs(w_min_), fabs(w_max_));
+    if (fabs(v_des_local(0)) < 1e-5 || fabs(v_des_local(1)) < 1e-5)
+    {
+        t_lower_bound = t_min_;
+        t_upper_bound = t_max_;
+    }
+    else
+    {
+        max_or_min_time << fabs_l_min / fabs(v_des_local(0)), fabs_w_min / fabs(v_des_local(1)), t_min_;
+        t_lower_bound = max_or_min_time.maxCoeff();
+        max_or_min_time << fabs_l_max / fabs(v_des_local(0)), fabs_w_max / fabs(v_des_local(1)), t_max_;
+        t_upper_bound = max_or_min_time.minCoeff();
+    }
+    t_nom_ = (t_lower_bound + t_upper_bound) * 0.5; //Lhum running TODO !!!
     tau_nom_ = exp(omega_ * t_nom_);
     l_nom_ = v_des_local(0) * t_nom_;
     w_nom_ = is_left_leg_in_contact ? v_des_local(1) * t_nom_ - l_p_
@@ -234,9 +257,9 @@ void DcmVrpPlanner::update(
         by_max = 0; //Lhum running
         by_min = 0;
     }
-    tau_min_ = exp(
-        omega_ *
-        std::max(t_min_, time_from_last_step_touchdown_ + new_t_min - 0.0001));
+//    tau_min_ = exp(
+//        omega_ *
+//        std::max(t_min_, time_from_last_step_touchdown_ + new_t_min - 0.0001));//Lhum running
 
     // clang-format off
     B_ineq_ << l_max_,                // 0
@@ -284,8 +307,8 @@ void DcmVrpPlanner::update(
     A_eq_ << 1.0, 0.0, -1.0 * tmp6(0), 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
              0.0, 1.0, -1.0 * tmp6(1), 0.0, 1.0, 0.0, 0.0, 0.0, 0.0;
 
-    B_eq_ << 0.0,
-             0.0;
+    B_eq_ << v0,
+             v1;
     // clang-format on
 }
 
