@@ -157,6 +157,17 @@ bool QuadrupedDcmReactiveStepper::run(
     hind_left_foot_position_ =
         biped_stepper_.get_right_foot_position() + base_yaw_rot * hl_offset_;
 
+    front_left_foot_velocity_ = biped_stepper_.get_left_foot_velocity();
+    hind_right_foot_velocity_ = biped_stepper_.get_left_foot_velocity();
+    front_right_foot_velocity_ = biped_stepper_.get_right_foot_velocity();
+    hind_left_foot_velocity_ = biped_stepper_.get_right_foot_velocity();
+
+    front_left_foot_acceleration_ = biped_stepper_.get_left_foot_acceleration();
+    hind_right_foot_acceleration_ = biped_stepper_.get_left_foot_acceleration();
+    front_right_foot_acceleration_ =
+        biped_stepper_.get_right_foot_acceleration();
+    hind_left_foot_acceleration_ = biped_stepper_.get_right_foot_acceleration();
+
     if (biped_stepper_.is_running())
     {
         if (biped_stepper_.get_is_left_leg_in_contact())
