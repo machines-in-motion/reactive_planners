@@ -11,6 +11,8 @@
 
 #include <dynamic-graph/factory.h>
 
+#include "pinocchio/math/rpy.hpp"
+
 #include <iostream>
 #include <sstream>
 
@@ -46,6 +48,8 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(const std::string &name
     : // Inheritance.
       dynamicgraph::Entity(name),
 
+      init_placement_(false),
+
       // Input signals.
       define_input_signal(current_front_left_foot_position_sin_, "Vector3d"),
       define_input_signal(current_front_right_foot_position_sin_, "Vector3d"),
@@ -60,7 +64,6 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(const std::string &name
       define_input_signal(com_position_sin_, "Vector3d"),
       define_input_signal(com_velocity_sin_, "Vector3d"),
 
-      define_input_signal(base_yaw_sin_, "Vector3d"),
       define_input_signal(xyzquat_base_sin_, "Vector7d"),
       define_input_signal(is_closed_loop_sin_, "double"),
 
@@ -126,7 +129,6 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(const std::string &name
               << current_hind_right_foot_velocity_sin_
               << com_position_sin_
               << com_velocity_sin_
-              << base_yaw_sin_
               << xyzquat_base_sin_
               << is_closed_loop_sin_
               << desired_com_velocity_sin_,
@@ -146,7 +148,6 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(const std::string &name
               << current_hind_right_foot_velocity_sin_
               << com_position_sin_
               << com_velocity_sin_
-              << base_yaw_sin_
               << xyzquat_base_sin_
               << is_closed_loop_sin_
               << desired_com_velocity_sin_
@@ -179,6 +180,50 @@ std::string QuadrupedDcmReactiveStepper::make_signal_string(
     return oss.str();
 }
 
+void QuadrupedDcmReactiveStepper::initialize_placement(
+    const Eigen::Ref<const Eigen::Vector7d>& base_placement,
+    const Eigen::Ref<const Eigen::Vector3d>& front_left_foot_position,
+    const Eigen::Ref<const Eigen::Vector3d>& front_right_foot_position,
+    const Eigen::Ref<const Eigen::Vector3d>& hind_left_foot_position,
+    const Eigen::Ref<const Eigen::Vector3d>& hind_right_foot_position)
+{
+    init_placement_ = true;
+    init_base_placement_ = base_placement;
+    init_front_left_foot_position_ = front_left_foot_position;
+    init_front_right_foot_position_ = front_right_foot_position;
+    init_hind_left_foot_position_ = hind_left_foot_position;
+    init_hind_right_foot_position_ = hind_right_foot_position;
+}
+
+void QuadrupedDcmReactiveStepper::initialize_stepper(
+    const bool& is_left_leg_in_contact,
+    const double& l_min,
+    const double& l_max,
+    const double& w_min,
+    const double& w_max,
+    const double& t_min,
+    const double& t_max,
+    const double& l_p,
+    const double& com_height,
+    const Eigen::Vector9d& weight,
+    const double& mid_air_foot_height,
+    const double& control_period,
+    const double& planner_loop)
+{
+    if (!init_placement_) {
+        throw std::runtime_error("Please call initialize_placement first.");
+    }
+
+    stepper_.initialize(
+        is_left_leg_in_contact,
+        l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height,
+        weight, mid_air_foot_height, control_period, planner_loop,
+        init_base_placement_,
+        init_front_left_foot_position_, init_front_right_foot_position_,
+        init_hind_left_foot_position_, init_hind_right_foot_position_
+    );
+}
+
 void QuadrupedDcmReactiveStepper::initialize(
     const bool& is_left_leg_in_contact,
     const double& l_min,
@@ -209,9 +254,35 @@ void QuadrupedDcmReactiveStepper::initialize(
     );
 }
 
+void QuadrupedDcmReactiveStepper::set_polynomial_end_effector_trajectory()
+{
+    stepper_.set_polynomial_end_effector_trajectory();
+}
+
+void QuadrupedDcmReactiveStepper::set_dynamical_end_effector_trajectory()
+{
+    stepper_.set_dynamical_end_effector_trajectory();
+}
+
+void QuadrupedDcmReactiveStepper::start()
+{
+    stepper_.start();
+}
+
+void QuadrupedDcmReactiveStepper::stop()
+{
+    stepper_.stop();
+}
+
 bool &QuadrupedDcmReactiveStepper::inner(bool &s, int time)
 {
-    stepper_.run(
+    Eigen::Map<const pinocchio::SE3::Quaternion> quat(
+        xyzquat_base_sin_.access(time).tail<4>().data());
+    Eigen::Vector3d rpy = pinocchio::rpy::matrixToRpy(quat.matrix());
+
+    stepper_.set_desired_com_velocity(desired_com_velocity_sin_.access(time));
+
+    s = stepper_.run(
         time * 0.001,
         current_front_left_foot_position_sin_.access(time),
         current_front_right_foot_position_sin_.access(time),
@@ -226,7 +297,6 @@ bool &QuadrupedDcmReactiveStepper::inner(bool &s, int time)
         rpy(2),
         is_closed_loop_sin_.access(time)
     );
-    s = true;
     return s;
 }
 

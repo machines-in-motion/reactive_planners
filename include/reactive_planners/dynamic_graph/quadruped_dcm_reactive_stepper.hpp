@@ -39,6 +39,32 @@ public:
      */
     QuadrupedDcmReactiveStepper(const std::string &name);
 
+    void set_polynomial_end_effector_trajectory();
+    void set_dynamical_end_effector_trajectory();
+
+    void start();
+    void stop();
+
+    void initialize_placement(const Eigen::Ref<const Eigen::Vector7d>& base_placement,
+                             const Eigen::Ref<const Eigen::Vector3d>& front_left_foot_position,
+                             const Eigen::Ref<const Eigen::Vector3d>& front_right_foot_position,
+                             const Eigen::Ref<const Eigen::Vector3d>& hind_left_foot_position,
+                             const Eigen::Ref<const Eigen::Vector3d>& hind_right_foot_position);
+
+    void initialize_stepper(const bool& is_left_leg_in_contact,
+                            const double& l_min,
+                            const double& l_max,
+                            const double& w_min,
+                            const double& w_max,
+                            const double& t_min,
+                            const double& t_max,
+                            const double& l_p,
+                            const double& com_height,
+                            const Eigen::Vector9d& weight,
+                            const double& mid_air_foot_height,
+                            const double& control_period,
+                            const double& planner_loop);
+
     void initialize(const bool& is_left_leg_in_contact,
                     const double& l_min,
                     const double& l_max,
@@ -93,9 +119,6 @@ public:
     /** @brief Current quadruped com velocity in world frame. */
     dynamicgraph::SignalPtr<dynamicgraph::Vector, int> com_velocity_sin_;
 
-    /** @brief Current quadruped base yaw angle. */
-    dynamicgraph::SignalPtr<dynamicgraph::Vector, int> base_yaw_sin_;
-
     /** @brief Current quadruped base SE3 posture. */
     dynamicgraph::SignalPtr<dynamicgraph::Vector, int> xyzquat_base_sin_;
 
@@ -149,6 +172,25 @@ public:
 
     /** @brief Active endeffector contacts. */
     dynamicgraph::SignalTimeDependent<dynamicgraph::Vector, int> contact_array_sout_;
+
+protected:
+    /** @brief True if the placement was initialized, false otherwise. */
+    bool init_placement_;
+
+    /** @brief The base placement provided during the initialization. */
+    Eigen::Vector7d init_base_placement_;;
+
+    /** @brief The The init front left foot position provided during initialization. */
+    Eigen::Vector3d init_front_left_foot_position_;
+
+    /** @brief The The init front right foot position provided during initialization. */
+    Eigen::Vector3d init_front_right_foot_position_;
+
+    /** @brief The The init hind left foot position provided during initialization. */
+    Eigen::Vector3d init_hind_left_foot_position_;
+
+    /** @brief The The init hind right foot position provided during initialization. */
+    Eigen::Vector3d init_hind_right_foot_position_;
 
 protected:
     /**
