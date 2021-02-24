@@ -7,8 +7,11 @@
  * @brief Expose the Device and the periodic call to python.
  */
 
+#include <eigenpy/eigenpy.hpp>
+
 #include "dynamic-graph/python/module.hh"
 #include "dynamic-graph/python/signal.hh"
+
 #include "reactive_planners/dynamic_graph/dcm_reactive_stepper.hpp"
 #include "reactive_planners/dynamic_graph/stepper_head.hpp"
 #include "reactive_planners/dynamic_graph/quadruped_dcm_reactive_stepper.hpp"
@@ -25,6 +28,10 @@ typedef bp::return_value_policy<bp::reference_existing_object>
 BOOST_PYTHON_MODULE(walking)
 {
     bp::import("dynamic_graph");
+    eigenpy::enableEigenPy();
+    eigenpy::enableEigenPySpecific<Eigen::Vector3d>();
+    eigenpy::enableEigenPySpecific<Eigen::Vector7d>();
+    eigenpy::enableEigenPySpecific<Eigen::Vector9d>();
 
     using reactive_planners::dynamic_graph::QuadrupedDcmReactiveStepper;
     dynamicgraph::python::exposeEntity<QuadrupedDcmReactiveStepper>()

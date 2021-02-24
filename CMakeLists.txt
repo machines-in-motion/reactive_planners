@@ -42,6 +42,7 @@ search_for_boost_python()
 find_package(dynamic-graph QUIET)
 find_package(dynamic-graph-python QUIET)
 find_package(real_time_tools QUIET)
+find_package(eigenpy QUIET)
 
 set(build_dynamic_graph_plugins FALSE)
 if(${dynamic-graph_FOUND}
@@ -141,6 +142,7 @@ if(${build_dynamic_graph_plugins})
   # Link the dependencies.
   target_link_libraries(${plugin_name} ${PROJECT_NAME})
   target_link_libraries(${plugin_name} dynamic-graph::dynamic-graph)
+  target_link_libraries(${plugin_name} eigenpy::eigenpy)
   target_link_libraries(${plugin_name}
                         dynamic-graph-python::dynamic-graph-python)
   target_link_libraries(${plugin_name} real_time_tools::real_time_tools)

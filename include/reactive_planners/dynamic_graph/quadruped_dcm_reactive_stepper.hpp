@@ -178,7 +178,7 @@ protected:
     bool init_placement_;
 
     /** @brief The base placement provided during the initialization. */
-    Eigen::Vector7d init_base_placement_;;
+    Eigen::Vector7d init_base_placement_;
 
     /** @brief The The init front left foot position provided during initialization. */
     Eigen::Vector3d init_front_left_foot_position_;
