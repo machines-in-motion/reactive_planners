@@ -31,8 +31,8 @@ BOOST_PYTHON_MODULE(walking)
 
     using reactive_planners::dynamic_graph::DcmReactiveStepper;
     using reactive_planners::dynamic_graph::StepperHead;
-    dynamicgraph::python::exposeEntity<DcmReactiveStepper>()
-    dynamicgraph::python::exposeEntity<StepperHead>()
+    dynamicgraph::python::exposeEntity<DcmReactiveStepper>();
+    dynamicgraph::python::exposeEntity<StepperHead>();
 
     using reactive_planners::dynamic_graph::QuadrupedDcmReactiveStepper;
     dynamicgraph::python::exposeEntity<QuadrupedDcmReactiveStepper>()
