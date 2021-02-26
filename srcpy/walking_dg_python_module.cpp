@@ -16,10 +16,6 @@
 #include "reactive_planners/dynamic_graph/stepper_head.hpp"
 #include "reactive_planners/dynamic_graph/quadruped_dcm_reactive_stepper.hpp"
 
-typedef boost::mpl::vector<reactive_planners::dynamic_graph::DcmReactiveStepper,
-                           reactive_planners::dynamic_graph::StepperHead>
-    entities_t;
-
 namespace dg = dynamicgraph;
 
 typedef bp::return_value_policy<bp::reference_existing_object>
@@ -32,6 +28,11 @@ BOOST_PYTHON_MODULE(walking)
     eigenpy::enableEigenPySpecific<Eigen::Vector3d>();
     eigenpy::enableEigenPySpecific<Eigen::Vector7d>();
     eigenpy::enableEigenPySpecific<Eigen::Vector9d>();
+
+    using reactive_planners::dynamic_graph::DcmReactiveStepper;
+    using reactive_planners::dynamic_graph::StepperHead;
+    dynamicgraph::python::exposeEntity<DcmReactiveStepper>()
+    dynamicgraph::python::exposeEntity<StepperHead>()
 
     using reactive_planners::dynamic_graph::QuadrupedDcmReactiveStepper;
     dynamicgraph::python::exposeEntity<QuadrupedDcmReactiveStepper>()

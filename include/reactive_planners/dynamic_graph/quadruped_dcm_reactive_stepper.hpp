@@ -39,18 +39,26 @@ public:
      */
     QuadrupedDcmReactiveStepper(const std::string &name);
 
+    /** @brief Set to use polynominal interpolation for the endeffector trajectories. */
     void set_polynomial_end_effector_trajectory();
+
+    /** @brief Set to use the mpc based method for the endeffector trajectories */
     void set_dynamical_end_effector_trajectory();
 
+    /** @brief Starts the reactive stepping */
     void start();
+
+    /** @brief Stops the reactive stepping */
     void stop();
 
+    /** @brief Initializes the placement information of the robot. */
     void initialize_placement(const Eigen::Ref<const Eigen::Vector7d>& base_placement,
                              const Eigen::Ref<const Eigen::Vector3d>& front_left_foot_position,
                              const Eigen::Ref<const Eigen::Vector3d>& front_right_foot_position,
                              const Eigen::Ref<const Eigen::Vector3d>& hind_left_foot_position,
                              const Eigen::Ref<const Eigen::Vector3d>& hind_right_foot_position);
 
+    /** @brief Initializes the parameters for the reactive stepper. */
     void initialize_stepper(const bool& is_left_leg_in_contact,
                             const double& l_min,
                             const double& l_max,
@@ -65,6 +73,7 @@ public:
                             const double& control_period,
                             const double& planner_loop);
 
+    /** @brief Initializes the placement and reactive stepper at once. */
     void initialize(const bool& is_left_leg_in_contact,
                     const double& l_min,
                     const double& l_max,
