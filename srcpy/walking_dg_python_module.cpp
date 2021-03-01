@@ -13,8 +13,8 @@
 #include "dynamic-graph/python/signal.hh"
 
 #include "reactive_planners/dynamic_graph/dcm_reactive_stepper.hpp"
-#include "reactive_planners/dynamic_graph/stepper_head.hpp"
 #include "reactive_planners/dynamic_graph/quadruped_dcm_reactive_stepper.hpp"
+#include "reactive_planners/dynamic_graph/stepper_head.hpp"
 
 namespace dg = dynamicgraph;
 
@@ -39,12 +39,16 @@ BOOST_PYTHON_MODULE(walking)
         // NOTE: The `initialize` method has too many args for boost python.
         //       Therefore we use two initialize functions.
         // .def("initialize", &QuadrupedDcmReactiveStepper::initialize)
-        .def("initialize_placement", &QuadrupedDcmReactiveStepper::initialize_placement)
-        .def("initialize_stepper", &QuadrupedDcmReactiveStepper::initialize_stepper)
-        .def("set_polynomial_end_effector_trajectory", &QuadrupedDcmReactiveStepper::set_polynomial_end_effector_trajectory)
-        .def("set_dynamical_end_effector_trajectory", &QuadrupedDcmReactiveStepper::set_dynamical_end_effector_trajectory)
+        .def("initialize_placement",
+             &QuadrupedDcmReactiveStepper::initialize_placement)
+        .def("initialize_stepper",
+             &QuadrupedDcmReactiveStepper::initialize_stepper)
+        .def("set_polynomial_end_effector_trajectory",
+             &QuadrupedDcmReactiveStepper::
+                 set_polynomial_end_effector_trajectory)
+        .def(
+            "set_dynamical_end_effector_trajectory",
+            &QuadrupedDcmReactiveStepper::set_dynamical_end_effector_trajectory)
         .def("start", &QuadrupedDcmReactiveStepper::start)
-        .def("stop", &QuadrupedDcmReactiveStepper::stop)
-        ;
+        .def("stop", &QuadrupedDcmReactiveStepper::stop);
 }
-
