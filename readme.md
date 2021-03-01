@@ -1,11 +1,11 @@
-reactive_planners {#mainpage}
-=================
+Readme
+------
 
-## What is it
+### What is it
 
 Contains a list of reactive planners specialized in locomotion of legged robots.
 
-## Authors
+### Authors
 
 - Avadesh Meduri
 - Julian Viereck
@@ -13,30 +13,37 @@ Contains a list of reactive planners specialized in locomotion of legged robots.
 - Maximilien Naveau
 - Elham Daneshmand
 
-## Copyrights
+### Copyrights
 
 Copyright (c) 2020, New York University and Max Planck Gesellschaft.
 
-## Dependencies
+### Getting started
 
-### Third party
+Install
+[treep](https://gitlab.is.tue.mpg.de/amd-clmc/treep)
+and
+[colcon](https://github.com/machines-in-motion/machines-in-motion.github.io/wiki/use_colcon)
+.
 
-- gurobi: https://www.gurobi.com/, see installation guide
-[here](https://www.gurobi.com/documentation/9.0/quickstart_linux/software_installation_guid.html)
-- urdf_parser_py: `pip install urdf-parser-py`
-
-### Treep dependencies
-
-In your workspace (e.g. `~/devel`) please execute the following instructions:
-
+Then follow the instructions below:
 ```bash
-git clone git@github.com:machines-in-motion/treep_machines_in_motion.git
-treep --clone yaml_cpp_catkin
-treep --clone mpi_cmake_modules
-treep --clone pybind11_catkin
+# install treep and colcon
+pip install -U treep colcon-common-extensions
+# change directory to your devel folder
+mkdir ~/devel
+cd ~/devel
+# Clone the treep configuration
+git clone https://github.com/machines-in-motion/treep_machines_in_motion.git
+# Clone the code base
+treep --clone REACTIVE_PLANNERS
+# go and build the code
+cd workspace
+colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
+# source the environment for using the code
+source install/setup.bash
 ```
 
-## Reference
+### Reference
 
 This package contains the implementation of the algorithms depicted in:
 
