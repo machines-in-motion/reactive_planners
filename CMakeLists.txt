@@ -47,7 +47,8 @@ find_package(eigenpy QUIET)
 set(build_dynamic_graph_plugins FALSE)
 if(${dynamic-graph_FOUND}
    AND ${dynamic-graph-python_FOUND}
-   AND ${real_time_tools_FOUND})
+   AND ${real_time_tools_FOUND}
+   AND ${eigenpy_FOUND})
   set(build_dynamic_graph_plugins TRUE)
 endif()
 
