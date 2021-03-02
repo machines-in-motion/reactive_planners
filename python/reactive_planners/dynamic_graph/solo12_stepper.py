@@ -129,7 +129,7 @@ class Solo12WBCStepper:
         wbc.kc_sin.value = np.array([0., 0., 200.])
         wbc.dc_sin.value = np.array([10., 10., 10.])
         wbc.kb_sin.value = np.array([25., 25., 25.])
-        wbc.db_sin.value = np.array([22.5, 22.5, 22.5])
+        wbc.db_sin.value = np.array([10., 10., 10.])
 
         wbc.des_com_pos_sin.value = np.array([0., 0., 0.25])
         wbc.des_com_vel_sin.value = np.zeros(3)
