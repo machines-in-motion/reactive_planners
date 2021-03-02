@@ -177,7 +177,6 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(
               << contact_array_sout_
               );
     // clang-format on
-    init_placement_ = false;
 }
 
 std::string QuadrupedDcmReactiveStepper::make_signal_string(

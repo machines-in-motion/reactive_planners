@@ -8,6 +8,7 @@
  */
 
 #include "reactive_planners/polynomial_end_effector_trajectory.hpp"
+
 #include <iostream>
 
 namespace reactive_planners
@@ -140,57 +141,56 @@ bool PolynomialEndEffectorTrajectory::compute(
     /*
      * Equality constraints.
      */
-    // clang-format off
-  A_eq_.setZero();
-  // X current constraints
-  t_vec(local_current_time, time_vec_x_);
-  A_eq_.row(0).head(nb_var_x_) = time_vec_x_;
-  dt_vec(local_current_time, time_vec_x_);
-  A_eq_.row(1).head(nb_var_x_) = time_vec_x_;
-  ddt_vec(local_current_time, time_vec_x_);
-  A_eq_.row(2).head(nb_var_x_) = time_vec_x_;
-  // X end constraints
-  dt_vec(local_end_time, time_vec_x_);
-  A_eq_.row(3).head(nb_var_x_) = time_vec_x_;
-  ddt_vec(local_end_time, time_vec_x_);
-  A_eq_.row(4).head(nb_var_x_) = time_vec_x_;
-  // Y current constraints
-  t_vec(local_current_time, time_vec_y_);
-  A_eq_.row(5).segment(nb_var_x_, nb_var_y_) = time_vec_y_;
-  dt_vec(local_current_time, time_vec_y_);
-  A_eq_.row(6).segment(nb_var_x_, nb_var_y_) = time_vec_y_;
-  ddt_vec(local_current_time, time_vec_y_);
-  A_eq_.row(7).segment(nb_var_x_, nb_var_y_) = time_vec_y_;
-  // Y end constraints
-  dt_vec(local_end_time, time_vec_y_);
-  A_eq_.row(8).segment(nb_var_x_, nb_var_y_) = time_vec_y_;
-  ddt_vec(local_end_time, time_vec_y_);
-  A_eq_.row(9).segment(nb_var_x_, nb_var_y_) = time_vec_y_;
-  // Z current constraints
-  t_vec(local_current_time, time_vec_z_);
-  A_eq_.row(10).tail(nb_var_z_) = time_vec_z_;
-  dt_vec(local_current_time, time_vec_z_);
-  A_eq_.row(11).tail(nb_var_z_) = time_vec_z_;
-  ddt_vec(local_current_time, time_vec_z_);
-  A_eq_.row(12).tail(nb_var_z_) = time_vec_z_;
-  // Z end constraints
-  t_vec(local_end_time, time_vec_z_);
-  A_eq_.row(13).tail(nb_var_z_) = time_vec_z_;
-  dt_vec(local_end_time, time_vec_z_);
-  A_eq_.row(14).tail(nb_var_z_) = time_vec_z_;
-  ddt_vec(local_end_time, time_vec_z_);
-  A_eq_.row(15).tail(nb_var_z_) = time_vec_z_;
-  // Z mid constraints
-//   dt_vec(mid_time, time_vec_z_);
-//   A_eq_.row(16).tail(nb_var_z_) = time_vec_z_;
+    A_eq_.setZero();
+    // X current constraints
+    t_vec(local_current_time, time_vec_x_);
+    A_eq_.row(0).head(nb_var_x_) = time_vec_x_;
+    dt_vec(local_current_time, time_vec_x_);
+    A_eq_.row(1).head(nb_var_x_) = time_vec_x_;
+    ddt_vec(local_current_time, time_vec_x_);
+    A_eq_.row(2).head(nb_var_x_) = time_vec_x_;
+    // X end constraints
+    dt_vec(local_end_time, time_vec_x_);
+    A_eq_.row(3).head(nb_var_x_) = time_vec_x_;
+    ddt_vec(local_end_time, time_vec_x_);
+    A_eq_.row(4).head(nb_var_x_) = time_vec_x_;
+    // Y current constraints
+    t_vec(local_current_time, time_vec_y_);
+    A_eq_.row(5).segment(nb_var_x_, nb_var_y_) = time_vec_y_;
+    dt_vec(local_current_time, time_vec_y_);
+    A_eq_.row(6).segment(nb_var_x_, nb_var_y_) = time_vec_y_;
+    ddt_vec(local_current_time, time_vec_y_);
+    A_eq_.row(7).segment(nb_var_x_, nb_var_y_) = time_vec_y_;
+    // Y end constraints
+    dt_vec(local_end_time, time_vec_y_);
+    A_eq_.row(8).segment(nb_var_x_, nb_var_y_) = time_vec_y_;
+    ddt_vec(local_end_time, time_vec_y_);
+    A_eq_.row(9).segment(nb_var_x_, nb_var_y_) = time_vec_y_;
+    // Z current constraints
+    t_vec(local_current_time, time_vec_z_);
+    A_eq_.row(10).tail(nb_var_z_) = time_vec_z_;
+    dt_vec(local_current_time, time_vec_z_);
+    A_eq_.row(11).tail(nb_var_z_) = time_vec_z_;
+    ddt_vec(local_current_time, time_vec_z_);
+    A_eq_.row(12).tail(nb_var_z_) = time_vec_z_;
+    // Z end constraints
+    t_vec(local_end_time, time_vec_z_);
+    A_eq_.row(13).tail(nb_var_z_) = time_vec_z_;
+    dt_vec(local_end_time, time_vec_z_);
+    A_eq_.row(14).tail(nb_var_z_) = time_vec_z_;
+    ddt_vec(local_end_time, time_vec_z_);
+    A_eq_.row(15).tail(nb_var_z_) = time_vec_z_;
+    // Z mid constraints
+    //   dt_vec(mid_time, time_vec_z_);
+    //   A_eq_.row(16).tail(nb_var_z_) = time_vec_z_;
 
-  B_eq_.setZero();
-  B_eq_ << current_pose_(0), current_velocity_(0), current_acceleration_(0), 0.0, 0.0,
-           current_pose_(1), current_velocity_(1), current_acceleration_(1), 0.0, 0.0,
-           current_pose_(2), current_velocity_(2), current_acceleration_(2),
-           target_pose(2), 0.0, 0.0;
-        //    0.0;
-    // clang-format on
+    B_eq_.setZero();
+    B_eq_ << current_pose_(0), current_velocity_(0), current_acceleration_(0),
+        0.0, 0.0, current_pose_(1), current_velocity_(1),
+        current_acceleration_(1), 0.0, 0.0, current_pose_(2),
+        current_velocity_(2), current_acceleration_(2), target_pose(2), 0.0,
+        0.0;
+    //    0.0;
 
     /*
      * Inequality constraints

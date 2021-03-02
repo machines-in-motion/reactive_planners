@@ -47,7 +47,8 @@ find_package(eigenpy QUIET)
 set(build_dynamic_graph_plugins FALSE)
 if(${dynamic-graph_FOUND}
    AND ${dynamic-graph-python_FOUND}
-   AND ${real_time_tools_FOUND})
+   AND ${real_time_tools_FOUND}
+   AND ${eigenpy_FOUND})
   set(build_dynamic_graph_plugins TRUE)
 endif()
 
@@ -132,9 +133,11 @@ if(${build_dynamic_graph_plugins})
   # plugin name
   set(plugin_name walking)
   # Create the library
-  add_library(${plugin_name} SHARED src/dynamic_graph/stepper_head.cpp
-                                    src/dynamic_graph/dcm_reactive_stepper.cpp
-                                    src/dynamic_graph/quadruped_dcm_reactive_stepper.cpp)
+  add_library(
+    ${plugin_name} SHARED
+    src/dynamic_graph/stepper_head.cpp
+    src/dynamic_graph/dcm_reactive_stepper.cpp
+    src/dynamic_graph/quadruped_dcm_reactive_stepper.cpp)
   # Add the include dependencies.
   target_include_directories(
     ${plugin_name} PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>

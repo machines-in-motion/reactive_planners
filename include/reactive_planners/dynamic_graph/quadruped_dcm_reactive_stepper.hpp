@@ -35,7 +35,7 @@ public:
      * @brief Construct a new QuadrupedDcmReactiveStepper object using its
      * Dynamic Graph name.
      *
-     * @param name
+     * @param name Entity name.
      */
     QuadrupedDcmReactiveStepper(const std::string& name);
 
@@ -53,7 +53,15 @@ public:
     /** @brief Stops the reactive stepping */
     void stop();
 
-    /** @brief Initializes the placement information of the robot. */
+    /**
+     * @brief Initializes the placement information of the robot.
+     *
+     * @param base_placement 7d Vector representing the base placement.
+     * @param front_left_foot_position Position of the center of the foot.
+     * @param front_right_foot_position Position of the center of the foot.
+     * @param hind_left_foot_position Position of the center of the foot.
+     * @param hind_right_foot_position Position of the center of the foot.
+     */
     void initialize_placement(
         const Eigen::Ref<const Eigen::Vector7d>& base_placement,
         const Eigen::Ref<const Eigen::Vector3d>& front_left_foot_position,
@@ -61,7 +69,31 @@ public:
         const Eigen::Ref<const Eigen::Vector3d>& hind_left_foot_position,
         const Eigen::Ref<const Eigen::Vector3d>& hind_right_foot_position);
 
-    /** @brief Initializes the parameters for the reactive stepper. */
+    /**
+     * @brief Initializes the parameters for the reactive stepper.
+     *
+     * @param is_left_leg_in_contact Boolean to indicate which leg is in
+     * contact at the initialization phase.
+     * @param l_min [in] Minimum step length in the x direction (in the
+     * direction of forward motion).
+     * @param l_max [in] Maximum step length in the x direction (in the
+     * direction of forward motion).
+     * @param w_min [in] Minimum step length in the y direction (in the lateral
+     * direction).
+     * @param w_max [in] Maximum step length in the y direction (in the lateral
+     * direction).
+     * @param t_min [in] Minimum step time.
+     * @param t_max [in] Maximum step time.
+     * @param l_p [in] Default lateral step length. Typically useful for
+     * humanoid robot where this value refer to the distance between the 2 feet
+     * while in the half-sitting/neutral position.
+     * @param com_height [in] Average desired height of the com above the
+     * ground.
+     * @param weight [in] Weights of the QP cost.
+     * @param mid_air_foot_height [in] Apex of the flying foot height.
+     * @param control_period [in] Control period in seconds.
+     * @param planner_loop [in] Period of the planner in seconds
+     */
     void initialize_stepper(const bool& is_left_leg_in_contact,
                             const double& l_min,
                             const double& l_max,
@@ -76,7 +108,11 @@ public:
                             const double& control_period,
                             const double& planner_loop);
 
-    /** @brief Initializes the placement and reactive stepper at once. */
+    /** @brief Initializes the placement and reactive stepper at once.
+     *
+     * @copydoc QuadrupedDcmReactiveStepper::initialize_placement()
+     * @copydoc QuadrupedDcmReactiveStepper::initialize_stepper()
+     */
     void initialize(
         const bool& is_left_leg_in_contact,
         const double& l_min,
