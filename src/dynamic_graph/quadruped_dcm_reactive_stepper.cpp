@@ -137,6 +137,7 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(const std::string &name
     /*
      * Initializes the signals
      */
+    // clang-format off
     Entity::signalRegistration(
         current_front_left_foot_position_sin_
               << current_front_right_foot_position_sin_
@@ -166,6 +167,8 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(const std::string &name
               << feasible_com_velocity_sout_
               << contact_array_sout_
               );
+    // clang-format on
+    init_placement_ = false;
 }
 
 std::string QuadrupedDcmReactiveStepper::make_signal_string(
