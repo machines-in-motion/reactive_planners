@@ -48,6 +48,8 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(
     :  // Inheritance.
       dynamicgraph::Entity(name),
 
+      init_placement_(false),
+
       // Input signals.
       define_input_signal(current_front_left_foot_position_sin_, "Vector3d"),
       define_input_signal(current_front_right_foot_position_sin_, "Vector3d"),
@@ -175,7 +177,6 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(
               << contact_array_sout_
               );
     // clang-format on
-    init_placement_ = false;
 }
 
 std::string QuadrupedDcmReactiveStepper::make_signal_string(
