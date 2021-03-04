@@ -182,7 +182,10 @@ public:
     /** @brief ?????? . */
     dynamicgraph::SignalPtr<double, int> is_closed_loop_sin_;
 
-    /** @brief Desired COM velocity to track with the stepper. */
+    /**
+     * @brief Desired COM velocity to track with the stepper in local yaw frame
+     * of the base.
+     */
     dynamicgraph::SignalPtr<dynamicgraph::Vector, int>
         desired_com_velocity_sin_;
 
