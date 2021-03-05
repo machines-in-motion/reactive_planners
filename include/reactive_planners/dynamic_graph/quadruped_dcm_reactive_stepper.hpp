@@ -39,6 +39,11 @@ public:
      */
     QuadrupedDcmReactiveStepper(const std::string& name);
 
+    /**
+     * @brief Set the nominal steptime.
+     */
+    void set_steptime_nominal(double t_nom);
+
     /** @brief Set to use polynominal interpolation for the endeffector
      * trajectories. */
     void set_polynomial_end_effector_trajectory();

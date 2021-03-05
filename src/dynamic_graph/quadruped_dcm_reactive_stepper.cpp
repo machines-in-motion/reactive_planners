@@ -286,6 +286,11 @@ void QuadrupedDcmReactiveStepper::initialize(
                         hind_right_foot_position);
 }
 
+void QuadrupedDcmReactiveStepper::set_steptime_nominal(double t_nom)
+{
+    stepper_.set_steptime_nominal(t_nom);
+}
+
 void QuadrupedDcmReactiveStepper::set_polynomial_end_effector_trajectory()
 {
     stepper_.set_polynomial_end_effector_trajectory();

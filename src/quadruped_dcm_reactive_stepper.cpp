@@ -38,6 +38,11 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper()
 
 QuadrupedDcmReactiveStepper::~QuadrupedDcmReactiveStepper() = default;
 
+void QuadrupedDcmReactiveStepper::set_steptime_nominal(double t_nom)
+{
+    biped_stepper_.set_steptime_nominal(t_nom);
+}
+
 void QuadrupedDcmReactiveStepper::initialize(
     const bool& is_left_leg_in_contact,
     const double& l_min,
