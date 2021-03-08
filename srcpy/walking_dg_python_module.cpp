@@ -43,6 +43,8 @@ BOOST_PYTHON_MODULE(walking)
              &QuadrupedDcmReactiveStepper::initialize_placement)
         .def("initialize_stepper",
              &QuadrupedDcmReactiveStepper::initialize_stepper)
+        .def("set_steptime_nominal",
+            &QuadrupedDcmReactiveStepper::set_steptime_nominal)
         .def("set_polynomial_end_effector_trajectory",
              &QuadrupedDcmReactiveStepper::
                  set_polynomial_end_effector_trajectory)

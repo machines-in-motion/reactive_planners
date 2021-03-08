@@ -22,8 +22,14 @@ DcmVrpPlanner::DcmVrpPlanner(
     const double& ht,
     const Eigen::Ref<const Eigen::Vector9d>& cost_weights_local)
 {
+    t_nom_ = 0.25;
     initialize(
         l_min, l_max, w_min, w_max, t_min, t_max, l_p, ht, cost_weights_local);
+}
+
+void DcmVrpPlanner::set_steptime_nominal(double t_nom)
+{
+    t_nom_ = t_nom;
 }
 
 void DcmVrpPlanner::initialize(
@@ -106,7 +112,6 @@ void DcmVrpPlanner::compute_nominal_step_values(
     const Eigen::Ref<const Eigen::Vector3d>& v_des_local)
 {
     const double contact_switcher = is_left_leg_in_contact ? 2.0 : 1.0;
-    t_nom_ = 0.25;
     tau_nom_ = exp(omega_ * t_nom_);
     l_nom_ = v_des_local(0) * t_nom_;
     w_nom_ = is_left_leg_in_contact ? v_des_local(1) * t_nom_ - l_p_

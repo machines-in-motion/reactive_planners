@@ -38,6 +38,11 @@ DcmReactiveStepper::DcmReactiveStepper()
 
 DcmReactiveStepper::~DcmReactiveStepper() = default;
 
+void DcmReactiveStepper::set_steptime_nominal(double t_nom)
+{
+    dcm_vrp_planner_.set_steptime_nominal(t_nom);
+}
+
 void DcmReactiveStepper::initialize(
     const bool& is_left_leg_in_contact,
     const double& l_min,

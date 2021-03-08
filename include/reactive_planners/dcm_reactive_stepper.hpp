@@ -67,6 +67,11 @@ public:
         const Eigen::Ref<const Eigen::Vector3d> &right_foot_position);
 
     /**
+     * @brief Set the nominal steptime.
+     */
+    void set_steptime_nominal(double t_nom);
+
+    /**
      * @brief Compute the plan trajectory from input variable.
      *
      * @param time Duration from the beginning of the experiment

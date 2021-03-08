@@ -102,6 +102,11 @@ public:
         const Eigen::Ref<const Eigen::Vector9d>& cost_weights_local);
 
     /**
+     * @brief Set the nominal steptime.
+     */
+    void set_steptime_nominal(double t_nom);
+
+    /**
      * @brief Computes adapted step location.
      *
      * We use a QP formulation with the following notation:
