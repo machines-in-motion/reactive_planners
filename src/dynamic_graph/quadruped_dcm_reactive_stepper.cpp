@@ -317,7 +317,13 @@ bool& QuadrupedDcmReactiveStepper::inner(bool& s, int time)
         xyzquat_base_sin_.access(time).tail<4>().data());
     Eigen::Vector3d rpy = pinocchio::rpy::matrixToRpy(quat.matrix());
 
-    stepper_.set_desired_com_velocity(desired_com_velocity_sin_.access(time));
+    // Rotate the passed desired_com_velocity_sin_ from local to world frame.
+    Eigen::Vector3d vec_yaw;
+    vec_yaw << 0., 0., rpy(2);
+    stepper_.set_desired_com_velocity(
+        pinocchio::rpy::rpyToMatrix(vec_yaw) *
+            desired_com_velocity_sin_.access(time)
+    );
 
     s = stepper_.run(time * 0.001,
                      current_front_left_foot_position_sin_.access(time),
