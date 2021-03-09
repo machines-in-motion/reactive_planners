@@ -33,6 +33,7 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper()
     hr_offset_.setZero();
     hl_offset_.setZero();
     foot_height_offset_ = 0.0;
+    forces_.setZero();
     contact_array_.fill(1);
 }
 
@@ -128,6 +129,7 @@ bool QuadrupedDcmReactiveStepper::run(
     const bool& is_closed_loop)
 {
     bool succeed = true;
+    Eigen::Matrix<double, 12, 1> stepper_forces;
 
     Eigen::Vector3d virtual_left_foot_position =
         (front_left_foot_position + hind_right_foot_position) * 0.5;
@@ -173,15 +175,21 @@ bool QuadrupedDcmReactiveStepper::run(
         biped_stepper_.get_right_foot_acceleration();
     hind_left_foot_acceleration_ = biped_stepper_.get_right_foot_acceleration();
 
+    forces_.setZero();
     if (biped_stepper_.is_running())
     {
+        stepper_forces = biped_stepper_.get_force();
         if (biped_stepper_.get_is_left_leg_in_contact())
         {
             contact_array_ << 1.0, 0.0, 0.0, 1.0;
+            forces_.block(6, 0, 6, 1) = stepper_forces.block(6, 0, 6, 1);
+            forces_.block(12, 0, 6, 1) = stepper_forces.block(6, 0, 6, 1);
         }
         else
         {
             contact_array_ << 0.0, 1.0, 1.0, 0.0;
+            forces_.block(0, 0, 6, 1) = stepper_forces.block(0, 0, 6, 1);
+            forces_.block(18, 0, 6, 1) = stepper_forces.block(0, 0, 6, 1);
         }
     }
     else

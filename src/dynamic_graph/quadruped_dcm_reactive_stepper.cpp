@@ -127,6 +127,9 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(
       define_output_signal(contact_array_sout_,
                            "Vector4d",
                            &QuadrupedDcmReactiveStepper::contact_array),
+      define_output_signal(swing_foot_forces_sout_,
+                           "Vector24d",
+                           &QuadrupedDcmReactiveStepper::swing_foot_forces),
 
       // Inner signal.
       inner_sout_(
@@ -175,6 +178,7 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(
               << hind_right_foot_acceleration_sout_
               << feasible_com_velocity_sout_
               << contact_array_sout_
+              << swing_foot_forces_sout_
               );
     // clang-format on
 }
@@ -451,6 +455,14 @@ dynamicgraph::Vector& QuadrupedDcmReactiveStepper::contact_array(
 {
     inner_sout_.access(time);
     signal_data = stepper_.get_contact_array();
+    return signal_data;
+}
+
+dynamicgraph::Vector& QuadrupedDcmReactiveStepper::swing_foot_forces(
+    dynamicgraph::Vector& signal_data, int time)
+{
+    inner_sout_.access(time);
+    signal_data = stepper_.get_forces();
     return signal_data;
 }
 

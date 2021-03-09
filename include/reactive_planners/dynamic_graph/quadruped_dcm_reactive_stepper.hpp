@@ -253,6 +253,10 @@ public:
     dynamicgraph::SignalTimeDependent<dynamicgraph::Vector, int>
         contact_array_sout_;
 
+    /** @brief Feedforward force for the swing foot. */
+    dynamicgraph::SignalTimeDependent<dynamicgraph::Vector, int>
+        swing_foot_forces_sout_;
+
 protected:
     /** @brief True if the placement was initialized, false otherwise. */
     bool init_placement_;
@@ -424,6 +428,16 @@ protected:
      */
     dynamicgraph::Vector& contact_array(dynamicgraph::Vector& signal_data,
                                         int time);
+
+    /**
+     * @brief Callback of the swing_foot_forces_sout_ signal.
+     *
+     * @param s
+     * @param time
+     * @return dynamicgraph::Vector&
+     */
+    dynamicgraph::Vector& swing_foot_forces(dynamicgraph::Vector& signal_data,
+                                            int time);
 
     /**
      * @brief Helper to define the name of the signals.
