@@ -235,7 +235,9 @@ bool PolynomialEndEffectorTrajectory::compute(
             std::cout << "PolynomialEndEffectorTrajectory::compute -> the "
                          "minimization "
                          "problem has no "
-                         "solution!"
+                         "solution! ("
+                      << "start, current, end="
+                      << start_time_ << "," << current_time_ << "," <<  end_time_ << ")"
                       << std::endl;
         }
         else
