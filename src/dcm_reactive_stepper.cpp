@@ -89,17 +89,13 @@ void DcmReactiveStepper::initialize(
     feasible_com_velocity_.setZero();
 
     // Initialize the end-effector trajectory generator.
-    if (new_)
-    {
-        dynamically_consistent_end_eff_trajectory_.set_mid_air_height(
-            mid_air_foot_height);
-        dynamically_consistent_end_eff_trajectory_.set_planner_loop(
-            planner_loop_);
-    }
-    else
-    {
-        polynomial_end_eff_trajectory_.set_mid_air_height(mid_air_foot_height);
-    }
+    dynamically_consistent_end_eff_trajectory_.set_mid_air_height(
+        mid_air_foot_height);
+    dynamically_consistent_end_eff_trajectory_.set_planner_loop(
+        planner_loop_);
+
+    polynomial_end_eff_trajectory_.set_mid_air_height(mid_air_foot_height);
+
     if (is_left_leg_in_contact_)
     {
         stepper_head_.set_support_feet_pos(right_foot_position,
@@ -344,15 +340,19 @@ bool DcmReactiveStepper::walk(
         }
         else
         {
-            succeed = succeed && polynomial_end_eff_trajectory_.compute(
-                                     previous_support_foot_position_,
-                                     right_foot_position_,
-                                     right_foot_velocity_,
-                                     right_foot_acceleration_,
-                                     next_support_foot_position_,
-                                     start_time,
-                                     current_time,
-                                     end_time);
+            // Avoid updating the polynominal at the end of the trajectory.
+            if (current_time <= end_time - 0.05)
+            {
+                succeed = succeed && polynomial_end_eff_trajectory_.compute(
+                                        previous_support_foot_position_,
+                                        right_foot_position_,
+                                        right_foot_velocity_,
+                                        right_foot_acceleration_,
+                                        next_support_foot_position_,
+                                        start_time,
+                                        current_time,
+                                        end_time);
+            }
             polynomial_end_eff_trajectory_.get_next_state(
                 current_time + control_period_,
                 right_foot_position_,
@@ -387,15 +387,19 @@ bool DcmReactiveStepper::walk(
         }
         else
         {
-            succeed = succeed && polynomial_end_eff_trajectory_.compute(
-                                     previous_support_foot_position_,
-                                     left_foot_position_,
-                                     left_foot_velocity_,
-                                     left_foot_acceleration_,
-                                     next_support_foot_position_,
-                                     start_time,
-                                     current_time,
-                                     end_time);
+            // Avoid updating the polynominal at the end of the trajectory.
+            if (current_time <= end_time - 0.05)
+            {
+                succeed = succeed && polynomial_end_eff_trajectory_.compute(
+                                        previous_support_foot_position_,
+                                        left_foot_position_,
+                                        left_foot_velocity_,
+                                        left_foot_acceleration_,
+                                        next_support_foot_position_,
+                                        start_time,
+                                        current_time,
+                                        end_time);
+            }
             polynomial_end_eff_trajectory_.get_next_state(
                 current_time + control_period_,
                 left_foot_position_,

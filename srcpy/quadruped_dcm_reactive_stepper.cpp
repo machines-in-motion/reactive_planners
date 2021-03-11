@@ -114,5 +114,7 @@ void bind_quadruped_dcm_reactive_stepper(pybind11::module &module)
         .def("get_feasible_com_velocity",
              &QuadrupedDcmReactiveStepper::get_feasible_com_velocity)
         .def("get_contact_array",
-             &QuadrupedDcmReactiveStepper::get_contact_array);
+             &QuadrupedDcmReactiveStepper::get_contact_array)
+        .def("get_forces",
+             &QuadrupedDcmReactiveStepper::get_forces);
 }

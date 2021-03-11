@@ -19,6 +19,7 @@
 namespace Eigen
 {
 typedef Matrix<double, 7, 1> Vector7d;
+typedef Matrix<double, 24, 1> Vector24d;
 }
 
 namespace reactive_planners
@@ -347,6 +348,11 @@ public:
         return contact_array_;
     }
 
+    const Eigen::Vector24d &get_forces()
+    {
+        return forces_;
+    }
+
 private:
     /* User inputs */
 
@@ -404,6 +410,9 @@ private:
     /** @brief Contact array containing which foot are in contact, the order is
      * [FL, FR, HL, HR]. */
     Eigen::Vector4d contact_array_;
+
+    /** @brief Feedforward forces for the swing foot. */
+    Eigen::Vector24d forces_;
 
     /* PLanner settings. */
 
