@@ -269,6 +269,8 @@ bool DynamicallyConsistentEndEffectorTrajectory::compute(
     const double& end_time,
     const bool& is_left_leg_in_contact)
 {
+    std::cout << "poses " << start_pose << " " << target_pose << std::endl;
+    std::cout << "S " << start_time << "   " << current_time << " " << end_time << std::endl;
     // scaling the problem
     const double step_duration =
         end_time - start_time - EPSILON;  // To solve numeric problem
@@ -607,6 +609,7 @@ int DynamicallyConsistentEndEffectorTrajectory::get_forces(
             current_velocity_(1) * control_loop_ + current_pose_(1),
         0.5 * next_acceleration(2) * control_loop_ * control_loop_ +
             current_velocity_(2) * control_loop_ + current_pose_(2);
+    std::cout << "next " << next_pose << std::endl;
 
     return nb_local_sampling_time_ * 3;
 }

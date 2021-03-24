@@ -95,6 +95,8 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
              &DcmReactiveStepper::get_com)
         .def("get_v_com",
              &DcmReactiveStepper::get_v_com)
+        .def("get_a_com",
+             &DcmReactiveStepper::get_a_com)
         .def("get_contact_phase",
              &DcmReactiveStepper::get_contact_phase);
     //        .def("set_end_eff_traj_costs",

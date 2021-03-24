@@ -31,264 +31,6 @@ def zero_cnt_gain(kp, cnt_array):
             gain[3 * i : 3 * (i + 1)] = 0.0
     return gain
 
-
-class PointContactInverseKinematics(object):
-    def __init__(self, model, endeff_frame_names):
-        def getFrameId(name):
-            idx = model.getFrameId(name)
-            if idx == len(model.frames):
-                raise Exception("Unknown frame name: {}".format(name))
-            return idx
-
-        self.robot = RobotWrapper(model)
-        self.model = model
-        self.data = self.robot.data
-        self.mass = sum([i.mass for i in self.robot.model.inertias[1:]])
-        print(self.robot.model.inertias)
-        self.base_id = self.robot.model.getFrameId("base_link")
-        self.endeff_frame_names = endeff_frame_names
-        self.endeff_ids = [getFrameId(name) for name in endeff_frame_names]
-        self.is_init_time = 1
-
-        self.ne = len(self.endeff_ids)
-        self.nv = self.model.nv
-
-        self.last_q = None
-        self.last_dq = None
-        self.p = eye(self.model.nv)
-        self.swing_id = self.endeff_ids[1]
-        self.stance_id = self.endeff_ids[0]
-        self.last_J_c = self.get_world_oriented_frame_jacobian(
-            q, self.stance_id
-        )[:3]
-        self.xdot = self.get_world_oriented_frame_jacobian(q, self.swing_id)[
-                    :3
-                    ].dot(qdot)[:3]
-        self.last_xdot = self.xdot
-        self.mu = 0.5
-
-        # Allocate space for the jacobian and desired velocities.
-        # Using two entires for the linear and angular velocity of the base.
-        # (self.nv - 6) is the number of jointss for posture regularization
-        # self.ne * 3 is the components of foot impulse
-        self.J = np.zeros(
-            ((self.ne + 2) * 3 + (self.nv - 6) + (self.ne * 3), self.nv)
-        )
-        self.vel_des = np.zeros(
-            ((self.ne + 2) * 3 + (self.nv - 6) + (self.ne * 3), 1)
-        )
-
-        # full robot get_jacobian
-        self.jacobian = np.zeros((self.ne * 3, self.nv))
-
-    def foot_mass_matrix(self, q):
-        foot_mass = np.zeros((self.ne * 3, 3))
-        mass_matrix = se3.crba(self.model, self.data, q)
-        for i, idx in enumerate(self.endeff_ids):
-            self.jacobian[
-            3 * i : 3 * (i + 1), :
-            ] = self.get_world_oriented_frame_jacobian(q, idx)[:3]
-            M = inv(
-                self.jacobian[3 * i : 3 * (i + 1), :]
-                    .dot(inv(mass_matrix))
-                    .dot(self.jacobian[3 * i : 3 * (i + 1), :].T)
-            )
-            foot_mass[3 * i : 3 * (i + 1), :] = M
-        return foot_mass
-
-    def update_null_space_projection(self, q):
-        J_c = self.get_world_oriented_frame_jacobian(q, self.stance_id)[:3]
-        self.p = np.matrix(eye(self.nv)) - np.matrix(pinv(J_c)) * J_c
-        self.pdot = (self.p - self.last_p) * 1000
-
-    def update_constraint_consistent_inertia(self, q):
-        mass_matrix = se3.crba(self.model, self.data, q)
-        self.m_c = self.p * mass_matrix + eye(self.nv) - self.p
-
-    def update_constrained_swing_foot_inertia(self, q):
-        self.null_space_projection(q)
-        self.constraint_consistent_inertia(q)
-        J = self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3]
-        self.lambda_c = inv(J * inv(self.m_c) * self.p * J.T)
-
-    def constrained_swing_foot_inertia(self, q):
-        self.update_constrained_swing_foot_inertia(q)
-        return self.lambda_c
-
-    def update_c(self, freq=1000):
-        J_c = np.matrix(
-            self.get_world_oriented_frame_jacobian(q, self.stance_id)[:3]
-        )
-        self.J_dot = (J_c - self.last_J_c) * freq
-        self.c = -pinv(J_c) * self.J_dot
-
-    def projected_nonlinear_terms_h(self, q, qdot):
-        self.equation_eleven_mass_matrix(q)
-        J = np.matrix(
-            self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3]
-        )
-        h = np.matrix(
-            se3.nonLinearEffects(self.model, self.data, q, qdot)
-        ).transpose()
-        return self.lambda_c * J * inv(self.m_c) * self.p * h
-
-    def projected_gravity(self, q, qdot):
-        self.update_constrained_swing_foot_inertia(q)
-        J = np.matrix(
-            self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3]
-        )
-        g = np.matrix(
-            se3.computeGeneralizedGravity(self.model, self.data, q)
-        ).transpose()
-        return self.lambda_c * J * inv(self.m_c) * self.p * g
-
-    def xddot(self, q, qdot):
-        self.xdot = self.get_world_oriented_frame_jacobian(q, self.swing_id)[
-                    :3
-                    ].dot(qdot)[:3]
-        return (self.xdot - self.last_xdot) * 1000
-
-    def projected_nonlinear_terms_v(self, q, qdot):
-        self.update_onstrained_swing_foot_inertia(q)
-        self.update_c()
-        J = self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3]
-        return -self.lambda_c * (self.J_dot + J * inv(self.m_c) * self.c) * qdot
-
-    def rotate_J(self, jac, index):
-        world_R_joint = se3.SE3(self.data.oMf[index].rotation, zero(3))
-        return world_R_joint.action.dot(jac)
-
-    def get_world_oriented_frame_jacobian(self, q, index):
-        return self.rotate_J(
-            se3.getFrameJacobian(
-                self.model, self.data, index, se3.ReferenceFrame.LOCAL
-            ),
-            index,
-        )
-
-    def swing_force_boundaries(self, h, B, t, q, qdot):
-        I = np.matrix(eye(self.nv))
-        M = np.matrix(se3.crba(self.robot.model, self.robot.data, q))
-        J_c = np.matrix(
-            self.get_world_oriented_frame_jacobian(q, self.stance_id)[:3]
-        )
-        J_X = np.matrix(
-            self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3]
-        )
-
-        eta = (
-                -pinv(J_c.T) * (I - self.p) * (I - M * inv(self.m_c) * self.p) * B
-        )
-        rho = (
-                pinv(J_c.T)
-                * (I - self.p)
-                * (
-                        (I - (M * inv(self.m_c) * self.p)) * h
-                        + M * inv(self.m_c) * self.pdot * qdot
-                )
-        )
-        Q = np.eye(12) * 0.000001
-        # p = np.zeros(12)
-        p = np.array([1.0 for i in range(12)])
-        G = np.zeros((4 + 2 * 12 + 1, 12))
-        h = np.zeros(4 + 2 * 12 + 1)
-        A = np.zeros((6, 12))
-        b = np.zeros(6)
-        A[0, 0] = 1
-        A[1, 1] = 1
-        A[2, 2] = 1
-        A[3, 3] = 1
-        A[4, 4] = 1
-        A[5, 5] = 1
-
-        for i in range(12):
-            #-sqrt(2) / 2 * (eta_z + rho_z) <= eta_x + rho_x
-            G[0, i] = sqrt(2) / 2 * mu * eta[2, i]
-            G[0, i] -= eta[0, i]
-
-            #eta_x + rho_x <= sqrt(2) / 2 * (eta_z + rho_z)
-            G[1, i] = sqrt(2) / 2 * mu * eta[2, i]
-            G[1, i] += eta[0, i]
-
-            #-sqrt(2) / 2 * (eta_z + rho_z) <= eta_y + rho_y
-            G[2, i] = sqrt(2) / 2 * mu * eta[2, i]
-            G[2, i] += -eta[1, i]
-
-            #eta_y + rho_y <= sqrt(2) / 2 * (eta_z + rho_z)
-            G[3, i] = sqrt(2) / 2 * mu * eta[2, i]
-            G[3, i] += eta[1, i]
-
-        for i in range(12):
-            G[4 + i, i] = -1
-            h[4 + i] = t
-            G[4 + 12 + i, i] = 1
-            h[4 + 12 + i] = t
-
-        G[4 + 12 * 2, :] = eta[2, :]
-        h[4 + 12 * 2] = -rho[2]
-
-        h[0] = rho[0] - sqrt(2) / 2 * self.mu * rho[2]
-        h[1] = -rho[0] - sqrt(2) / 2 * self.mu * rho[2]
-        h[2] = rho[1] - sqrt(2) / 2 * self.mu * rho[2]
-        h[3] = -rho[1] - sqrt(2) / 2 * self.mu * rho[2]
-
-        alpha = self.lambda_c * J_X * inv(self.m_c) * self.p * B
-
-        result = np.array([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
-        for nb in range(3):
-            for i in range(12):
-                p[i] = -alpha[nb, i]
-            try:
-                solution = quadprog_solve_qp(Q, p, G, h, A, b)
-                solution = np.array([solution])
-                result[0, nb] = (alpha * solution.T)[nb, 0]
-            except:
-                pass
-
-        for nb in range(3):
-            for i in range(12):
-                p[i] = alpha[nb, i]
-            try:
-                solution = quadprog_solve_qp(Q, p, G, h, A, b)
-                solution = np.array([solution])
-                result[0, nb + 3] = (alpha * solution.T)[nb, 0]
-            except:
-                pass
-
-        return result
-
-    def evaluate_swing_force_boundaries(self, q, qdot):
-        self.update_constrained_swing_foot_inertia(q)
-        self.update_c()
-        J = np.matrix(
-            self.get_world_oriented_frame_jacobian(q, self.swing_id)[:3]
-        )
-        h = np.matrix(
-            se3.nonLinearEffects(self.model, self.data, q, qdot)
-        ).transpose()
-        B = np.zeros((self.nv, self.nv))
-        B[6:, 6:] = eye(self.nv - 6)
-        t = 2
-        tau = self.swing_force_boundaries(h, B, t, q, qdot)
-        tau = tau.T
-        return tau
-
-    def forward_robot(self, q, dq):
-        # Update the pinocchio model.
-        self.last_J_c = self.get_world_oriented_frame_jacobian(
-            q, self.stance_id
-        )[:3]
-        self.last_xdot = self.xdot
-        self.last_p = self.p
-        self.robot.forwardKinematics(q, dq)
-        self.robot.computeJointJacobians(q)
-        self.robot.framesForwardKinematics(q)
-        self.robot.centroidalMomentum(q, dq)
-
-        self.last_q = q.copy()
-        self.last_dq = dq.copy()
-
-
 def yaw(q):
     return np.array(
         R.from_quat([np.array(q)[3:7]]).as_euler("xyz", degrees=False)
@@ -505,7 +247,7 @@ if __name__ == "__main__":
     qdot = np.matrix(BoltConfig.initial_velocity).T
     robot.reset_state(q, qdot)
     total_mass = sum([i.mass for i in robot.pin_robot.model.inertias[1:]])
-    warmup = 100
+    warmup = 10
     kp = np.array([150.0, 150.0, 150.0, 150.0, 150.0, 150.0])
     kd = [5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
     x_ori = [0.0, 0.0, 0.0, 1.0]
@@ -516,10 +258,10 @@ if __name__ == "__main__":
     centr_controller = RobotCentroidalController(
         robot_config,
         mu=1,
-        kc=[0, 0, 300],
-        dc=[0, 0, 10],
-        kb=[100, 100, 100],
-        db=[10.0, 10, 10],
+        kc=[0, 0, 200],
+        dc=[0, 0, 20],
+        kb=[30, 5, 0],
+        db=[40, 20, 0],
         qp_penalty_lin=[1, 1, 1e6],
         qp_penalty_ang=[1e6, 1e6, 1],
     )
@@ -530,8 +272,8 @@ if __name__ == "__main__":
     l_max = 0.1 + 0.5
     w_min = -0.08 - 0.5
     w_max = 0.2 + 0.5
-    t_min = 0.2
-    t_max = 0.21
+    t_min = 0.1
+    t_max = 0.101
     l_p = 0.1035 * 1
     com_height = 0.3
     weight = [1, 1, 5, 1000, 1000, 100000, 100000, 100000, 100000]
@@ -637,10 +379,10 @@ if __name__ == "__main__":
     plt_d_com = []
     plt_d_v_com = []
     dcm_force = [0.0, 0.0, 0.0]
-    offset = 0.0171
+    offset = 0.021
     dcm_reactive_stepper.start()
 
-    for i in range(605):
+    for i in range(2800):
         last_qdot = qdot
         q, qdot = robot.get_state()
         robot.pin_robot.com(q, qdot)
@@ -652,7 +394,6 @@ if __name__ == "__main__":
         #     force = np.array([0, -138, 0])
         #     p.applyExternalForce(objectUniqueId=robot.robotId, linkIndex=-1, forceObj=force,
         #                          posObj=[q[0], q[1], q[2]], flags=p.WORLD_FRAME)
-
         if warmup <= i:
             ###### mass matrix
             m_q = np.matrix(q).transpose()
@@ -695,38 +436,7 @@ if __name__ == "__main__":
             contact_array = [0, 0]
             # detect_contact()
 
-            # if i % 100 == 0:
-            #     plot_all_contact_points()
-            if open_loop:
-                if dcm_reactive_stepper.get_is_left_leg_in_contact():
-                    pos_for_plotter = (
-                        dcm_reactive_stepper.get_right_foot_position().copy()
-                    )
-                    vel_for_plotter = (
-                        dcm_reactive_stepper.get_right_foot_velocity().copy()
-                    )
-                else:
-                    pos_for_plotter = (
-                        dcm_reactive_stepper.get_left_foot_position().copy()
-                    )
-                    vel_for_plotter = (
-                        dcm_reactive_stepper.get_left_foot_velocity().copy()
-                    )
-            else:
-                if dcm_reactive_stepper.get_is_left_leg_in_contact():
-                    pos_for_plotter = [
-                        right_foot_location[0],
-                        right_foot_location[1],
-                        right_foot_location[2] - offset,
-                        ]
-                    vel_for_plotter = right_foot_vel
-                else:
-                    pos_for_plotter = [
-                        left_foot_location[0],
-                        left_foot_location[1],
-                        left_foot_location[2] - offset,
-                        ]
-                    vel_for_plotter = left_foot_vel
+            is_left_leg_in_contact = dcm_reactive_stepper.get_is_left_leg_in_contact()
 
             dcm_reactive_stepper.run(
                 time,
@@ -757,7 +467,6 @@ if __name__ == "__main__":
             #     desired_q = np.array(q.copy())[:, 0]
             # else:
             #     dcm_reactive_stepper.run(time, dcm_reactive_stepper.flying_foot_position, x_com.copy(), xd_com.copy(), 0)  # q[5])
-
             x_des_local = []
             x_des_local.extend(
                 dcm_reactive_stepper.get_left_foot_position().copy()
@@ -765,29 +474,39 @@ if __name__ == "__main__":
             x_des_local.extend(
                 dcm_reactive_stepper.get_right_foot_position().copy()
             )
-            t_s = 0.2
+            t_s = 0.1
             cnt_array = dcm_reactive_stepper.get_contact_phase()
 
             if cnt_array[0] == cnt_array[1]: #== False
                 if dcm_reactive_stepper.get_is_left_leg_in_contact():
-                    x_des_local[2] = (x_com[2] - 0.25) * (dcm_reactive_stepper.get_time_from_last_step_touchdown() - t_s) * 5
+                    x_des_local[2] = (x_com[2] - 0.2) * (dcm_reactive_stepper.get_time_from_last_step_touchdown() - t_s) * 5
                     x_des_local[3:] = [dcm_reactive_stepper.get_next_support_foot_position()[0],
                                        dcm_reactive_stepper.get_next_support_foot_position()[1],
-                                       (0.05 + (x_com[2] - com_height)) * (1. - (dcm_reactive_stepper.get_time_from_last_step_touchdown() - t_s) * 5)]#dcm_reactive_stepper.get_next_support_foot_position()[2] +  x_com[2] - 0.3]
+                                       dcm_reactive_stepper.get_right_foot_position()[2]]#dcm_reactive_stepper.get_next_support_foot_position()[2] +  x_com[2] - 0.3]
+
+                    kp = np.array([10.0, 10.0, 75.0, 150.0, 150.0, 150.0])
+                    kd = [.5, .5, 5., 5.0, 5.0, 5.0]
                 else:
-                    x_des_local[5] = (x_com[2] - 0.25) * (dcm_reactive_stepper.get_time_from_last_step_touchdown() - t_s) * 5
+                    x_des_local[5] = (x_com[2] - 0.2) * (dcm_reactive_stepper.get_time_from_last_step_touchdown() - t_s) * 5
                     x_des_local[:3] = [dcm_reactive_stepper.get_next_support_foot_position()[0],
                                        dcm_reactive_stepper.get_next_support_foot_position()[1],
-                                       (0.05 + (x_com[2] - com_height)) * (1. - (dcm_reactive_stepper.get_time_from_last_step_touchdown() - t_s) * 5)]#dcm_reactive_stepper.get_next_support_foot_position()[2] +  x_com[2] - 0.3]
+                                       dcm_reactive_stepper.get_left_foot_position()[2]]#dcm_reactive_stepper.get_next_support_foot_position()[2] +  x_com[2] - 0.3]
+
+                    kp = np.array([150.0, 150.0, 150.0, 10.0, 10.0, 75.0])
+                    kd = [5.0, 5.0, 5.0, .5, .5, 5.]
             elif cnt_array[0] == 1:
                 x_des_local[3:] = [x_com[0],
                                    x_com[1],
-                                   0.05]
+                                   0.1]
+                kp = np.array([0.0, 0.0, 0.0, 10.0, 10.0, 75.0])
+                kd = [.0, .0, .0, 1., 1., 10.]
 
             else:
                 x_des_local[:3] = [x_com[0],
                                    x_com[1],
-                                   0.05]
+                                   0.1]
+                kp = np.array([10.0, 10.0, 75.0, 0.0, 0.0, 0.0])
+                kd = [1., 1., 10., .0, .0, .0]
 
 
             if open_loop:
@@ -808,7 +527,7 @@ if __name__ == "__main__":
             # plt_dcm.append(dcm_reactive_stepper.dcm_vrp_planner.get_dcm_local().copy())
             plt_is_left_in_contact.append(dcm_reactive_stepper.get_is_left_leg_in_contact())
             plt_next_step_location.append(dcm_reactive_stepper.get_next_support_foot_position().copy())
-            # plt_dcm_local.append(x_com + xd_com / omega)
+            plt_dcm_local.append(x_com + (xd_com / 10.18))
 
             if dcm_reactive_stepper.get_time_from_last_step_touchdown() == 0:
                 plt_step_time.append(int(i) - warmup)
@@ -831,14 +550,21 @@ if __name__ == "__main__":
                         imp.pin_robot.data.oMf[imp.frame_end_idx].translation
                     ).reshape(-1)
                 )
-        com = dcm_reactive_stepper.get_com()#[0.0, 0.0, com_height + h_bais], [0.0, 0.0, 0.0]
-        v_com = dcm_reactive_stepper.get_v_com()#[0.0, 0.0, com_height + h_bais], [0.0, 0.0, 0.0]
+        if warmup <= i:
+            com = dcm_reactive_stepper.get_com()#[0.0, 0.0, com_height + h_bais], [0.0, 0.0, 0.0]
+            v_com = dcm_reactive_stepper.get_v_com()#[0.0, 0.0, com_height + h_bais], [0.0, 0.0, 0.0]
+            a_com = dcm_reactive_stepper.get_a_com()
+        else:
+            com = [0.0, 0.0, com_height]
+            v_com = [0.0, 0.0, 0.0]
+            a_com = [0.0, 0.0, 0.0]
         plt_d_com.append(com.copy())
         plt_d_v_com.append(v_com.copy())
         w_com = centr_controller.compute_com_wrench(q.copy(), qdot.copy(), com, v_com,
                                                     [0, 0.0, 0, 1.0], [0.0, 0.0, 0.0],)
         w_com[0] = 0.0
         w_com[1] = 0.0
+        w_com[2] += a_com[2] * total_mass#Lhum TODO add it to all the directions
 
         F = centr_controller.compute_force_qp(q, qdot, cnt_array, w_com)
 
@@ -847,16 +573,15 @@ if __name__ == "__main__":
         else:
             des_vel = np.concatenate((dcm_reactive_stepper.get_left_foot_velocity() -[qdot[0].item(), qdot[1].item(), qdot[2].item()],
                                       dcm_reactive_stepper.get_right_foot_velocity() - [qdot[0].item(), qdot[1].item(), qdot[2].item()]))
-        # print(dcm_reactive_stepper.get_left_foot_velocity() + dcm_reactive_stepper.get_right_foot_velocity())
-        # print("F: ", F)
         try:
             dcm_force[0] = -dcm_force[0]
             dcm_force[1] = -dcm_force[1]
             dcm_force[2] = -dcm_force[2]
-            if cnt_array[0] == 1 and cnt_array[1] == 0:
-                F[3:] = dcm_force[:3]
-            elif cnt_array[0] == 0 and cnt_array[1] == 1:
-                F[:3] = dcm_force[:3]
+            if cnt_array[0] == cnt_array[1]:
+                if is_left_leg_in_contact:
+                    F[3:] = dcm_force[:3]
+                else:
+                    F[:3] = dcm_force[:3]
         except:
             F[:] = [0., 0., 0., 0., 0., 0.,]
         tau = bolt_leg_ctrl.return_joint_torques(
@@ -871,19 +596,18 @@ if __name__ == "__main__":
         control_time += 0.001
         if warmup <= i:
             plt_control_time.append(control_time)
-        # plt_r.append(r)
         plt_F.append(F)
         plt_x.append(x_des_local)
         plt_tau.append(tau)
         plt_xd_com.append(xd_com.copy())
-        plt_qdot_com.append(qdot)
+        plt_qdot_com.append(qdot[3:6])
         plt_x_com.append(x_com.copy())
         plt_pos_des_local.append([x_des_local[1], x_des_local[4]])
         # plt_euler_angles.append(np.array(R.from_quat([np.array(q)[3:7, 0]]).as_euler('xyz', degrees=False))[0, :])
         plt_q.append(q[:].copy())
         # plt_qdot.append(inv_kin.xddot(q, qdot))
         # plt_qdot2.append(MM.dot(inv_kin.xddot(q, qdot)))
-        # plt_q_com.append(np.array(R.from_quat([np.array(q)[3:7, 0]]).as_euler('xyz', degrees=False))[0, :])
+        plt_q_com.append(np.array(R.from_quat([q[3:7]]).as_euler('xyz', degrees=False))[0, :])
         # plt_desired_q.append(desired_q[7:].copy())
 
         for j in range(10):
@@ -928,18 +652,19 @@ if __name__ == "__main__":
     # plt.plot(plt_time, np.array(plt_left_foot_position)[:,2])
 
     plt.figure("y")
-    plt.plot(plt_time, np.array(plt_left_foot_position)[:, 1], label="left")
-    plt.plot(plt_time, np.array(plt_right_foot_position)[:, 1], label="right")
-    plt.plot(plt_control_time, np.array(plt_x_com)[warmup:, 1], label="com")
-    plt.plot(plt_control_time, np.array(plt_xd_com)[warmup:, 1], label="xd_com")
-    # plt.plot(plt_time, np.array(plt_dcm_local)[:, 1], label="dcm_local")
+    plt.plot(plt_time, np.array(plt_x_com)[warmup:, 1], label="com")
+    plt.plot(plt_time, np.array(plt_xd_com)[warmup:, 1], label="xd_com")
+    plt.plot(plt_time, np.array(plt_dcm_local)[:, 1], label="dcm_local")
     plt.plot(plt_time, np.array(plt_next_step_location)[:, 1], label="next_step_location")
     # plt.plot(plt_time, np.array(plt_dcm)[:, 1], label="dcm")
     plt.plot(plt_time, np.array(plt_left_eef_real_pos)[warmup:, 1], label="left_eef_real_pos")
     plt.plot(plt_time, np.array(plt_right_eef_real_pos)[warmup:, 1], label="right_eef_real_pos")
+    plt.plot(plt_time, np.array(plt_left_foot_position)[:, 1], label="left")
+    plt.plot(plt_time, np.array(plt_right_foot_position)[:, 1], label="right")
     # plt.plot(plt_time, np.array(plt_current_support_foot)[:, 1], label="current_support_foot")
     # plt.plot(plt_time, plt_pos_des_local[warmup + 1:], label = "pos des_local_eef")
     plt.legend()
+    plt.grid()
     # for time in plt_step_time:
     #     plt.axvline(time / 1000)
 
@@ -951,15 +676,15 @@ if __name__ == "__main__":
     #     plt.axvline(time / 1000)
 
     plt.figure("x")
-    plt.plot(plt_time, np.array(plt_left_foot_position)[:, 0], label="des_left")
-    plt.plot(plt_time, np.array(plt_right_foot_position)[:, 0], label="des_right")
-    plt.plot(plt_control_time, np.array(plt_x_com)[warmup:, 0], label="com")
-    plt.plot(plt_control_time, np.array(plt_xd_com)[warmup:, 0], label="xd_com")
+    plt.plot(plt_time, np.array(plt_x_com)[warmup:, 0], label="com")
+    plt.plot(plt_time, np.array(plt_xd_com)[warmup:, 0], label="xd_com")
     # plt.plot(plt_time, np.array(plt_dcm_local)[:, 0], label="dcm_local")
     plt.plot(plt_time, np.array(plt_next_step_location)[:, 0], label="next_step_location")
     # plt.plot(plt_time, np.array(plt_dcm)[:, 0], label="dcm")
     plt.plot(plt_time, np.array(plt_left_eef_real_pos)[warmup:, 0], label="left_eef_real_pos")
     plt.plot(plt_time, np.array(plt_right_eef_real_pos)[warmup:, 0], label="right_eef_real_pos")
+    plt.plot(plt_time, np.array(plt_left_foot_position)[:, 0], label="des_left")
+    plt.plot(plt_time, np.array(plt_right_foot_position)[:, 0], label="des_right")
     # plt.plot(plt_time, np.array(plt_current_support_foot)[:, 0], label="current_support_foot")
     # plt.plot(plt_time, np.array(plt_duration_before_step_landing)[:], label="plt_duration_before_step_landing")
     # plt.plot(plt_time[:], plt_is_left_in_contact[:], label="is_left_in_contact")
@@ -972,8 +697,8 @@ if __name__ == "__main__":
     # plt.legend()
 
     plt.figure("z")
-    plt.plot(plt_time[:], np.array(plt_x_com)[warmup:, 2], label="com")
-    plt.plot(plt_time[:], plt_is_left_in_contact[:], label="is_left_in_contact")
+    plt.plot(plt_time, np.array(plt_x_com)[warmup:, 2], label="com")
+    plt.plot(plt_time, plt_is_left_in_contact[:], label="is_left_in_contact")
     plt.plot(plt_time, np.array(plt_left_foot_position)[:, 2], label="left")
     plt.plot(plt_time, np.array(plt_right_foot_position)[:, 2], label="right")
     # plt.plot(plt_control_time, np.array(plt_x_com)[warmup:, 2], label="com")
@@ -998,13 +723,21 @@ if __name__ == "__main__":
     # for time in plt_step_time:
     #     plt.axvline(1.0 * time / 1000)
 
-    # plt.figure("q")
-    # plt.plot(plt_time, np.array(plt_q_com)[:, 3], label="x")
-    # plt.plot(plt_time, np.array(plt_q_com)[:, 4], label="y")
-    # plt.plot(plt_time, np.array(plt_q_com)[:, 5], label="z")
-    # plt.legend()
-    # for time in plt_step_time:
-    #     plt.axvline(time / 1000)
+    plt.figure("q")
+    plt.plot(plt_time, np.array(plt_q_com)[warmup:, 0], label="x")
+    plt.plot(plt_time, np.array(plt_q_com)[warmup:, 1], label="y")
+    plt.plot(plt_time, np.array(plt_q_com)[warmup:, 2], label="z")
+    plt.legend()
+    for time in plt_step_time:
+        plt.axvline(time / 1000)
+
+    plt.figure("q_d")
+    plt.plot(plt_time, np.array(plt_qdot_com)[warmup:, 0], label="x")
+    plt.plot(plt_time, np.array(plt_qdot_com)[warmup:, 1], label="y")
+    plt.plot(plt_time, np.array(plt_qdot_com)[warmup:, 2], label="z")
+    plt.legend()
+    for time in plt_step_time:
+        plt.axvline(time / 1000)
 
     # plt.figure("F")
     # plt.plot(plt_time, plt_F[warmup:], label="F")

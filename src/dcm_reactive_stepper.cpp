@@ -35,12 +35,13 @@ DcmReactiveStepper::DcmReactiveStepper()
     running_ = false;
     local_frame_.setIdentity();
     nb_usage_of_force_ = 0.;
-    flying_phase_duration_ = 0.1;
-    stance_phase_duration_ = 0.2;
-    omega_ = 7.2;//sqrt(9.81 / dcm_vrp_planner_.get_com_height());//Lhum TODO read it from python or DG.
+    flying_phase_duration_ = 0.2;
+    stance_phase_duration_ = 0.1;
+    omega_ = 10.18;//sqrt(9.81 / dcm_vrp_planner_.get_com_height());//Lhum TODO read it from python or DG.
     contact_(0) = is_left_leg_in_contact_;
     contact_(1) = !is_left_leg_in_contact_;
-    des_swing_position_ << 0, 0, 0.05;
+    des_swing_position_ << 0, 0, 0.1;
+    is_polynomial_ = false;
 }
 
 DcmReactiveStepper::~DcmReactiveStepper() = default;
@@ -92,7 +93,7 @@ void DcmReactiveStepper::initialize(
     feasible_com_velocity_.setZero();
 
     // Initialize the end-effector trajectory generator.
-    if (new_)
+    if (!is_polynomial_)
     {
         dynamically_consistent_end_eff_trajectory_.set_mid_air_height(
             mid_air_foot_height);
@@ -210,11 +211,11 @@ bool DcmReactiveStepper::walk(
     // Run the scheduler of the planner.
     if (is_left_leg_in_contact_)
     {
-        stepper_head_.run(step_duration_ - flying_phase_duration_, flying_phase_duration_, right_on_ground, time);
+        stepper_head_.run(stance_phase_duration_, flying_phase_duration_, right_on_ground, time);
     }
     else
     {
-        stepper_head_.run(step_duration_ - flying_phase_duration_, flying_phase_duration_, left_on_ground, time);
+        stepper_head_.run(stance_phase_duration_, flying_phase_duration_, left_on_ground, time);
     }
     contact_ = stepper_head_.get_contact_phase();
 
@@ -247,14 +248,14 @@ bool DcmReactiveStepper::walk(
         stepper_head_.get_current_support_location();
     Eigen::Vector3d current_swing_foot_position =
         is_left_leg_in_contact_ ? right_foot_position_ : left_foot_position_;
-    if(contact_(0) != contact_(1))
-        previous_support_foot_position_ = stepper_head_.get_previous_support_location();
-
+    if(contact_(0) != contact_(1)) {
+        previous_support_foot_position_ = is_left_leg_in_contact_ ? right_foot_position : left_foot_position;
+    }
     /// change solver loop time_step
-    if (new_ && time_from_last_step_touchdown_ == 0.0) nb_usage_of_force_ = 0;
-    if (new_ && nb_usage_of_force_ % 10 != 0)
+    if (!is_polynomial_ && time_from_last_step_touchdown_ == 0.0) nb_usage_of_force_ = 0;
+    if (!is_polynomial_ && nb_usage_of_force_ % 10 != 0)
     {  // Lhum TODO update 10 automatically
-        if(contact_(0) != contact_(1)) {
+        if(contact_(0) == contact_(1)) {
             if (is_left_leg_in_contact_)  // check which foot is in contact
             {
                 // flying foot is the right foot
@@ -320,7 +321,7 @@ bool DcmReactiveStepper::walk(
     // Run the DcmVrpPlanner to get the next foot step location.
     double current_time = stepper_head_.get_time_from_last_step_touchdown();
     double new_t_min = 0.0;
-    if (new_ && false) {//Lhum jump delete false when you want normal walking
+    if (!is_polynomial_ && false) {//Lhum jump delete false when you want normal walking
         if (is_left_leg_in_contact_)
             new_t_min =
                 dynamically_consistent_end_eff_trajectory_.calculate_t_min(
@@ -334,13 +335,18 @@ bool DcmReactiveStepper::walk(
                     left_foot_velocity_,
                     is_left_leg_in_contact_);
     }
-
+    std::cout << "is Lfet " << is_left_leg_in_contact_ << std::endl;
     Eigen::Vector3d stance_pos = is_left_leg_in_contact_? left_foot_position_:right_foot_position_;
     if(current_time < stance_phase_duration_) {
-        com_planner_.update_com_mea_single_support(omega_, stance_phase_duration_ - current_time,
-                                                   stance_pos, com_position, com_velocity);
+        std::cout << "time " << current_time << std::endl;
+        std::cout << "stance_pos " << stance_pos << std::endl;
+        std::cout << "com_position " << com_position << std::endl;
+        std::cout << "com_velocity " << com_velocity << std::endl;
+        com_planner_.update_com_in_t_s_(omega_, current_time,stance_pos,
+                                               com_position, com_velocity);
         x_T_s_ = com_planner_.get_com_mea();
         x_d_T_s_ = com_planner_.get_com_d_mea();
+        x_dd_T_s_ = com_planner_.get_com_dd_mea();
     }
 
     dcm_vrp_planner_.update(current_support_foot_position_,
@@ -367,37 +373,36 @@ bool DcmReactiveStepper::walk(
     Eigen::Vector3d com;
     Eigen::Vector3d vcom;
     com << 0., 0., dcm_vrp_planner_.get_com_height();//Lhum TODO read it from python or DG.
-    vcom << 0., 0., -0.491985;//Lhum TODO read it from python or DG.
+    vcom << 0., 0., -0.9807185;//Lhum TODO read it from python or DG.
     if(contact_(0) != contact_(1)) {
-        std::cout << "stance phase\n";
+//        std::cout << "TIME " << current_time << std::endl;
         com_planner_.update_com_single_support(omega_, current_time, stance_pos, com, vcom);
         com_ = com_planner_.get_com();
         v_com_ = com_planner_.get_com_d();
-//        std::cout << "v_com " << v_com_ << std::endl;
+        a_com_ = com_planner_.get_com_dd();
     }
     else{
-        std::cout << "swing phase\n";
         com_ = com_position;
         v_com_ = com_velocity;
-//        std::cout << "Other v_com " << v_com_ << std::endl;
+        a_com_.setZero();
     }
 
     // Compute the flying foot trajectory.
-    if(contact_(0) != contact_(1)) {
+    if(contact_(0) == contact_(1)) {
         if (is_left_leg_in_contact_)  // check which foot is in contact
         {
             // flying foot is the right foot
-            if (new_)
+            if (!is_polynomial_)
             {
                 succeed =
                     succeed && dynamically_consistent_end_eff_trajectory_.compute(
                                    previous_support_foot_position_,
                                    right_foot_position_,
                                    right_foot_velocity_,
-                                   next_support_foot_position_ + des_swing_position_,
+                                   next_support_foot_position_,
                                    start_time,
-                                   current_time,
-                                   end_time - flying_phase_duration_,
+                                   std::max(start_time, current_time - stance_phase_duration_),
+                                   end_time - stance_phase_duration_,
                                    is_left_leg_in_contact_);
                 nb_force_ = dynamically_consistent_end_eff_trajectory_.get_forces(
                     forces_,
@@ -432,17 +437,17 @@ bool DcmReactiveStepper::walk(
         else
         {
             // flying foot is the left foot
-            if (new_)
+            if (!is_polynomial_)
             {
                 succeed =
                     succeed && dynamically_consistent_end_eff_trajectory_.compute(
                                    previous_support_foot_position_,
                                    left_foot_position_,
                                    left_foot_velocity_,
-                                   next_support_foot_position_ + des_swing_position_,
+                                   next_support_foot_position_,
                                    start_time,
-                                   current_time,
-                                   end_time - flying_phase_duration_,
+                                   std::max(start_time, current_time - stance_phase_duration_),
+                                   end_time - stance_phase_duration_,
                                    is_left_leg_in_contact_);
                 nb_force_ = dynamically_consistent_end_eff_trajectory_.get_forces(
                     forces_,
@@ -479,11 +484,11 @@ bool DcmReactiveStepper::walk(
     else{
         forces_.setZero();
         nb_force_ = 3;
-        left_foot_position_ = current_support_foot_position_;
-        left_foot_velocity_.setZero();
+        left_foot_position_ = left_foot_position;
+        left_foot_velocity_ = left_foot_vel;
         left_foot_acceleration_.setZero();
-        right_foot_position_ = current_support_foot_position_;
-        right_foot_velocity_.setZero();
+        right_foot_position_ = right_foot_position;
+        right_foot_velocity_ = right_foot_vel;
         right_foot_acceleration_.setZero();
     }
     // Compute the feasible velocity.

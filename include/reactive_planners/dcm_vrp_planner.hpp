@@ -455,6 +455,9 @@ private:
     /** @brief Nominal step time in logarithmic scale:
      * \f$ e^{\omega t_{nom}} \f$*/
     double tau_nom_;
+    /** @brief Nominal step time in logarithmic scale:
+     * \f$ e^{\omega t_{nom}} \f$*/
+    double tau_stance_nom_;
 
     /** @brief Default step width. */
     double l_p_;

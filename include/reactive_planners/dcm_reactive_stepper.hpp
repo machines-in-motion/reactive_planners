@@ -442,7 +442,7 @@ public:
      *
      * @return const double&
      */
-    Eigen::Vector3d &get_com()
+    const Eigen::Vector3d &get_com()
     {
         return com_;
     }
@@ -452,10 +452,16 @@ public:
      *
      * @return const double&
      */
-    Eigen::Vector3d &get_v_com()
+    const Eigen::Vector3d &get_v_com()
     {
         return v_com_;
     }
+
+    const Eigen::Vector3d &get_a_com()
+    {
+        return a_com_;
+    }
+
 
     /** @brief Get if the left foot is in contact. If not then it is the right
      * foot.
@@ -525,7 +531,7 @@ private:
     ComPlanner com_planner_;
 
     /** @brief Set it to one if you want use the article's trajectory. */
-    bool new_;
+    bool is_polynomial_;
 
     /** @brief Computes the end-effector flying trajectory
      * based on the PolynomialEndEffectorTrajectory. */
@@ -629,6 +635,9 @@ private:
     /** @brief Center of mass velocity. */
     Eigen::Vector3d v_com_;
 
+    /** @brief Center of mass acceleration. */
+    Eigen::Vector3d a_com_;
+
     /** @brief desired swing foot position. */
     Eigen::Vector3d des_swing_position_;
 
@@ -647,6 +656,8 @@ private:
     Eigen::Vector3d x_T_s_;
 
     Eigen::Vector3d x_d_T_s_;
+
+    Eigen::Vector3d x_dd_T_s_;
 
 };
 

@@ -8,6 +8,7 @@
  */
 
 #include "reactive_planners/stepper_head.hpp"
+#include<iostream>
 
 namespace reactive_planners
 {
@@ -49,7 +50,7 @@ void StepperHead::run(const double& duration_stance_phase,
     if(time_from_last_step_touchdown_ > duration_stance_phase_){
         contact_<< 0, 0;
     }
-    if (time_from_last_step_touchdown_  > duration_stance_phase_ + duration_swing_phase_)
+    if (time_from_last_step_touchdown_ + 0.000001 > duration_stance_phase_ + duration_swing_phase_)
     {
         // Switch the contact phase.
         is_left_leg_in_contact_ = !is_left_leg_in_contact_;
@@ -60,7 +61,6 @@ void StepperHead::run(const double& duration_stance_phase,
         previous_support_location_ = current_support_location_;
         current_support_location_ = next_support_location_;
     }
-//    std::cout << contact_ << std::endl;
 }
 
 }  // namespace reactive_planners
