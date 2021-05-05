@@ -317,9 +317,14 @@ void QuadrupedDcmReactiveStepper::stop()
 
 bool& QuadrupedDcmReactiveStepper::inner(bool& s, int time)
 {
-    Eigen::Map<const pinocchio::SE3::Quaternion> quat(
-        xyzquat_base_sin_.access(time).tail<4>().data());
-    Eigen::Vector3d rpy = pinocchio::rpy::matrixToRpy(quat.matrix());
+    const dynamicgraph::Vector& xyzquat_base = xyzquat_base_sin_.access(time);
+    base_quaternion_.x() = xyzquat_base(3);
+    base_quaternion_.y() = xyzquat_base(4);
+    base_quaternion_.z() = xyzquat_base(5);
+    base_quaternion_.w() = xyzquat_base(6);
+    base_quaternion_.normalize();
+    Eigen::Vector3d rpy = pinocchio::rpy::matrixToRpy(
+        base_quaternion_.matrix());
 
     // Rotate the passed desired_com_velocity_sin_ from local to world frame.
     Eigen::Vector3d vec_yaw;

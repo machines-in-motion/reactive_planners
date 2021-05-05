@@ -264,21 +264,24 @@ protected:
     /** @brief The base placement provided during the initialization. */
     Eigen::Vector7d init_base_placement_;
 
-    /** @brief The The init front left foot position provided during
+    /** @brief The init front left foot position provided during
      * initialization. */
     Eigen::Vector3d init_front_left_foot_position_;
 
-    /** @brief The The init front right foot position provided during
+    /** @brief The init front right foot position provided during
      * initialization. */
     Eigen::Vector3d init_front_right_foot_position_;
 
-    /** @brief The The init hind left foot position provided during
+    /** @brief The init hind left foot position provided during
      * initialization. */
     Eigen::Vector3d init_hind_left_foot_position_;
 
-    /** @brief The The init hind right foot position provided during
+    /** @brief The init hind right foot position provided during
      * initialization. */
     Eigen::Vector3d init_hind_right_foot_position_;
+
+    /** @brief Quaternion from the input signal. */
+    pinocchio::SE3::Quaternion base_quaternion_;
 
 protected:
     /**
