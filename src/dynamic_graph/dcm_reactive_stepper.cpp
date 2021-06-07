@@ -56,9 +56,8 @@ DcmReactiveStepper::DcmReactiveStepper(const std::string &name)
       define_input_signal(current_right_foot_velocity_sin_, "Vector3d"),
       define_input_signal(com_position_sin_, "Vector3d"),
       define_input_signal(com_velocity_sin_, "Vector3d"),
-      define_input_signal(base_yaw_sin_, "Vector3d"),
       define_input_signal(xyzquat_base_sin_, "Vector7d"),
-      define_input_signal(is_closed_loop_sin_, "double"),
+//      define_input_signal(is_closed_loop_sin_, "double"),
       // Output signals.
       define_output_signal(right_foot_position_sout_,
                            "Vector3d",
@@ -113,6 +112,9 @@ DcmReactiveStepper::DcmReactiveStepper(const std::string &name)
       define_output_signal(is_left_leg_in_contact_sout_,
                            "int",
                            &DcmReactiveStepper::is_left_leg_in_contact),
+      define_output_signal(contact_array_sout_,
+                           "Vector2d",
+                           &DcmReactiveStepper::contact_array),
       define_output_signal(
           has_solution_sout_, "int", &DcmReactiveStepper::has_solution),
       define_output_signal(dcm_sout_, "Vector3d", &DcmReactiveStepper::dcm),
@@ -125,8 +127,8 @@ DcmReactiveStepper::DcmReactiveStepper(const std::string &name)
               << current_left_foot_position_sin_
               << current_right_foot_position_sin_ << com_position_sin_
               << current_left_foot_velocity_sin_
-              << current_right_foot_velocity_sin_ << com_velocity_sin_
-              << base_yaw_sin_,  // << is_closed_loop_sin_,//Lhum closed loop
+              << current_right_foot_velocity_sin_ << com_velocity_sin_,
+//              << is_closed_loop_sin_,
           make_signal_string(false, "Vector3d", "inner_sout")),
       // Parameters.
       control_period_(0.0),
@@ -139,10 +141,9 @@ DcmReactiveStepper::DcmReactiveStepper(const std::string &name)
         desired_com_velocity_sin_
         << current_left_foot_position_sin_ << current_right_foot_position_sin_
         << current_left_foot_velocity_sin_ << current_right_foot_velocity_sin_
-        << com_position_sin_ << com_velocity_sin_ << base_yaw_sin_
-        << xyzquat_base_sin_
-        << right_foot_position_sout_  //  << is_closed_loop_sin_//Lhum closed
-                                      //  loop
+        << com_position_sin_ << com_velocity_sin_
+        << xyzquat_base_sin_// << is_closed_loop_sin_
+        << right_foot_position_sout_
         << right_foot_velocity_sout_ << right_foot_acceleration_sout_
         << left_foot_position_sout_ << left_foot_velocity_sout_
         << left_foot_acceleration_sout_ << local_right_foot_position_sout_
@@ -152,8 +153,8 @@ DcmReactiveStepper::DcmReactiveStepper(const std::string &name)
         << current_support_foot_position_sout_
         << next_support_foot_position_sout_ << step_duration_sout_
         << time_from_last_step_touchdown_sout_ << flying_foot_position_sout_
-        << is_left_leg_in_contact_sout_ << has_solution_sout_ << inner_sout_
-        << dcm_sout_ << force_sout_);
+        << is_left_leg_in_contact_sout_<< contact_array_sout_<< has_solution_sout_
+        << inner_sout_<< dcm_sout_ << force_sout_);
     /*
      * Initializes the commands
      */
@@ -172,6 +173,21 @@ DcmReactiveStepper::DcmReactiveStepper(const std::string &name)
                makeCommandVoid0(*this,
                                 &DcmReactiveStepper::stop,
                                 docCommandVoid0("Start stepping")));
+}
+
+void DcmReactiveStepper::set_steptime_nominal(double t_nom)
+{
+    dcm_reactive_stepper_.set_steptime_nominal(t_nom);
+}
+
+void DcmReactiveStepper::set_polynomial_end_effector_trajectory()
+{
+    dcm_reactive_stepper_.set_polynomial_end_effector_trajectory();
+}
+
+void DcmReactiveStepper::set_dynamical_end_effector_trajectory()
+{
+    dcm_reactive_stepper_.set_dynamical_end_effector_trajectory();
 }
 
 void DcmReactiveStepper::initialize(
@@ -211,47 +227,29 @@ void DcmReactiveStepper::initialize(
 
 bool &DcmReactiveStepper::inner(bool &s, int time)
 {
-    // Access the input signals
-    const Eigen::VectorXd &desired_com_velocity =
-        desired_com_velocity_sin_.access(time);
-    const Eigen::VectorXd &com_position = com_position_sin_.access(time);
-    const Eigen::VectorXd &com_velocity = com_velocity_sin_.access(time);
-    const Eigen::VectorXd &base_yaw = base_yaw_sin_.access(time);
-    //    const Eigen::VectorXd &xyzquat_base = xyzquat_base_sin_.access(time);
-    //    const double &is_closed_loop = is_closed_loop_sin_.access(time);//Lhum
-    //    closed loop
+    const dynamicgraph::Vector& xyzquat_base = xyzquat_base_sin_.access(time);
+    base_quaternion_.x() = xyzquat_base(3);
+    base_quaternion_.y() = xyzquat_base(4);
+    base_quaternion_.z() = xyzquat_base(5);
+    base_quaternion_.w() = xyzquat_base(6);
+    base_quaternion_.normalize();
+    Eigen::Vector3d rpy = pinocchio::rpy::matrixToRpy(
+        base_quaternion_.matrix());
 
-    //    pinocchio::SE3 world_M_base;
-    //    world_M_base.translation() = xyzquat_base.head<3>();
-    //    Eigen::Quaterniond quat(xyzquat_base(6), xyzquat_base(3),
-    //    xyzquat_base(4), xyzquat_base(5)); world_M_base.rotation() =
-    //    quat.toRotationMatrix(); std::cout << "y" << base_yaw(5) << std::endl
-    //    << std::endl;
+    // Rotate the passed desired_com_velocity_sin_ from local to world frame.
+    Eigen::Vector3d vec_yaw;
+    vec_yaw << 0., 0., rpy(2);
+    dcm_reactive_stepper_.set_desired_com_velocity(
+        pinocchio::rpy::rpyToMatrix(vec_yaw) *
+            desired_com_velocity_sin_.access(time)
+    );
     start_stop_mutex_.lock();
-    // Set the desired velocity
-    if (base_yaw(5) - last_yaw_ > 1. || base_yaw(5) - last_yaw_ < -1.)
-    {
-        nb_switch_yaw_ = (nb_switch_yaw_ + 1) % 2;
-    }
-    last_yaw_ = base_yaw(5);
-    //    std::cout << dcm_reactive_stepper_.get_time_from_last_step_touchdown()
-    //    << " + " << control_period_ + 0.0000001 << " > " <<
-    //    dcm_reactive_stepper_.get_step_duration() << std::endl;
-    //    std::cout << time_from_double_support_started_ << " < " <<
-    //    double_support_time_ << std::endl;
     if (dcm_reactive_stepper_.get_time_from_last_step_touchdown() +
                 control_period_ + 0.0000001 >
             dcm_reactive_stepper_.get_step_duration() &&
-        time_from_double_support_started_ < double_support_time_)
+        time_from_double_support_started_ < double_support_time_
+         && dcm_reactive_stepper_.is_running())
     {
-        //        std::cout << "DOUBLESUPPORT\n";
-        //        std::cout << "DS\n";
-        //        std::cout <<
-        //        (dcm_reactive_stepper_.get_time_from_last_step_touchdown() +
-        //        control_period_ + 0.0000001 >
-        //        dcm_reactive_stepper_.get_step_duration()) << std::endl;
-        //        std::cout << (time_from_double_support_started_ <
-        //        double_support_time_) << std::endl;
         time_from_double_support_started_ += control_period_;
         Eigen::Vector3d current_left_foot_position =
             current_left_foot_position_sin_.access(time);
@@ -264,11 +262,15 @@ bool &DcmReactiveStepper::inner(bool &s, int time)
         start_stop_mutex_.unlock();
         return s = true;
     }
-    //    std::cout << "NDS\n";
+    else if(dcm_reactive_stepper_.is_running() == false){
+        is_double_support_ = true;
+    }
+    else{
+        is_double_support_ = false;
+    }
     time_from_double_support_started_ = 0;
-    dcm_reactive_stepper_.set_desired_com_velocity(desired_com_velocity);
+//    dcm_reactive_stepper_.set_desired_com_velocity(desired_com_velocity_sin_.access(time));/////
 
-    //    std::cout << nb_switch_yaw_  << " " <<  base_yaw(5) << std::endl;
     Eigen::VectorXd current_left_foot_position =
         current_left_foot_position_sin_.access(time);
     Eigen::VectorXd current_right_foot_position =
@@ -295,7 +297,7 @@ bool &DcmReactiveStepper::inner(bool &s, int time)
             dcm_reactive_stepper_.set_right_foot_velocity(
                 current_right_foot_velocity);
         }
-    }  // Lhum closed loop
+    }
 
     // Compute the planner.
     s = dcm_reactive_stepper_.run(time * control_period_,
@@ -303,12 +305,11 @@ bool &DcmReactiveStepper::inner(bool &s, int time)
                                   current_right_foot_position,
                                   current_left_foot_velocity,
                                   current_right_foot_velocity,
-                                  com_position,
-                                  com_velocity,
-                                  nb_switch_yaw_ * 3.141592 + base_yaw(5),
+                                  com_position_sin_.access(time),
+                                  com_velocity_sin_.access(time),
+                                  rpy(2),
                                   false);
     start_stop_mutex_.unlock();
-
     has_solution_ = static_cast<int>(s);
     return s;
 }
@@ -503,9 +504,24 @@ dynamicgraph::Vector &DcmReactiveStepper::flying_foot_position(
 int &DcmReactiveStepper::is_left_leg_in_contact(int &s, int time)
 {
     inner_sout_.access(time);
-    if (time_from_double_support_started_ != 0) return s = 2;  // double support
+    if (is_double_support_) return s = 2;
     start_stop_mutex_.lock();
     s = dcm_reactive_stepper_.get_is_left_leg_in_contact();
+    start_stop_mutex_.unlock();
+    return s;
+}
+
+dynamicgraph::Vector& DcmReactiveStepper::contact_array(
+    dynamicgraph::Vector& s, int time)
+{
+    inner_sout_.access(time);
+    if (is_double_support_){
+        Eigen::Vector2d s1;
+        s1 << 1, 1;
+        return s = s1;
+    }
+    start_stop_mutex_.lock();
+    s = dcm_reactive_stepper_.get_contact_array();
     start_stop_mutex_.unlock();
     return s;
 }

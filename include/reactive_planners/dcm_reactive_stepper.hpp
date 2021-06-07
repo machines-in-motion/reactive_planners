@@ -18,6 +18,7 @@
 #include "reactive_planners/dynamically_consistent_end_effector_trajectory.hpp"
 #include "reactive_planners/polynomial_end_effector_trajectory.hpp"
 #include "reactive_planners/stepper_head.hpp"
+#include "pinocchio/math/rpy.hpp"
 
 namespace reactive_planners
 {
@@ -372,6 +373,15 @@ public:
         return is_left_leg_in_contact_;
     }
 
+    const Eigen::Vector2d &get_contact_array()
+    {
+        if(is_left_leg_in_contact_ == 0)
+            contact_array_ << 0, 1;
+        else if(is_left_leg_in_contact_ == 1)
+            contact_array_ << 1, 0;
+        return contact_array_;
+    }
+
     /**
      * @brief Get the flying foot position.
      *
@@ -507,6 +517,7 @@ private:
      */
     bool stand_still(
         double time,
+        const Eigen::Ref<const Eigen::Vector3d> &com_position,
         const Eigen::Ref<const Eigen::Vector3d> &left_foot_position,
         const Eigen::Ref<const Eigen::Vector3d> &right_foot_position);
 
@@ -534,6 +545,9 @@ private:
 
     /** @brief Is the left foot in contact? otherwise the right foot is. */
     bool is_left_leg_in_contact_;
+
+    /** @brief Is the left foot in contact? otherwise the right foot is. */
+    Eigen::Vector2d contact_array_;
 
     /** @brief Duration from the last foot touchdown until the next. */
     double step_duration_;

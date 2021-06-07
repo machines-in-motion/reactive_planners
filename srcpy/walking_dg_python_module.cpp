@@ -31,7 +31,14 @@ BOOST_PYTHON_MODULE(walking)
 
     using reactive_planners::dynamic_graph::DcmReactiveStepper;
     using reactive_planners::dynamic_graph::StepperHead;
-    dynamicgraph::python::exposeEntity<DcmReactiveStepper>();
+    dynamicgraph::python::exposeEntity<DcmReactiveStepper>()
+        .def("initialize", &DcmReactiveStepper::initialize)
+        .def("set_steptime_nominal",
+            &DcmReactiveStepper::set_steptime_nominal)
+        .def("set_polynomial_end_effector_trajectory",
+             &DcmReactiveStepper::set_polynomial_end_effector_trajectory)
+        .def("set_dynamical_end_effector_trajectory",
+             &DcmReactiveStepper::set_dynamical_end_effector_trajectory);
     dynamicgraph::python::exposeEntity<StepperHead>();
 
     using reactive_planners::dynamic_graph::QuadrupedDcmReactiveStepper;
@@ -43,6 +50,8 @@ BOOST_PYTHON_MODULE(walking)
              &QuadrupedDcmReactiveStepper::initialize_placement)
         .def("initialize_stepper",
              &QuadrupedDcmReactiveStepper::initialize_stepper)
+        .def("set_steptime_nominal",
+            &QuadrupedDcmReactiveStepper::set_steptime_nominal)
         .def("set_steptime_nominal",
             &QuadrupedDcmReactiveStepper::set_steptime_nominal)
         .def("set_polynomial_end_effector_trajectory",

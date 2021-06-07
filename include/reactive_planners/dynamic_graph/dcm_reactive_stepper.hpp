@@ -40,6 +40,19 @@ public:
      */
     DcmReactiveStepper(const std::string &name);
 
+    /**
+     * @brief Set the nominal steptime.
+     */
+    void set_steptime_nominal(double t_nom);
+
+    /** @brief Set to use polynomial interpolation for the end effector
+     * trajectories. */
+    void set_polynomial_end_effector_trajectory();
+
+    /** @brief Set to use the mpc based method for the end effector trajectories
+     */
+    void set_dynamical_end_effector_trajectory();
+    
     /** @brief @copydoc reactive_planners::DcmReactiveStepper::initialize() */
     void initialize(const bool &is_left_leg_in_contact,
                     const double &l_min,
@@ -113,14 +126,12 @@ public:
     /** @brief Current center of mass velocity. */
     dynamicgraph::SignalPtr<dynamicgraph::Vector, int> com_velocity_sin_;
 
-    /** @brief Current base yaw orientation. */
-    dynamicgraph::SignalPtr<dynamicgraph::Vector, int> base_yaw_sin_;
 
     /** @brief Current base yaw orientation. */
     dynamicgraph::SignalPtr<dynamicgraph::Vector, int> xyzquat_base_sin_;
 
-    /** @brief Current left foot position. Lhum closed loop. */
-    dynamicgraph::SignalPtr<double, int> is_closed_loop_sin_;
+    /** @brief if it is closed loop or open loop. */
+//    dynamicgraph::SignalPtr<double, int> is_closed_loop_sin_;
 
     /*
      * Output Signals
@@ -203,6 +214,13 @@ public:
 
     /** @brief Defines if the left or right foot is in contact. */
     dynamicgraph::SignalTimeDependent<int, int> is_left_leg_in_contact_sout_;
+    
+    /** @brief Is the feet in contact? otherwise the one foot is in contact. */
+    bool is_double_support_;
+
+    /** @brief Active endeffector contacts. */
+    dynamicgraph::SignalTimeDependent<dynamicgraph::Vector, int>
+    contact_array_sout_;
 
     /** @brief Indicate if the solver has found a good solution. */
     dynamicgraph::SignalTimeDependent<int, int> has_solution_sout_;
@@ -217,13 +235,15 @@ protected:
     /** @brief Inner signal to manage all other signals. */
     dynamicgraph::SignalTimeDependent<bool, int> inner_sout_;
 
+    /** @brief Quaternion from the input signal. */
+    pinocchio::SE3::Quaternion base_quaternion_;
+
+private:
     /*
      * Private Methods.
      */
     double double_support_time_ = 0.01;
     double time_from_double_support_started_ = 0.0;
-    double last_yaw_ = 0.;
-    int nb_switch_yaw_ = 0;
 
 protected:
     /**
@@ -243,6 +263,7 @@ protected:
      * @return dynamicgraph::Vector&
      */
     dynamicgraph::Vector &dcm(dynamicgraph::Vector &s, int time);
+
     /**
      * @brief Callback of the force_sout_ signal.
      *
@@ -426,6 +447,16 @@ protected:
      * @return int&
      */
     int &is_left_leg_in_contact(int &s, int time);
+
+    /**
+     * @brief Callback of the contact_array_sout_ signal.
+     *
+     * @param s
+     * @param time
+     * @return dynamicgraph::Vector&
+     */
+    dynamicgraph::Vector& contact_array(dynamicgraph::Vector& s,
+                                        int time);
 
     /**
      * @brief Callback of the has_solution_sout_ signal.

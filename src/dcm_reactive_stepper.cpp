@@ -178,7 +178,7 @@ bool DcmReactiveStepper::run(
     }
     else
     {
-        stand_still(time, left_foot_position, right_foot_position);
+        stand_still(time, com_position, left_foot_position, right_foot_position);
     }
     return succeed;
 }
@@ -421,40 +421,44 @@ bool DcmReactiveStepper::walk(
 
 bool DcmReactiveStepper::stand_still(
     double time,
+    const Eigen::Ref<const Eigen::Vector3d>& com_position,
     const Eigen::Ref<const Eigen::Vector3d>& left_foot_position,
     const Eigen::Ref<const Eigen::Vector3d>& right_foot_position)
 {
     bool succeed = true;
 
-    // Run the scheduler of the planner.
-    if (is_left_leg_in_contact_)
-    {
-        stepper_head_.run(0.0, right_foot_position, time);
-    }
-    else
-    {
-        stepper_head_.run(0.0, left_foot_position, time);
-    }
+    // Feet do not move.
+    left_foot_position_ = left_foot_position;
+    left_foot_position_(2) = com_position(2) - dcm_vrp_planner_.get_com_height();
+    left_foot_velocity_.setZero();
+    left_foot_acceleration_.setZero();
+    right_foot_position_ = right_foot_position;
+    right_foot_position_(2) = com_position(2) - dcm_vrp_planner_.get_com_height();
+    right_foot_velocity_.setZero();
+    right_foot_acceleration_.setZero();
+
     // Extract the useful information.
     time_from_last_step_touchdown_ =
         stepper_head_.get_time_from_last_step_touchdown();
-    current_support_foot_position_ =
-        stepper_head_.get_current_support_location();
-    previous_support_foot_position_ =
-        stepper_head_.get_previous_support_location();
+    if (!is_left_leg_in_contact_)
+    {
+        current_support_foot_position_ =
+            right_foot_position_;
+        previous_support_foot_position_ =
+            left_foot_position_;
+    }
+    else{
+        current_support_foot_position_ =
+            left_foot_position_;
+        previous_support_foot_position_ =
+            right_foot_position_;
+    }
     is_left_leg_in_contact_ = stepper_head_.get_is_left_leg_in_contact();
 
     // Extract the useful information.
     step_duration_ = 0.0;
     next_support_foot_position_ = dcm_vrp_planner_.get_next_step_location();
 
-    // Feet do not move.
-    left_foot_position_(2) = 0.0;
-    left_foot_velocity_.setZero();
-    left_foot_acceleration_.setZero();
-    right_foot_position_(2) = 0.0;
-    right_foot_velocity_.setZero();
-    right_foot_acceleration_.setZero();
 
     // Compute the feasible velocity.
     feasible_com_velocity_.setZero();

@@ -22,7 +22,6 @@ DcmVrpPlanner::DcmVrpPlanner(
     const double& ht,
     const Eigen::Ref<const Eigen::Vector9d>& cost_weights_local)
 {
-    t_nom_ = 0.25;
     initialize(
         l_min, l_max, w_min, w_max, t_min, t_max, l_p, ht, cost_weights_local);
 }
