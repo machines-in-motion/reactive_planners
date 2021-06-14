@@ -222,11 +222,10 @@ def external_force(com):
         flags=p.WORLD_FRAME,
     )
 
-
 if __name__ == "__main__":
     # Create a robot instance. This initializes the simulator as well.
     env = BulletEnvWithGround()
-    robot = env.add_robot(BoltRobot)
+    robot = env.add_robot(BoltRobot())
     tau = np.zeros(6)
     p.resetDebugVisualizerCamera(1.6, 50, -35, (0.0, 0.0, 0.0))
     p.setTimeStep(0.0001)
@@ -242,8 +241,9 @@ if __name__ == "__main__":
             spinningFriction=5.6,
         )
 
-    # p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "new_traj_obj_fall_2.mp4")
+    # p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "Running.mp4")
     q = np.matrix(BoltConfig.initial_configuration).T
+    q[2] -= 0.005
     qdot = np.matrix(BoltConfig.initial_velocity).T
     robot.reset_state(q, qdot)
     total_mass = sum([i.mass for i in robot.pin_robot.model.inertias[1:]])
@@ -266,20 +266,20 @@ if __name__ == "__main__":
         qp_penalty_ang=[1e6, 1e6, 1],
     )
 
-    is_left_leg_in_contact = True
-
+    omega = 10.18
     l_min = -0.1 - 0.5
     l_max = 0.1 + 0.5
-    w_min = -0.08 - 0.5
-    w_max = 0.2 + 0.5
+    w_min = -0.1 - 0.5
+    w_max = 0.1 + 0.5
     t_min = 0.1
-    t_max = 0.101
-    l_p = 0.1035 * 1
+    t_max = 0.15 + 0.5
+    l_p = 0.1235
+    is_left_leg_in_contact = True
     com_height = 0.3
     weight = [1, 1, 5, 1000, 1000, 100000, 100000, 100000, 100000]
     mid_air_foot_height = 0.05
     control_period = 0.001
-    planner_loop = 0.010
+    planner_loop = 0.001
     x_des_local = [
         q[0].item(),
         q[1].item() + 0.02,
@@ -314,7 +314,7 @@ if __name__ == "__main__":
         planner_loop,
         x_des_local[:3],
         x_des_local[3:],
-        v_des,
+       v_des,
     )
 
     dcm_reactive_stepper.set_desired_com_velocity(v_des)
@@ -329,6 +329,7 @@ if __name__ == "__main__":
     time = 0
     control_time = 0
     open_loop = True
+    duration_before_step_landing = 0.0
 
     # plot
     plt_time = []
@@ -379,19 +380,33 @@ if __name__ == "__main__":
     plt_d_com = []
     plt_d_v_com = []
     dcm_force = [0.0, 0.0, 0.0]
-    offset = 0.021
+    offset = 0.025
     dcm_reactive_stepper.start()
+    plt_q_lokesh = []
+    plt_dq_lokesh = []
 
-    for i in range(2800):
+    for i in range(4000):
         last_qdot = qdot
         q, qdot = robot.get_state()
+        plt_q_lokesh.append(q)
+        plt_dq_lokesh.append(qdot)
         robot.pin_robot.com(q, qdot)
         x_com = robot.pin_robot.com(q, qdot)[0]
         xd_com = robot.pin_robot.com(q, qdot)[1]
         # robot.forward_robot(q, qdot)
         # if i > 600 and i < 670:
         #     print("External Force")
-        #     force = np.array([0, -138, 0])
+        #     force = np.array([-68, 0, 0])
+        #     p.applyExternalForce(objectUniqueId=robot.robotId, linkIndex=-1, forceObj=force,
+        #                          posObj=[q[0], q[1], q[2]], flags=p.WORLD_FRAME)
+        # if i > 1000 and i < 1070:
+        #     print("External Force")
+        #     force = np.array([0, -68, 0])
+        #     p.applyExternalForce(objectUniqueId=robot.robotId, linkIndex=-1, forceObj=force,
+        #                          posObj=[q[0], q[1], q[2]], flags=p.WORLD_FRAME)
+        # if i > 1600 and i < 1670:
+        #     print("External Force")
+        #     force = np.array([0, 0, 160])
         #     p.applyExternalForce(objectUniqueId=robot.robotId, linkIndex=-1, forceObj=force,
         #                          posObj=[q[0], q[1], q[2]], flags=p.WORLD_FRAME)
         if warmup <= i:
@@ -438,6 +453,7 @@ if __name__ == "__main__":
 
             is_left_leg_in_contact = dcm_reactive_stepper.get_is_left_leg_in_contact()
 
+            print(dcm_reactive_stepper.get_step_duration(), "    -      ", dcm_reactive_stepper.get_time_from_last_step_touchdown())
             dcm_reactive_stepper.run(
                 time,
                 [
@@ -457,9 +473,13 @@ if __name__ == "__main__":
                 yaw(q),
                 not open_loop,
             )
-            dcm_force = (
-                dcm_reactive_stepper.get_forces().copy()
-            )  # feed forward
+            duration_before_step_landing = dcm_reactive_stepper.get_step_duration() - dcm_reactive_stepper.get_time_from_last_step_touchdown()
+            is_left_leg_in_contact = dcm_reactive_stepper.get_is_left_leg_in_contact()
+            swing_foot = dcm_reactive_stepper.get_next_support_foot_position()
+
+            # dcm_force = (
+            #     dcm_reactive_stepper.get_forces().copy()
+            # ) # feed forward
             # if (i + 5) % 1 == 0 and i > 85:# and int(dcm_reactive_stepper.get_time_from_last_step_touchdown() * 1000) == 0:
             #    d = dcm_reactive_stepper.get_forces().copy()
             #    plot(d)
@@ -476,25 +496,37 @@ if __name__ == "__main__":
             )
             t_s = 0.1
             cnt_array = dcm_reactive_stepper.get_contact_phase()
-
+            print(cnt_array)
+            print("XYZZZ", cnt_array, dcm_reactive_stepper.get_time_from_last_step_touchdown() , dcm_reactive_stepper.get_step_duration())
+            print("XYZ",(dcm_reactive_stepper.get_step_duration() - dcm_reactive_stepper.get_time_from_last_step_touchdown()), (dcm_reactive_stepper.get_step_duration() - t_s))
+            current_kessay = x_com[2] + (xd_com[2] / 10.18)
             if cnt_array[0] == cnt_array[1]: #== False
+                print("KESSAY", (current_kessay - 0.2) / (take_off_kessay - 0.2))
                 if dcm_reactive_stepper.get_is_left_leg_in_contact():
-                    x_des_local[2] = (x_com[2] - 0.2) * (dcm_reactive_stepper.get_time_from_last_step_touchdown() - t_s) * 5
-                    x_des_local[3:] = [dcm_reactive_stepper.get_next_support_foot_position()[0],
-                                       dcm_reactive_stepper.get_next_support_foot_position()[1],
-                                       dcm_reactive_stepper.get_right_foot_position()[2]]#dcm_reactive_stepper.get_next_support_foot_position()[2] +  x_com[2] - 0.3]
+                    x_des_local[:3] = x_com
+                    x_des_local[2] = (x_com[2] - 0.2) * (-current_kessay + take_off_kessay) / (take_off_kessay - 0.2)
+                    x_des_local[3:] = [dcm_reactive_stepper.get_next_support_foot_position()[0] + (x_com[0] - dcm_reactive_stepper.get_next_support_foot_position()[0])
+                                       * (current_kessay - 0.2) / (take_off_kessay - 0.2),
+                                       dcm_reactive_stepper.get_next_support_foot_position()[1] + (x_com[1] - dcm_reactive_stepper.get_next_support_foot_position()[1])
+                                       * (current_kessay - 0.2) / (take_off_kessay - 0.2),
+                                       (0.1) * (current_kessay - 0.2) / (take_off_kessay - 0.2)]#dcm_reactive_stepper.get_next_support_foot_position()[2] +  x_com[2] - 0.3]
 
-                    kp = np.array([10.0, 10.0, 75.0, 150.0, 150.0, 150.0])
+                    kp = np.array([10.0, 10.0, 75.0, 250.0, 150.0, 150.0])
                     kd = [.5, .5, 5., 5.0, 5.0, 5.0]
                 else:
-                    x_des_local[5] = (x_com[2] - 0.2) * (dcm_reactive_stepper.get_time_from_last_step_touchdown() - t_s) * 5
-                    x_des_local[:3] = [dcm_reactive_stepper.get_next_support_foot_position()[0],
-                                       dcm_reactive_stepper.get_next_support_foot_position()[1],
-                                       dcm_reactive_stepper.get_left_foot_position()[2]]#dcm_reactive_stepper.get_next_support_foot_position()[2] +  x_com[2] - 0.3]
+                    x_des_local[3:] = x_com
+                    x_des_local[5] = (x_com[2] - 0.2) * (-current_kessay + take_off_kessay) / (take_off_kessay - 0.2)
+                    x_des_local[:3] = [dcm_reactive_stepper.get_next_support_foot_position()[0] + (x_com[0] - dcm_reactive_stepper.get_next_support_foot_position()[0])
+                                       * (current_kessay - 0.2) / (take_off_kessay - 0.2),
+                                       dcm_reactive_stepper.get_next_support_foot_position()[1] + (x_com[1] - dcm_reactive_stepper.get_next_support_foot_position()[1])
+                                       * (current_kessay - 0.2) / (take_off_kessay - 0.2),
+                                       (0.1) * (current_kessay - 0.2) / (take_off_kessay - 0.2)]#dcm_reactive_stepper.get_next_support_foot_position()[2] +  x_com[2] - 0.3]
 
-                    kp = np.array([150.0, 150.0, 150.0, 10.0, 10.0, 75.0])
+                    kp = np.array([250.0, 150.0, 150.0, 10.0, 10.0, 75.0])
                     kd = [5.0, 5.0, 5.0, .5, .5, 5.]
             elif cnt_array[0] == 1:
+                x_des_local[:2] = x_com[:2]
+                take_off_kessay = x_com[2] + (xd_com[2] / 10.18)
                 x_des_local[3:] = [x_com[0],
                                    x_com[1],
                                    0.1]
@@ -502,6 +534,8 @@ if __name__ == "__main__":
                 kd = [.0, .0, .0, 1., 1., 10.]
 
             else:
+                x_des_local[3:5] = x_com[:2]
+                take_off_kessay = x_com[2] + (xd_com[2] / 10.18)
                 x_des_local[:3] = [x_com[0],
                                    x_com[1],
                                    0.1]
@@ -530,7 +564,7 @@ if __name__ == "__main__":
             plt_dcm_local.append(x_com + (xd_com / 10.18))
 
             if dcm_reactive_stepper.get_time_from_last_step_touchdown() == 0:
-                plt_step_time.append(int(i) - warmup)
+                plt_step_time.append(int(i))
             time += 0.001
 
         for j in range(2):
@@ -678,7 +712,7 @@ if __name__ == "__main__":
     plt.figure("x")
     plt.plot(plt_time, np.array(plt_x_com)[warmup:, 0], label="com")
     plt.plot(plt_time, np.array(plt_xd_com)[warmup:, 0], label="xd_com")
-    # plt.plot(plt_time, np.array(plt_dcm_local)[:, 0], label="dcm_local")
+    plt.plot(plt_time, np.array(plt_dcm_local)[:, 0], label="dcm_local")
     plt.plot(plt_time, np.array(plt_next_step_location)[:, 0], label="next_step_location")
     # plt.plot(plt_time, np.array(plt_dcm)[:, 0], label="dcm")
     plt.plot(plt_time, np.array(plt_left_eef_real_pos)[warmup:, 0], label="left_eef_real_pos")
@@ -702,7 +736,7 @@ if __name__ == "__main__":
     plt.plot(plt_time, np.array(plt_left_foot_position)[:, 2], label="left")
     plt.plot(plt_time, np.array(plt_right_foot_position)[:, 2], label="right")
     # plt.plot(plt_control_time, np.array(plt_x_com)[warmup:, 2], label="com")
-    # plt.plot(plt_time, np.array(plt_dcm_local)[:, 2], label="dcm_local")
+    plt.plot(plt_time, np.array(plt_dcm_local)[:, 2], label="dcm_local")
     plt.plot(plt_time, np.array(plt_left_eef_real_pos)[warmup:, 2], label="left_eef_real_pos")
     plt.plot(plt_time, np.array(plt_right_eef_real_pos)[warmup:, 2], label="right_eef_real_pos")
     plt.legend()
@@ -743,6 +777,8 @@ if __name__ == "__main__":
     # plt.plot(plt_time, plt_F[warmup:], label="F")
     # plt.plot(plt_time[:], plt_is_left_in_contact[:], label="is_left_in_contact")
     # plt.legend()
+    # np.savetxt('q' +'.txt', np.array(plt_q_lokesh)[:, :])
+    # np.savetxt('q_dot' +'.txt', np.array(plt_dq_lokesh)[:, :])
 
 
     # add n e w _ = False/True
@@ -783,8 +819,8 @@ if __name__ == "__main__":
     # np.savetxt('plt_next_step_locationy' + str(new_) +'.txt', np.array(plt_next_step_location)[:, 1])
     # np.savetxt('plt_is_left_in_contact' + str(new_) +'.txt', np.array(plt_is_left_in_contact)[:])
 
-    plt.figure("last_step_touchdown")
-    plt.plot(plt_time, np.array(plt_time_from_last_step_touchdown)[:])
+    # plt.figure("last_step_touchdown")
+    # plt.plot(plt_time, np.array(plt_time_from_last_step_touchdown)[:])
     # plt.plot(plt_time, np.array(plt_duration_before_step_landing)[:])
 
     # plt.figure("support_foot")

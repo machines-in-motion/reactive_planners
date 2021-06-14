@@ -36,8 +36,6 @@ namespace reactive_planners
             r_vrp_current_step_ = u_current_step;
             r_vrp_current_step_[2] += 9.81 / (omega * omega);
         }
-//        std::cout << "Lcom" << last_x_com_ << "   " << last_xd_com_ << std::endl;
-//        std::cout << "R " << r_vrp_current_step_[2] - 9.81 / (omega * omega) << std::endl;
         com_ = 0.5 * (last_x_com_ - r_vrp_current_step_ + last_xd_com_ / omega) * exp(omega * time) +
                0.5 * (last_x_com_ - r_vrp_current_step_ - last_xd_com_ / omega) * exp(-omega * time) +
                r_vrp_current_step_;
@@ -45,35 +43,6 @@ namespace reactive_planners
                  omega * 0.5 * (last_x_com_ - r_vrp_current_step_ - (last_xd_com_ / omega)) * exp(-omega * time);
         com_dd_ = pow(omega, 2) * (com_ - r_vrp_current_step_);
         com_dd_[2] += 9.81;
-//        std::cout << time << std::endl;
-//        std::cout << "Lhum first " << com_ << std::endl;
-        double t_s = 0.1;
-        double tau = exp(omega * time);
-        double tau_s = exp(omega * t_s);
-        if(time <= t_s) {
-            com_[0] = ((tau_s * exp(-omega * time) - tau) / (tau_s - 1)) *
-                      (last_x_com_[0] - r_vrp_current_step_[0]) +
-                      r_vrp_current_step_[0];
-            com_[1] = ((tau_s * exp(-omega * time) - tau) / (tau_s - 1)) *
-                      (last_x_com_[1] - r_vrp_current_step_[1]) +
-                      r_vrp_current_step_[1];
-            if(com_[2] !=  ((tau_s * exp(-omega * time) + tau) / (tau_s + 1)) *
-                           (last_x_com_[2] - r_vrp_current_step_[2]) +
-                           r_vrp_current_step_[2])
-//                std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
-            com_[2] = ((tau_s * exp(-omega * time) + tau) / (tau_s + 1)) *
-                      (last_x_com_[2] - r_vrp_current_step_[2]) +
-                      r_vrp_current_step_[2];
-            com_t_s_ = com_;
-            com_d_t_s_ = com_d_mea_;
-        }
-        else{
-            com_[0] = (time - t_s) * com_d_t_s_[0] + com_t_s_[0];
-            com_[1] = (time - t_s) * com_d_t_s_[1] + com_t_s_[1];
-            com_[2] = 0.5 * -pow((time - t_s), 2) * 9.81 +
-                      (time - t_s) * com_d_t_s_[2] + com_t_s_[2];
-        }
-//        std::cout << "Lhum second " << com_ << std::endl;
     }
 
     void ComPlanner::update_com_in_t_s_(double omega, double time,
@@ -82,7 +51,6 @@ namespace reactive_planners
                                                    Eigen::Ref<const Eigen::Vector3d> previous_xd_com){
         double t_s = 0.1;
         if(time < 0.000001){
-            std::cout << "t_S" << "I am updating variales *****************\n";
             last_x_com_ = previous_x_com;
             last_xd_com_ = previous_xd_com;
             r_vrp_current_step_ = u_current_step;
@@ -94,24 +62,6 @@ namespace reactive_planners
         com_d_mea_ = omega * 0.5 * (last_x_com_ - r_vrp_current_step_ + last_xd_com_ / omega) * exp(omega * t_s) -
                      omega * 0.5 * (last_x_com_ - r_vrp_current_step_ - (last_xd_com_ / omega)) * exp(-omega * t_s);
         com_dd_mea_ = pow(omega, 2) * (last_x_com_ - r_vrp_current_step_);
-        std::cout << "t_S" << time << std::endl;
-        std::cout << "t_S" << "Lhum first " << com_ << std::endl;
-        double tau = exp(omega * t_s);
-        double tau_s = exp(omega * t_s);
-        com_mea_[0] = ((tau_s * exp(-omega * t_s) - tau) / (tau_s - 1)) *
-                  (last_x_com_[0] - r_vrp_current_step_[0]) +
-                  r_vrp_current_step_[0];
-        com_mea_[1] = ((tau_s * exp(-omega * t_s) - tau) / (tau_s - 1)) *
-                  (last_x_com_[1] - r_vrp_current_step_[1]) +
-                  r_vrp_current_step_[1];
-        if(com_mea_[2] !=  ((tau_s * exp(-omega * t_s) + tau) / (tau_s + 1)) *
-                       (last_x_com_[2] - r_vrp_current_step_[2]) +
-                       r_vrp_current_step_[2])
-            std::cout << "t_S" << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
-        com_mea_[2] = ((tau_s * exp(-omega * t_s) + tau) / (tau_s + 1)) *
-                  (last_x_com_[2] - r_vrp_current_step_[2]) +
-                  r_vrp_current_step_[2];
-        std::cout << "t_S" << "Lhum second " << com_ << std::endl;
 
     }
 

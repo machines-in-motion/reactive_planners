@@ -16,7 +16,6 @@ StepperHead::StepperHead()
 {
     // inputs
     duration_stance_phase_ = 0.0;
-    duration_swing_phase_ = 0.0;
     duration_before_foot_landing_ = 0.0;
     next_support_location_.setZero();
     current_time_ = 0.0;
@@ -33,24 +32,26 @@ StepperHead::StepperHead()
 }
 
 void StepperHead::run(const double& duration_stance_phase,
-                      const double& duration_swing_phase,
+                      const double& v_z,
+                      const double& kesay,
                       const Eigen::Vector3d& next_support_location,
                       const double& current_time)
 {
     // copy the argument
     duration_stance_phase_ = duration_stance_phase;
     next_support_location_ = next_support_location;
-    duration_swing_phase_ = duration_swing_phase;
     current_time_ = current_time;
 
     // Compute the time_from_last_step_touchdown_
     time_from_last_step_touchdown_ = current_time_ - time_support_switch_;
     contact_ << is_left_leg_in_contact_, !is_left_leg_in_contact_;
 //    std::cout << time_from_last_step_touchdown_ << "   " << duration_stance_phase_ << "    " << duration_swing_phase << std::endl;
+    std::cout << "UPDATE  stepper    " << time_from_last_step_touchdown_ << "    " << duration_stance_phase_ << std::endl;
     if(time_from_last_step_touchdown_ > duration_stance_phase_){
         contact_<< 0, 0;
     }
-    if (time_from_last_step_touchdown_ + 0.000001 > duration_stance_phase_ + duration_swing_phase_)
+    std::cout << "UPDATE switch " << time_from_last_step_touchdown_ << " > " << duration_stance_phase_ << "     0 >=" << v_z << "      0.2 >=" << kesay << std::endl;
+    if (time_from_last_step_touchdown_ > duration_stance_phase_ && v_z <= 0 && kesay <= 0.2)
     {
         // Switch the contact phase.
         is_left_leg_in_contact_ = !is_left_leg_in_contact_;

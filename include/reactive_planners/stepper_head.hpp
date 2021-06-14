@@ -40,7 +40,8 @@ public:
         current_support_location_ = current_support_location;
     }
     void run(const double &duration_stance_phase,
-             const double &duration_swing_phase,
+             const double& v_z,
+             const double& kesay,
              const Eigen::Vector3d &next_support_location,
              const double &current_time);
 
@@ -106,9 +107,6 @@ protected:
      */
     /** @brief This is the duration of stance phase. */
     double duration_stance_phase_;
-
-    /** @brief This is the duration of swing phase. */
-    double duration_swing_phase_;
 
     /** @brief This is the duration before the current flying foot needs to
      * land. */

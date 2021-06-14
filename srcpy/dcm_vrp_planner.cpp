@@ -66,7 +66,7 @@ void bind_dcm_vrp_planner(pybind11::module &module)
         .def("get_duration_before_step_landing",
              &DcmVrpPlanner::get_duration_before_step_landing)
 
-        // String representation of the sovler.
+        // String representation of the solver.
         .def("__repr__",
              [](const DcmVrpPlanner &planner) { return planner.to_string(); });
 }

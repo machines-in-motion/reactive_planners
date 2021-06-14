@@ -444,6 +444,12 @@ private:
     /** @brief Nominal step time. */
     double t_nom_ = 0.1;
 
+    /** @brief Nominal step time. */
+    double t_f_nom_;
+
+    /** @brief Nominal velocity of Y axis at t_s time. */
+    double x_dot_y_nom_;
+
     /** @brief Minimum step time in logarithmic scale:
      * \f$ e^{\omega t_{nom}} \f$*/
     double tau_min_;

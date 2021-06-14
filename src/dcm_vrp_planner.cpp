@@ -136,16 +136,16 @@ void DcmVrpPlanner::compute_nominal_step_values(
         max_or_min_time << fabs_l_max / fabs(v_des_local(0)), fabs_w_max / fabs(v_des_local(1)), t_max_;
         t_upper_bound = max_or_min_time.minCoeff();
     }
-    t_nom_ = (t_lower_bound + t_upper_bound) * 0.5; //Lhum running TODO !!!
+    t_nom_ = 0.1;//(t_lower_bound + t_upper_bound) * 0.5; //Lhum running TODO !!!
+    t_f_nom_ = 0.20182;//(sqrt(2*g*pow(omega_,2) *(x_T_s[2] - b_z) + pow(g,2) + pow(x_d_T_s[2] * omega_,2)) - g + x_d_T_s[2] * omega_)/ (g * omega_);
+    x_dot_y_nom_ = 0.2946;
     tau_nom_ = exp(omega_ * t_nom_);
     l_nom_ = v_des_local(0) * t_nom_;
     w_nom_ = is_left_leg_in_contact ? v_des_local(1) * t_nom_ - l_p_
                                     : v_des_local(1) * t_nom_ + l_p_;
-    bx_nom_ = l_nom_ / ((tau_nom_ - 1) * (1 + (pow(omega_, 2) / 9.81)*(-0.3)));
-    by_nom_ = (pow(-1, contact_switcher) * (l_p_ / ((1 + tau_nom_ + pow(omega_, 2) / 9.81 * (tau_nom_ - 1) * -0.3)))) -
-              (v_des_local(1) * t_nom_ / ((1 - tau_nom_) * 1 + (pow(omega_, 2) / 9.81)*(-0.3)));
-//    bx_nom_ = 0;//Lhum running TODO!!!
-//    by_nom_ = -0.0;
+    bx_nom_ = l_nom_ / (tau_nom_ - 1);
+    by_nom_ = (pow(-1, contact_switcher) * (l_p_ / (1 + tau_nom_))) -
+              v_des_local(1) * t_nom_ / (1 - tau_nom_);
 }
 
 #define dbg_dump(var) std::cout << "  " << #var << ": " << var << std::endl
@@ -165,7 +165,7 @@ void DcmVrpPlanner::update(
 {
     pinocchio::SE3 world_M_base(
         Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ()).toRotationMatrix(),
-        Eigen::Vector3d::Zero());
+        current_step_location);
 
     update(current_step_location,
            time_from_last_step_touchdown,
@@ -215,6 +215,8 @@ void DcmVrpPlanner::update(
     v_des_local_ = world_M_local_.rotation().transpose() * v_des_local_;
     //    v_des_local_ = world_M_local_.actInv(v_des_local_);
     // Nominal value tracked by the QP.
+    pinocchio::SE3 world_M_local_yaw;
+    world_M_local_yaw.rotation() = world_M_local_.rotation();
     compute_nominal_step_values(is_left_leg_in_contact, v_des_local_);
 
     // Current step location in the local frame.
@@ -272,44 +274,17 @@ void DcmVrpPlanner::update(
             -bx_min_,               // 7
             by_max,                // 8
             -by_min;                // 9
-    // clang-format on
-    Eigen::Vector3d x_T_s_;
-    Eigen::Vector3d x_d_T_s_;
-    const Eigen::Vector3d &tmp3 = x_T_s;
-    x_T_s_ = world_M_local_.actInv(tmp3);
-    const Eigen::Vector3d &tmp4 = x_d_T_s;
-    x_d_T_s_ = world_M_local_.actInv(tmp4);
 
-    double v0, v1;
-    double t_s = 0.1;
-    if(time_from_last_step_touchdown - t_s <= 0.0000001) {
-        tmp0_ = (dcm_local_(0) - current_step_location_local_[0]) *
-                exp(-1.0 * omega_ * (time_from_last_step_touchdown));
-        tmp1_ = (dcm_local_(1) - current_step_location_local_[1]) *
-                exp(-1.0 * omega_ * (time_from_last_step_touchdown));
-        v0 = x_d_T_s_[0] * t_f_ + x_d_T_s_[0] / omega_ + x_T_s[0];
-        v1 = x_d_T_s_[1] * t_f_ + x_d_T_s_[1] / omega_ + x_T_s[1];
-        tmp5_ = world_M_local_.act((Eigen::Vector3d() << tmp0_ * exp(omega * t_s), tmp1_ * exp(omega * t_s), 0.0).finished());
-    }
-    else{
-        const Eigen::Vector3d &tmp8 = com_vel;
-        const Eigen::Vector3d vcom = world_M_local_.actInv(tmp8);
-        const Eigen::Vector3d &tmp9 = com;
-        const Eigen::Vector3d C = world_M_local_.actInv(tmp9);
-        v0 = vcom(0) * (t_f_ + t_s - time_from_last_step_touchdown) + vcom(0) / omega_ + C(0);
-        v1 = vcom(1) * (t_f_ + t_s - time_from_last_step_touchdown) + vcom(1) / omega_ + C(1);
-        std::cout << "vcom " << vcom << "com_vel " << com_vel << "omega " << omega_ << "c " << C << "com " << com << std::endl;
-    }
-    std::cout << "TIME " << t_f_ + t_s - time_from_last_step_touchdown << std::endl;
-    const Eigen::Vector3d &tmp7 = tmp5_;
-    const Eigen::Vector3d tmp6 = world_M_local_.actInv(tmp7) / exp(omega * t_s);
+    double tmp0 = (dcm_local_(0) - current_step_location_local_[0]) *
+                  exp(-1.0 * omega_ * time_from_last_step_touchdown_);
+    double tmp1 = (dcm_local_(1) - current_step_location_local_[1]) *
+                  exp(-1.0 * omega_ * time_from_last_step_touchdown_);
 
-    // clang-format off
-    A_eq_ << 1.0, 0.0, 0., 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-             0.0, 1.0, 0., 0.0, 1.0, 0.0, 0.0, 0.0, 0.0;
-    std::cout << "v1 " << v1 << std::endl;
-    B_eq_ << v0,
-             v1;
+    A_eq_ << 1.0, 0.0, -1.0 * tmp0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+             0.0, 1.0, -1.0 * tmp1, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0;
+
+    B_eq_ << 0.0,
+             0.0;
     // clang-format on
 }
 
@@ -338,14 +313,12 @@ bool DcmVrpPlanner::solve()
     {
         // Extract the information from the solution.
         x_opt_ = qp_solver_.result();
-//        std::cout << "RESULT " << world_M_local_.act((Eigen::Vector3d() << x_opt_(0), x_opt_(1), 0.0).finished()) << " " << log(x_opt_(2)) / omega_ << std::endl;
         next_step_location_ =
-            //current_step_location_local_ +#Lhum running
+            current_step_location_local_ +
             (Eigen::Vector3d() << x_opt_(0), x_opt_(1), 0.0).finished();
         next_step_location_ = world_M_local_.act(next_step_location_);
-        std::cout << "x_opt " << x_opt_(0) << "    " << x_opt_(1) << " " << x_opt_(3) << "    " << x_opt_(4)<< std::endl;
-        std::cout << "next " << next_step_location_ << std::endl;
-        duration_before_step_landing_ = log(x_opt_(2)) / omega_ + t_f_;
+        //pow(-1, is_left_leg_in_contact) * x_dot_y_nom_ * t_f_nom_
+        duration_before_step_landing_ = log(x_opt_(2)) / omega_;
         slack_variables_ = x_opt_.tail<4>();
 
     }

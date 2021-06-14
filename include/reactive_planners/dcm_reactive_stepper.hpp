@@ -18,6 +18,13 @@
 #include "reactive_planners/stepper_head.hpp"
 #include "reactive_planners/com_planner.hpp"
 
+enum contact{
+    right=0,
+    left=1,
+    double_support=2,
+    flight=3
+};
+
 namespace reactive_planners
 {
 class DcmReactiveStepper
@@ -653,11 +660,26 @@ private:
     /** @brief Omega. */
     double omega_;
 
+    /** @brief DCM offset. */
+    Eigen::Vector3d b_;
+
     Eigen::Vector3d x_T_s_;
 
     Eigen::Vector3d x_d_T_s_;
 
     Eigen::Vector3d x_dd_T_s_;
+
+    Eigen::Vector3d com;
+
+    Eigen::Vector3d vcom;
+
+    bool first_;
+
+//    Eigen::Vector3d last_support_foot_position_during_stance_;
+//    Eigen::Vector3d last_com_position_during_stance_;
+//    Eigen::Vector3d last_com_velocity_during_stance_;
+//    Eigen::Vector3d last_local_frame_during_stance_;
+
 
 };
 
