@@ -48,8 +48,6 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(
     :  // Inheritance.
       dynamicgraph::Entity(name),
 
-      init_placement_(false),
-
       // Input signals.
       define_input_signal(current_front_left_foot_position_sin_, "Vector3d"),
       define_input_signal(current_front_right_foot_position_sin_, "Vector3d"),
@@ -130,7 +128,8 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(
       define_output_signal(swing_foot_forces_sout_,
                            "Vector24d",
                            &QuadrupedDcmReactiveStepper::swing_foot_forces),
-
+      define_output_signal(
+          step_duration_sout_, "double", &QuadrupedDcmReactiveStepper::step_duration),
       // Inner signal.
       inner_sout_(
           boost::bind(&QuadrupedDcmReactiveStepper::inner, this, _1, _2),
@@ -144,7 +143,10 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(
               << current_hind_right_foot_velocity_sin_ << com_position_sin_
               << com_velocity_sin_ << xyzquat_base_sin_ << is_closed_loop_sin_
               << desired_com_velocity_sin_,
-          make_signal_string(false, "bool", "inner_sout"))
+          make_signal_string(false, "bool", "inner_sout")),
+
+      // Protected variables.
+      init_placement_(false)
 {
     /*
      * Initializes the signals
@@ -179,7 +181,8 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper(
               << feasible_com_velocity_sout_
               << contact_array_sout_
               << swing_foot_forces_sout_
-              );
+              << step_duration_sout_
+    );
     // clang-format on
 }
 
@@ -324,7 +327,7 @@ bool& QuadrupedDcmReactiveStepper::inner(bool& s, int time)
     base_quaternion_.w() = xyzquat_base(6);
     base_quaternion_.normalize();
     Eigen::Vector3d rpy = pinocchio::rpy::matrixToRpy(
-        base_quaternion_.matrix());
+        base_quaternion_.toRotationMatrix());
 
     // Rotate the passed desired_com_velocity_sin_ from local to world frame.
     Eigen::Vector3d vec_yaw;
@@ -469,6 +472,13 @@ dynamicgraph::Vector& QuadrupedDcmReactiveStepper::swing_foot_forces(
     inner_sout_.access(time);
     signal_data = stepper_.get_forces();
     return signal_data;
+}
+
+double &QuadrupedDcmReactiveStepper::step_duration(double &s, int time)
+{
+    inner_sout_.access(time);
+    s = stepper_.get_step_duration();
+    return s;
 }
 
 }  // namespace dynamic_graph

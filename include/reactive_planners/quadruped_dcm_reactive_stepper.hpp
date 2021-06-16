@@ -353,6 +353,11 @@ public:
         return forces_;
     }
 
+    const double& get_step_duration()
+    {
+        return biped_stepper_.get_step_duration();
+    }
+
 private:
     /* User inputs */
 
@@ -406,6 +411,22 @@ private:
 
     /** @brief Biped reactive stepper based on DCM. */
     DcmReactiveStepper biped_stepper_;
+
+    /** @brief Front left foot trajectory generator. */
+    DynamicallyConsistentEndEffectorTrajectory
+        fl_traj_;
+    
+    /** @brief Front right foot trajectory generator. */
+    DynamicallyConsistentEndEffectorTrajectory
+        fr_traj_;
+
+    /** @brief Hind left foot trajectory generator. */
+    DynamicallyConsistentEndEffectorTrajectory
+        hl_traj_;
+
+    /** @brief Hind right foot trajectory generator. */
+    DynamicallyConsistentEndEffectorTrajectory
+        hr_traj_;
 
     /** @brief Contact array containing which foot are in contact, the order is
      * [FL, FR, HL, HR]. */

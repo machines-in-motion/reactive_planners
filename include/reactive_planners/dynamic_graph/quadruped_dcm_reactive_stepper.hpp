@@ -256,8 +256,18 @@ public:
     /** @brief Feedforward force for the swing foot. */
     dynamicgraph::SignalTimeDependent<dynamicgraph::Vector, int>
         swing_foot_forces_sout_;
+    
+    /** @brief Current step duration. */
+    dynamicgraph::SignalTimeDependent<double, int> step_duration_sout_;
 
+    /* Attributes. */
 protected:
+    /** @brief Inner signal to manage all other signals. */
+    dynamicgraph::SignalTimeDependent<bool, int> inner_sout_;
+
+    /** @brief The central quadruped reactive stepper controller */
+    reactive_planners::QuadrupedDcmReactiveStepper stepper_;
+
     /** @brief True if the placement was initialized, false otherwise. */
     bool init_placement_;
 
@@ -283,6 +293,7 @@ protected:
     /** @brief Quaternion from the input signal. */
     pinocchio::SE3::Quaternion base_quaternion_;
 
+    /* Methods. */
 protected:
     /**
      * @brief Callback of the inner_sout_ signal.
@@ -443,6 +454,15 @@ protected:
                                             int time);
 
     /**
+     * @brief Callback of the step_duration_sout_ signal.
+     *
+     * @param s
+     * @param time
+     * @return double&
+     */
+    double& step_duration(double& signal_data, int time);
+
+    /**
      * @brief Helper to define the name of the signals.
      *
      * @param is_input_signal
@@ -453,13 +473,6 @@ protected:
     std::string make_signal_string(const bool& is_input_signal,
                                    const std::string& signal_type,
                                    const std::string& signal_name);
-
-protected:
-    /** @brief Inner signal to manage all other signals. */
-    dynamicgraph::SignalTimeDependent<bool, int> inner_sout_;
-
-    /** @brief The central quadruped reactive stepper controller */
-    reactive_planners::QuadrupedDcmReactiveStepper stepper_;
 };
 
 }  // namespace dynamic_graph

@@ -77,12 +77,12 @@ DynamicallyConsistentEndEffectorTrajectory::
     M_inv_[1].resize(3, 3);
 
     // clang-format off
-  M_inv_[0] << 0.045, 0.0, 0.0,
-               0.0, 0.045, 0.0,
-               0.0, 0.0, 0.09;//Left_swing
-  M_inv_[1] << 0.045, -0.0, 0.0,
-               -0.0, 0.045, -0.0,
-               0.0, -0.0, 0.09;//Right_swing
+    M_inv_[0] << 0.045, 0.0, 0.0,
+                 0.0, 0.045, 0.0,
+                 0.0, 0.0, 0.09;//Left_swing
+    M_inv_[1] << 0.045, -0.0, 0.0,
+                 -0.0, 0.045, -0.0,
+                 0.0, -0.0, 0.09;//Right_swing
     // clang-format on
     M_inv_[0] = M_inv_[0].inverse();
     M_inv_[1] = M_inv_[1].inverse();
@@ -123,20 +123,20 @@ void DynamicallyConsistentEndEffectorTrajectory::
     A_.resize(6, 6);
 
     // clang-format off
-  A_ << 1., planner_loop_, 0., 0., 0., 0.,
-        0., 1., 0., 0., 0., 0.,
-        0., 0., 1., planner_loop_, 0., 0.,
-        0., 0., 0., 1., 0., 0.,
-        0., 0., 0., 0., 1., planner_loop_,
-        0., 0., 0., 0., 0., 1.;
+    A_ << 1., planner_loop_, 0., 0., 0., 0.,
+          0., 1., 0., 0., 0., 0.,
+          0., 0., 1., planner_loop_, 0., 0.,
+          0., 0., 0., 1., 0., 0.,
+          0., 0., 0., 0., 1., planner_loop_,
+          0., 0., 0., 0., 0., 1.;
 
-  B_.resize(6, 3);
-  B_ << planner_loop_ * planner_loop_ / 2, 0., 0.,
-        planner_loop_, 0., 0.,
-        0., planner_loop_ * planner_loop_ / 2, 0.,
-        0., planner_loop_, 0.,
-        0., 0., planner_loop_ * planner_loop_ / 2,
-        0., 0., planner_loop_;
+    B_.resize(6, 3);
+    B_ << planner_loop_ * planner_loop_ / 2, 0., 0.,
+          planner_loop_, 0., 0.,
+          0., planner_loop_ * planner_loop_ / 2, 0.,
+          0., planner_loop_, 0.,
+          0., 0., planner_loop_ * planner_loop_ / 2,
+          0., 0., planner_loop_;
     // clang-format on
 
     Eigen::MatrixXd x;
@@ -511,7 +511,7 @@ bool DynamicallyConsistentEndEffectorTrajectory::compute(
                 2 * MAX_VAR, nb_local_sampling_time_);
         B_ineq_(i - 1 + nb_local_sampling_time_) =
             -current_pose_(2) + std::max(start_pose(2), target_pose(2)) +
-            mid_air_height_ - current_velocity_(2) * planner_loop_ * i +
+            mid_air_height_ * 2.0 - current_velocity_(2) * planner_loop_ * i +
             non_linear_terms[is_left_leg_in_contact_](i, 2);
     }
 

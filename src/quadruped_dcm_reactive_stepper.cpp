@@ -111,6 +111,15 @@ void QuadrupedDcmReactiveStepper::initialize(
                               planner_loop,
                               virtual_left_foot_position,
                               virtual_right_foot_position);
+
+    fl_traj_.set_mid_air_height(mid_air_foot_height);
+    fl_traj_.set_planner_loop(planner_loop);
+    fr_traj_.set_mid_air_height(mid_air_foot_height);
+    fr_traj_.set_planner_loop(planner_loop);
+    hl_traj_.set_mid_air_height(mid_air_foot_height);
+    hl_traj_.set_planner_loop(planner_loop);
+    hr_traj_.set_mid_air_height(mid_air_foot_height);
+    hr_traj_.set_planner_loop(planner_loop);
 }
 
 bool QuadrupedDcmReactiveStepper::run(
@@ -155,26 +164,88 @@ bool QuadrupedDcmReactiveStepper::run(
 
     Eigen::Matrix3d base_yaw_rot =
         pinocchio::rpy::rpyToMatrix(0.0, 0.0, base_yaw);
-    front_left_foot_position_ =
-        biped_stepper_.get_left_foot_position() + base_yaw_rot * fl_offset_;
-    hind_right_foot_position_ =
-        biped_stepper_.get_left_foot_position() + base_yaw_rot * hr_offset_;
-    front_right_foot_position_ =
-        biped_stepper_.get_right_foot_position() + base_yaw_rot * fr_offset_;
-    hind_left_foot_position_ =
-        biped_stepper_.get_right_foot_position() + base_yaw_rot * hl_offset_;
+        
+    if(biped_stepper_.is_running())
+    {
+        double current_time = stepper_head_.get_time_from_last_step_touchdown();
+        double start_time = 0.0;
+        double end_time = dcm_vrp_planner_.get_duration_before_step_landing();
 
-    front_left_foot_velocity_ = biped_stepper_.get_left_foot_velocity();
-    hind_right_foot_velocity_ = biped_stepper_.get_left_foot_velocity();
-    front_right_foot_velocity_ = biped_stepper_.get_right_foot_velocity();
-    hind_left_foot_velocity_ = biped_stepper_.get_right_foot_velocity();
-
-    front_left_foot_acceleration_ = biped_stepper_.get_left_foot_acceleration();
-    hind_right_foot_acceleration_ = biped_stepper_.get_left_foot_acceleration();
-    front_right_foot_acceleration_ =
-        biped_stepper_.get_right_foot_acceleration();
-    hind_left_foot_acceleration_ = biped_stepper_.get_right_foot_acceleration();
-
+        if(biped_stepper_.get_is_left_leg_in_contact())
+        { // Right foot flying, Left foot support
+            // Flying.
+            fl_traj_.update_robot_status(front_left_foot_position,
+                                         front_left_foot_velocity,
+                                         get_front_left_foot_acceleration());
+            hl_traj_.update_robot_status(hind_left_foot_position,
+                                         hind_left_foot_velocity,
+                                         get_hind_left_foot_acceleration());
+            double fl_t_min = calculate_t_min(front_left_foot_position,
+                                              front_left_foot_velocity,
+                                              biped_stepper_.get_is_left_leg_in_contact());
+            double hl_t_min = calculate_t_min(hind_left_foot_position,
+                                              hind_left_foot_velocity,
+                                              biped_stepper_.get_is_left_leg_in_contact());
+            
+            
+            front_right_foot_position_ = biped_stepper_.get_right_foot_position() + base_yaw_rot * fr_offset_;
+            hind_left_foot_position_ =
+                biped_stepper_.get_right_foot_position() + base_yaw_rot * hl_offset_;
+            front_right_foot_velocity_ = biped_stepper_.get_right_foot_velocity();
+            hind_left_foot_velocity_ = biped_stepper_.get_right_foot_velocity();
+            front_right_foot_acceleration_ =
+                biped_stepper_.get_right_foot_acceleration();
+            hind_left_foot_acceleration_ = biped_stepper_.get_right_foot_acceleration();
+            // Support.
+            front_left_foot_position_ = front_left_foot_position;
+            front_left_foot_position_[2] = 0.0;
+            hind_right_foot_position_ = hind_right_foot_position;
+            hind_right_foot_position_[2] = 0.0;
+            front_left_foot_velocity_.fill(0.0);
+            hind_right_foot_velocity_.fill(0.0);
+            front_left_foot_acceleration_.fill(0.0);
+            hind_right_foot_acceleration_.fill(0.0);
+        }else{ // Left foot flying, Right foot support
+            // Flying.
+            front_left_foot_position_ =
+                biped_stepper_.get_left_foot_position() + base_yaw_rot * fl_offset_;
+            hind_right_foot_position_ =
+                biped_stepper_.get_left_foot_position() + base_yaw_rot * hr_offset_;
+            front_left_foot_velocity_ = biped_stepper_.get_left_foot_velocity();
+            hind_right_foot_velocity_ = biped_stepper_.get_left_foot_velocity();
+            front_left_foot_acceleration_ = biped_stepper_.get_left_foot_acceleration();
+            hind_right_foot_acceleration_ = biped_stepper_.get_left_foot_acceleration();
+            // Support.
+            front_right_foot_position_ = front_right_foot_position;
+            front_right_foot_position_[2] = 0.0;
+            hind_left_foot_position_ = hind_left_foot_position;
+            hind_left_foot_position_[2] = 0.0;
+            front_right_foot_velocity_.fill(0.0);
+            hind_left_foot_velocity_.fill(0.0);
+            front_right_foot_acceleration_.fill(0.0);
+            hind_left_foot_acceleration_.fill(0.0);
+        }
+    }else{
+        // Support.
+        front_left_foot_position_ = front_left_foot_position;
+        front_left_foot_position_[2] = 0.0;
+        hind_right_foot_position_ = hind_right_foot_position;
+        hind_right_foot_position_[2] = 0.0;
+        front_left_foot_velocity_.fill(0.0);
+        hind_right_foot_velocity_.fill(0.0);
+        front_left_foot_acceleration_.fill(0.0);
+        hind_right_foot_acceleration_.fill(0.0);
+        // Support.
+        front_right_foot_position_ = front_right_foot_position;
+        front_right_foot_position_[2] = 0.0;
+        hind_left_foot_position_ = hind_left_foot_position;
+        hind_left_foot_position_[2] = 0.0;
+        front_right_foot_velocity_.fill(0.0);
+        hind_left_foot_velocity_.fill(0.0);
+        front_right_foot_acceleration_.fill(0.0);
+        hind_left_foot_acceleration_.fill(0.0);
+    }
+    
     forces_.setZero();
     if (biped_stepper_.is_running())
     {

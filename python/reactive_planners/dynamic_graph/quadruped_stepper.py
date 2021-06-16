@@ -163,4 +163,15 @@ class QuadrupedStepper:
         # Plug the stepper base position.
         dg.plug(base_position, self.stepper.xyzquat_base_sin)
 
-
+    def trace(self, robot):
+        robot.add_trace(self.stepper.name, "front_left_foot_position_sout")
+        robot.add_trace(self.stepper.name, "front_right_foot_position_sout")
+        robot.add_trace(self.stepper.name, "hind_left_foot_position_sout")
+        robot.add_trace(self.stepper.name, "hind_right_foot_position_sout")
+        robot.add_trace(self.stepper.name, "front_left_foot_velocity_sout")
+        robot.add_trace(self.stepper.name, "front_right_foot_velocity_sout")
+        robot.add_trace(self.stepper.name, "hind_left_foot_velocity_sout")
+        robot.add_trace(self.stepper.name, "hind_right_foot_velocity_sout")
+        robot.add_trace(self.stepper.name, "contact_array_sout")
+        robot.add_trace(self.stepper.name, "swing_foot_forces_sout")
+        robot.add_trace(self.stepper.name, "step_duration_sout")
