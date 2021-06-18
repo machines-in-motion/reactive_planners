@@ -21,6 +21,7 @@
 #define BLUE "\033[34m" /* Blue */
 #define MAX_VAR 500
 #define EPSILON 1e-9
+#define BIG_EPSILON 1e-4
 
 namespace reactive_planners
 {
@@ -48,7 +49,8 @@ public:
                  const double& end_time,
                  const bool& is_left_leg_in_contact);
 
-    void update_robot_status(Eigen::Ref<Eigen::Vector3d> next_pose,
+    void update_robot_status(Eigen::Ref<const Eigen::Vector3d> force,
+                             Eigen::Ref<Eigen::Vector3d> next_pose,
                              Eigen::Ref<Eigen::Vector3d> next_velocity,
                              Eigen::Ref<Eigen::Vector3d> next_acceleration);
 
@@ -85,6 +87,7 @@ public:
     void set_planner_loop(double planner_loop)
     {
         planner_loop_ = planner_loop;
+        init_acceleration_velocity_terms();
     }
 
     /** @brief Set the height of the flying foot.
@@ -166,9 +169,20 @@ private:
         qp_solver_t_min_.problem(3 * index, 2, 2 * 3 * index);
     }
 
-    /** @brief initialie acceleration_terms and velocity_terms.
-     */
+    /** @brief initialize acceleration_terms and velocity_terms. */
     void init_acceleration_velocity_terms();
+
+    /** @brief Check if we are at a computation node time. */
+    bool is_compute()
+    {
+        const double current_duration = current_time_ - start_time_;  // To solve numeric problem - EPSILON
+        const double it_nb = floor(current_duration / planner_loop_);
+        // if it_nb is close to be an integer then we are at a computation node.
+        const double dist_to_node = current_duration - it_nb * planner_loop_;
+        assert(dist_to_node >= 0.0);
+        return dist_to_node <= BIG_EPSILON || 
+               (dist_to_node >= (1 - BIG_EPSILON) && dist_to_node <= 1);
+    }
 
     /*
      * Constant problem parameters.

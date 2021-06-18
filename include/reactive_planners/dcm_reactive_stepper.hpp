@@ -452,10 +452,12 @@ public:
     const Eigen::Matrix<double, 12, 1> &get_force()
     {
         if (is_left_leg_in_contact_)
-            force << 0., 0., 0., 0., 0., 0., forces_.head(3), 0., 0., 0.;
+            bipedal_force_ << 0., 0., 0., 0., 0., 0.,
+                              forces_.head(3), 0., 0., 0.;
         else
-            force << forces_.head(3), 0., 0., 0., 0., 0., 0., 0., 0., 0.;
-        return force;
+            bipedal_force_ << forces_.head(3), 0., 0., 0.,
+                              0., 0., 0., 0., 0., 0.;
+        return bipedal_force_;
     }
 
     /**
@@ -466,7 +468,7 @@ public:
      */
     bool is_running()
     {
-        return running_;
+        return !is_standing_still_;
     }
 
     /*
@@ -599,8 +601,11 @@ private:
      */
     pinocchio::SE3 local_frame_;
 
-    /** @brief Define if we compute a solution or stay still. */
+    /** @brief User asking to compute a solution or stay still. */
     bool running_;
+
+    /** @brief State of the contrller, are we standing still or not. */
+    bool is_standing_still_;
 
     /** @brief The number of acceptable force at forces_. */
     int nb_force_;
@@ -609,7 +614,7 @@ private:
     int nb_usage_of_force_;
 
     /** @brief Force calculated until the next contact. */
-    Eigen::Matrix<double, 12, 1> force;
+    Eigen::Matrix<double, 12, 1> bipedal_force_;
 
     /** @brief Nominal DCM computed from the CoM estimation and nominal time. */
     Eigen::Vector3d dcm_;

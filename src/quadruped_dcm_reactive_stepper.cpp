@@ -35,6 +35,7 @@ QuadrupedDcmReactiveStepper::QuadrupedDcmReactiveStepper()
     foot_height_offset_ = 0.0;
     forces_.setZero();
     contact_array_.fill(1);
+    nb_force_ = 0;
 }
 
 QuadrupedDcmReactiveStepper::~QuadrupedDcmReactiveStepper() = default;
@@ -120,6 +121,15 @@ void QuadrupedDcmReactiveStepper::initialize(
     hl_traj_.set_planner_loop(planner_loop);
     hr_traj_.set_mid_air_height(mid_air_foot_height);
     hr_traj_.set_planner_loop(planner_loop);
+
+    front_left_forces_.resize(ceil(t_max * 1000 * 3));
+    front_right_forces_.resize(ceil(t_max * 1000 * 3));
+    hind_left_forces_.resize(ceil(t_max * 1000 * 3));
+    hind_right_forces_.resize(ceil(t_max * 1000 * 3));
+    front_left_forces_.setZero();
+    front_right_forces_.setZero();
+    hind_left_forces_.setZero();
+    hind_right_forces_.setZero();
 }
 
 bool QuadrupedDcmReactiveStepper::run(
@@ -140,12 +150,23 @@ bool QuadrupedDcmReactiveStepper::run(
     bool succeed = true;
     Eigen::Matrix<double, 12, 1> stepper_forces;
 
+    // update current state:
+    front_left_foot_position_ = front_left_foot_position;
+    front_right_foot_position_ = front_right_foot_position;
+    hind_left_foot_position_ = hind_left_foot_position;
+    hind_right_foot_position_ = hind_right_foot_position;
+    front_left_foot_velocity_ = front_left_foot_velocity;
+    front_right_foot_velocity_ = front_right_foot_velocity;
+    hind_left_foot_velocity_ = hind_left_foot_velocity;
+    hind_right_foot_velocity_ = hind_right_foot_velocity;
+
+    // Compute Left and Right virtual foot positions.
     Eigen::Vector3d virtual_left_foot_position =
         (front_left_foot_position + hind_right_foot_position) * 0.5;
     virtual_left_foot_position(2) -= foot_height_offset_;
     Eigen::Vector3d virtual_left_foot_velocity =
         (front_left_foot_velocity + hind_right_foot_velocity) * 0.5;
-
+    
     Eigen::Vector3d virtual_right_foot_position =
         (front_right_foot_position + hind_left_foot_position) * 0.5;
     virtual_right_foot_position(2) -= foot_height_offset_;
@@ -164,109 +185,180 @@ bool QuadrupedDcmReactiveStepper::run(
 
     Eigen::Matrix3d base_yaw_rot =
         pinocchio::rpy::rpyToMatrix(0.0, 0.0, base_yaw);
-        
+
     if(biped_stepper_.is_running())
     {
-        double current_time = stepper_head_.get_time_from_last_step_touchdown();
+        double current_time = biped_stepper_.get_time_from_last_step_touchdown();
         double start_time = 0.0;
-        double end_time = dcm_vrp_planner_.get_duration_before_step_landing();
-
-        if(biped_stepper_.get_is_left_leg_in_contact())
+        double end_time = biped_stepper_.get_step_duration();
+        // std::cout << "current_time = " << current_time << std::endl;
+        // std::cout << "start_time = " << start_time << std::endl;
+        // std::cout << "end_time = " << end_time << std::endl;
+        bool is_left_leg_in_contact = 
+            biped_stepper_.get_is_left_leg_in_contact();
+        if(is_left_leg_in_contact)
         { // Right foot flying, Left foot support
             // Flying.
-            fl_traj_.update_robot_status(front_left_foot_position,
-                                         front_left_foot_velocity,
-                                         get_front_left_foot_acceleration());
-            hl_traj_.update_robot_status(hind_left_foot_position,
-                                         hind_left_foot_velocity,
-                                         get_hind_left_foot_acceleration());
-            double fl_t_min = calculate_t_min(front_left_foot_position,
-                                              front_left_foot_velocity,
-                                              biped_stepper_.get_is_left_leg_in_contact());
-            double hl_t_min = calculate_t_min(hind_left_foot_position,
-                                              hind_left_foot_velocity,
-                                              biped_stepper_.get_is_left_leg_in_contact());
-            
-            
-            front_right_foot_position_ = biped_stepper_.get_right_foot_position() + base_yaw_rot * fr_offset_;
-            hind_left_foot_position_ =
-                biped_stepper_.get_right_foot_position() + base_yaw_rot * hl_offset_;
-            front_right_foot_velocity_ = biped_stepper_.get_right_foot_velocity();
-            hind_left_foot_velocity_ = biped_stepper_.get_right_foot_velocity();
-            front_right_foot_acceleration_ =
-                biped_stepper_.get_right_foot_acceleration();
-            hind_left_foot_acceleration_ = biped_stepper_.get_right_foot_acceleration();
+            // Front left.
+            succeed = succeed && fr_traj_.compute(
+                front_right_foot_last_support_position_,
+                front_right_foot_position_,
+                front_right_foot_velocity_,
+                biped_stepper_.get_next_support_foot_position() +
+                    base_yaw_rot * fr_offset_,
+                start_time,
+                current_time,
+                end_time,
+                is_left_leg_in_contact);
+            nb_force_ = fr_traj_.get_forces(front_right_forces_,
+                                            front_right_foot_position_,
+                                            front_right_foot_velocity_,
+                                            front_right_foot_acceleration_);
+            // Hind right.
+            succeed = succeed && hl_traj_.compute(
+                hind_left_foot_last_support_position_,
+                hind_left_foot_position_,
+                hind_left_foot_velocity_,
+                biped_stepper_.get_next_support_foot_position() +
+                    base_yaw_rot * hl_offset_,
+                start_time,
+                current_time,
+                end_time,
+                is_left_leg_in_contact);
+            nb_force_ = hl_traj_.get_forces(hind_left_forces_,
+                                            hind_left_foot_position_,
+                                            hind_left_foot_velocity_,
+                                            hind_left_foot_acceleration_);
             // Support.
+            front_left_forces_.setZero();
             front_left_foot_position_ = front_left_foot_position;
             front_left_foot_position_[2] = 0.0;
+            front_left_foot_velocity_.fill(0.0);
+            front_left_foot_acceleration_.fill(0.0);
+            front_left_foot_last_support_position_ = front_left_foot_position_;
+            hind_right_forces_.setZero();
             hind_right_foot_position_ = hind_right_foot_position;
             hind_right_foot_position_[2] = 0.0;
-            front_left_foot_velocity_.fill(0.0);
             hind_right_foot_velocity_.fill(0.0);
-            front_left_foot_acceleration_.fill(0.0);
             hind_right_foot_acceleration_.fill(0.0);
+            hind_right_foot_last_support_position_ = hind_right_foot_position_;
         }else{ // Left foot flying, Right foot support
             // Flying.
-            front_left_foot_position_ =
-                biped_stepper_.get_left_foot_position() + base_yaw_rot * fl_offset_;
-            hind_right_foot_position_ =
-                biped_stepper_.get_left_foot_position() + base_yaw_rot * hr_offset_;
-            front_left_foot_velocity_ = biped_stepper_.get_left_foot_velocity();
-            hind_right_foot_velocity_ = biped_stepper_.get_left_foot_velocity();
-            front_left_foot_acceleration_ = biped_stepper_.get_left_foot_acceleration();
-            hind_right_foot_acceleration_ = biped_stepper_.get_left_foot_acceleration();
+            // Front left.
+            succeed = succeed && fl_traj_.compute(
+                front_left_foot_last_support_position_,
+                front_left_foot_position_,
+                front_left_foot_velocity_,
+                biped_stepper_.get_next_support_foot_position() +
+                    base_yaw_rot * fl_offset_,
+                start_time,
+                current_time,
+                end_time,
+                is_left_leg_in_contact);
+            nb_force_ = fl_traj_.get_forces(front_left_forces_,
+                                            front_left_foot_position_,
+                                            front_left_foot_velocity_,
+                                            front_left_foot_acceleration_);
+            // Hind right.
+            succeed = succeed && hr_traj_.compute(
+                hind_right_foot_last_support_position_,
+                hind_right_foot_position_,
+                hind_right_foot_velocity_,
+                biped_stepper_.get_next_support_foot_position() +
+                    base_yaw_rot * hr_offset_,
+                start_time,
+                current_time,
+                end_time,
+                is_left_leg_in_contact);
+            nb_force_ = hr_traj_.get_forces(hind_right_forces_,
+                                            hind_right_foot_position_,
+                                            hind_right_foot_velocity_,
+                                            hind_right_foot_acceleration_);
             // Support.
+            front_right_forces_.setZero();
             front_right_foot_position_ = front_right_foot_position;
             front_right_foot_position_[2] = 0.0;
+            front_right_foot_velocity_.fill(0.0);
+            front_right_foot_acceleration_.fill(0.0);
+            front_right_foot_last_support_position_ = front_right_foot_position_;
+            hind_left_forces_.setZero();
             hind_left_foot_position_ = hind_left_foot_position;
             hind_left_foot_position_[2] = 0.0;
-            front_right_foot_velocity_.fill(0.0);
             hind_left_foot_velocity_.fill(0.0);
-            front_right_foot_acceleration_.fill(0.0);
             hind_left_foot_acceleration_.fill(0.0);
+            hind_left_foot_last_support_position_ = hind_left_foot_position_;
         }
     }else{
         // Support.
         front_left_foot_position_ = front_left_foot_position;
         front_left_foot_position_[2] = 0.0;
+        front_left_foot_velocity_.fill(0.0);
+        front_left_foot_acceleration_.fill(0.0);
+        front_left_foot_last_support_position_ = front_left_foot_position_;
         hind_right_foot_position_ = hind_right_foot_position;
         hind_right_foot_position_[2] = 0.0;
-        front_left_foot_velocity_.fill(0.0);
         hind_right_foot_velocity_.fill(0.0);
-        front_left_foot_acceleration_.fill(0.0);
         hind_right_foot_acceleration_.fill(0.0);
+        hind_right_foot_last_support_position_ = hind_right_foot_position_;
         // Support.
         front_right_foot_position_ = front_right_foot_position;
         front_right_foot_position_[2] = 0.0;
+        front_right_foot_velocity_.fill(0.0);
+        front_right_foot_acceleration_.fill(0.0);
+        front_right_foot_last_support_position_ = front_right_foot_position_;
         hind_left_foot_position_ = hind_left_foot_position;
         hind_left_foot_position_[2] = 0.0;
-        front_right_foot_velocity_.fill(0.0);
         hind_left_foot_velocity_.fill(0.0);
-        front_right_foot_acceleration_.fill(0.0);
         hind_left_foot_acceleration_.fill(0.0);
+        hind_left_foot_last_support_position_ = hind_left_foot_position_;
     }
     
     forces_.setZero();
     if (biped_stepper_.is_running())
     {
-        stepper_forces = biped_stepper_.get_force();
         if (biped_stepper_.get_is_left_leg_in_contact())
         {
             contact_array_ << 1.0, 0.0, 0.0, 1.0;
-            forces_.block(6, 0, 6, 1) = stepper_forces.block(6, 0, 6, 1);
-            forces_.block(12, 0, 6, 1) = stepper_forces.block(6, 0, 6, 1);
+            forces_.segment<6>(1 * 6) << front_right_forces_.head<3>(),
+                                         0.0, 0.0, 0.0;
+            forces_.segment<6>(2 * 6) << hind_left_forces_.head<3>(),
+                                         0.0, 0.0, 0.0;
         }
         else
         {
             contact_array_ << 0.0, 1.0, 1.0, 0.0;
-            forces_.block(0, 0, 6, 1) = stepper_forces.block(0, 0, 6, 1);
-            forces_.block(18, 0, 6, 1) = stepper_forces.block(0, 0, 6, 1);
+            forces_.segment<6>(0 * 6) << front_left_forces_.head<3>(),
+                                         0.0, 0.0, 0.0;
+            forces_.segment<6>(3 * 6) << hind_right_forces_.head<3>(),
+                                         0.0, 0.0, 0.0;
         }
     }
     else
     {
         contact_array_.fill(1.0);
     }
+
+    std::cout << "fr_foot_position_ = "
+              << front_right_foot_position_.transpose()
+              << " ; fr_foot_velocity_ = "
+              << front_right_foot_velocity_.transpose()
+              << " ; fr_foot_acceleration_ = "
+              << front_right_foot_acceleration_.transpose()
+              << " ; front_right_forces_ = "
+              << front_right_forces_.head<3>().transpose()
+              << std::endl;
+    // std::cout << "front_left_foot_position_ = "
+    //           << front_left_foot_position_.transpose() << std::endl;
+    // std::cout << "hind_left_foot_position_ = "
+    //           << hind_left_foot_position_.transpose() << std::endl;
+    // std::cout << "hind_right_foot_position_ = "
+    //           << hind_right_foot_position_.transpose() << std::endl;
+    // std::cout << "front_left_forces_ = "
+    //           << front_left_forces_.head<3>().transpose() << std::endl;
+    // std::cout << "hind_left_forces_ = "
+    //           << hind_left_forces_.head<3>().transpose() << std::endl;
+    // std::cout << "hind_right_forces_ = "
+    //           << hind_right_forces_.head<3>().transpose() << std::endl;
     return succeed;
 }
 

@@ -31,6 +31,7 @@ DcmReactiveStepper::DcmReactiveStepper()
     left_foot_acceleration_.setZero();
     feasible_com_velocity_.setZero();
     running_ = false;
+    is_standing_still_ = true;
     local_frame_.setIdentity();
     nb_usage_of_force_ = 0.;
     new_ = true;
@@ -166,6 +167,7 @@ bool DcmReactiveStepper::run(
                               std::numeric_limits<double>::epsilon() <
                           step_duration_))
     {
+        is_standing_still_ = false;
         walk(time,
              left_foot_position,
              right_foot_position,
@@ -178,6 +180,7 @@ bool DcmReactiveStepper::run(
     }
     else
     {
+        is_standing_still_ = true;
         stand_still(time, left_foot_position, right_foot_position);
     }
     return succeed;
@@ -239,14 +242,16 @@ bool DcmReactiveStepper::walk(
         stepper_head_.get_previous_support_location();
 
     /// change solver loop time_step
+    int planner_frequency = round(1.0/planner_loop_);
     if (new_ && time_from_last_step_touchdown_ == 0.0) nb_usage_of_force_ = 0;
-    if (new_ && nb_usage_of_force_ % 10 != 0)
+    if (new_ && nb_usage_of_force_ % planner_frequency != 0)
     {  // Lhum TODO update 10 automatically
         // Compute the flying foot trajectory.
         if (is_left_leg_in_contact_)  // check which foot is in contact
         {
             // flying foot is the right foot
             dynamically_consistent_end_eff_trajectory_.update_robot_status(
+                forces_.head<3>(),
                 right_foot_position_,
                 right_foot_velocity_,
                 right_foot_acceleration_);
@@ -259,6 +264,7 @@ bool DcmReactiveStepper::walk(
         {
             // flying foot is the left foot
             dynamically_consistent_end_eff_trajectory_.update_robot_status(
+                forces_.head<3>(),
                 left_foot_position_,
                 left_foot_velocity_,
                 left_foot_acceleration_);

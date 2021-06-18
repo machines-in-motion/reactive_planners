@@ -269,6 +269,22 @@ bool DynamicallyConsistentEndEffectorTrajectory::compute(
     const double& end_time,
     const bool& is_left_leg_in_contact)
 {
+    start_time_ = start_time;    
+    current_time_ = current_time;
+
+    if(current_time_ < start_time_ || current_time_ > end_time)
+    {
+        std::cout << RED << "Error: "
+                  << "DynamicallyConsistentEndEffectorTrajectory::compute(): "
+                  << "current time is not between the start and the end time."
+                  << RESET << std::endl;
+    }
+
+    if(!is_compute())
+    {
+        return true;
+    }
+
     // scaling the problem
     const double step_duration =
         end_time - start_time - EPSILON;  // To solve numeric problem
@@ -522,32 +538,6 @@ bool DynamicallyConsistentEndEffectorTrajectory::compute(
         A_ineq_(nb_local_sampling_time_ * (2 + 3) + i, i) = -1;
         B_ineq_(nb_local_sampling_time_ * (2 + 3) + i) = 18;
     }
-    if (!qp_solver_.solve(Q_, q_, A_eq_, B_eq_, A_ineq_, B_ineq_))
-    {
-        std::string error =
-            "DynamicallyConsistentEndEffectorTrajectory::compute(): "
-            "failed to solve the QP.";
-        std::cout << RED << "Error: " << error << RESET << std::endl;
-        // https://github.com/jrl-umi3218/eigen-quadprog/blob/master/src/QuadProg/c/solve.QP.compact.c#L94
-        if (qp_solver_.fail() == 1)
-        {
-            std::cout << RED
-                      << "DynamicallyConsistentEndEffectorTrajectory::compute "
-                         "-> the minimization "
-                         "problem has no "
-                         "solution!"
-                      << RESET << std::endl;
-        }
-        else
-        {
-            std::cout << RED
-                      << "DynamicallyConsistentEndEffectorTrajectory::compute "
-                         "-> problems with "
-                         "decomposing D!"
-                      << RESET << std::endl;
-        }
-        return false;
-    }
     return true;
 }
 
@@ -558,14 +548,36 @@ int DynamicallyConsistentEndEffectorTrajectory::get_forces(
     Eigen::Ref<Eigen::Vector3d> next_acceleration)
 {
     if (current_time_ < start_time_ ||
-        current_time_ >= last_end_time_seen_ - 1e-4)
+        current_time_ >= last_end_time_seen_ - BIG_EPSILON)
     {
         forces.setZero();
     }
-    else
+    else if(is_compute())
     {
         if (!qp_solver_.solve(Q_, q_, A_eq_, B_eq_, A_ineq_, B_ineq_))
         {
+            std::string error =
+                "DynamicallyConsistentEndEffectorTrajectory::compute(): "
+                "failed to solve the QP.";
+            std::cout << RED << "Error: " << error << RESET << std::endl;
+            // https://github.com/jrl-umi3218/eigen-quadprog/blob/master/src/QuadProg/c/solve.QP.compact.c#L94
+            if (qp_solver_.fail() == 1)
+            {
+                std::cout << RED
+                        << "DynamicallyConsistentEndEffectorTrajectory::compute "
+                            "-> the minimization "
+                            "problem has no "
+                            "solution!"
+                        << RESET << std::endl;
+            }
+            else
+            {
+                std::cout << RED
+                        << "DynamicallyConsistentEndEffectorTrajectory::compute "
+                            "-> problems with "
+                            "decomposing D!"
+                        << RESET << std::endl;
+            }
             forces.head(forces.size() - 3) = forces.tail(forces.size() - 3);
         }
         else
@@ -583,35 +595,14 @@ int DynamicallyConsistentEndEffectorTrajectory::get_forces(
         slack_variables_ << x_opt_(nb_var_ - 6), x_opt_(nb_var_ - 5),
             x_opt_(nb_var_ - 4);
     }
-    next_acceleration << (forces[0] - h_c[0]) *
-                                 M_inv_[is_left_leg_in_contact_](0, 0) +
-                             (forces[1] - h_c[1]) *
-                                 M_inv_[is_left_leg_in_contact_](1, 0) +
-                             (forces[2] - h_c[2]) *
-                                 M_inv_[is_left_leg_in_contact_](2, 0),
-        (forces[0] - h_c[0]) * M_inv_[is_left_leg_in_contact_](0, 1) +
-            (forces[1] - h_c[1]) * M_inv_[is_left_leg_in_contact_](1, 1) +
-            (forces[2] - h_c[2]) * M_inv_[is_left_leg_in_contact_](2, 1),
-        (forces[0] - h_c[0]) * M_inv_[is_left_leg_in_contact_](0, 2) +
-            (forces[1] - h_c[1]) * M_inv_[is_left_leg_in_contact_](1, 2) +
-            (forces[2] - h_c[2]) * M_inv_[is_left_leg_in_contact_](2, 2);
-
-    next_velocity << next_acceleration(0) * control_loop_ +
-                         current_velocity_(0),
-        next_acceleration(1) * control_loop_ + current_velocity_(1),
-        next_acceleration(2) * control_loop_ + current_velocity_(2);
-
-    next_pose << 0.5 * next_acceleration(0) * control_loop_ * control_loop_ +
-                     current_velocity_(0) * control_loop_ + current_pose_(0),
-        0.5 * next_acceleration(1) * control_loop_ * control_loop_ +
-            current_velocity_(1) * control_loop_ + current_pose_(1),
-        0.5 * next_acceleration(2) * control_loop_ * control_loop_ +
-            current_velocity_(2) * control_loop_ + current_pose_(2);
-
+    update_robot_status(
+        forces.head<3>(), next_pose, next_velocity, next_acceleration);
+    
     return nb_local_sampling_time_ * 3;
 }
 
 void DynamicallyConsistentEndEffectorTrajectory::update_robot_status(
+    Eigen::Ref<const Eigen::Vector3d> force,
     Eigen::Ref<Eigen::Vector3d> next_pose,
     Eigen::Ref<Eigen::Vector3d> next_velocity,
     Eigen::Ref<Eigen::Vector3d> next_acceleration)
@@ -622,34 +613,23 @@ void DynamicallyConsistentEndEffectorTrajectory::update_robot_status(
     }
     current_pose_ = next_pose;
     current_velocity_ = next_velocity;
-    Eigen::Vector3d forces;
-    forces << x_opt_[0], x_opt_[nb_local_sampling_time_],
-        x_opt_[2 * nb_local_sampling_time_];
-
-    next_acceleration << (forces[0] - h_c[0]) *
+    next_acceleration << (force[0] - h_c[0]) *
                                  M_inv_[is_left_leg_in_contact_](0, 0) +
-                             (forces[1] - h_c[1]) *
+                             (force[1] - h_c[1]) *
                                  M_inv_[is_left_leg_in_contact_](1, 0) +
-                             (forces[2] - h_c[2]) *
+                             (force[2] - h_c[2]) *
                                  M_inv_[is_left_leg_in_contact_](2, 0),
-        (forces[0] - h_c[0]) * M_inv_[is_left_leg_in_contact_](0, 1) +
-            (forces[1] - h_c[1]) * M_inv_[is_left_leg_in_contact_](1, 1) +
-            (forces[2] - h_c[2]) * M_inv_[is_left_leg_in_contact_](2, 1),
-        (forces[0] - h_c[0]) * M_inv_[is_left_leg_in_contact_](0, 2) +
-            (forces[1] - h_c[1]) * M_inv_[is_left_leg_in_contact_](1, 2) +
-            (forces[2] - h_c[2]) * M_inv_[is_left_leg_in_contact_](2, 2);
+        (force[0] - h_c[0]) * M_inv_[is_left_leg_in_contact_](0, 1) +
+            (force[1] - h_c[1]) * M_inv_[is_left_leg_in_contact_](1, 1) +
+            (force[2] - h_c[2]) * M_inv_[is_left_leg_in_contact_](2, 1),
+        (force[0] - h_c[0]) * M_inv_[is_left_leg_in_contact_](0, 2) +
+            (force[1] - h_c[1]) * M_inv_[is_left_leg_in_contact_](1, 2) +
+            (force[2] - h_c[2]) * M_inv_[is_left_leg_in_contact_](2, 2);
 
-    next_velocity << next_acceleration(0) * control_loop_ +
-                         current_velocity_(0),
-        next_acceleration(1) * control_loop_ + current_velocity_(1),
-        next_acceleration(2) * control_loop_ + current_velocity_(2);
+    next_velocity += next_acceleration * control_loop_;
 
-    next_pose << 0.5 * next_acceleration(0) * control_loop_ * control_loop_ +
-                     current_velocity_(0) * control_loop_ + current_pose_(0),
-        0.5 * next_acceleration(1) * control_loop_ * control_loop_ +
-            current_velocity_(1) * control_loop_ + current_pose_(1),
-        0.5 * next_acceleration(2) * control_loop_ * control_loop_ +
-            current_velocity_(2) * control_loop_ + current_pose_(2);
+    next_pose += 0.5 * next_acceleration * control_loop_ * control_loop_ +
+                 current_velocity_ * control_loop_;
 }
 
 std::string DynamicallyConsistentEndEffectorTrajectory::to_string() const

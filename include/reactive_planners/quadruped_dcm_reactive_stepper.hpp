@@ -368,6 +368,9 @@ private:
     /** @brief The front left foot 3d position. */
     Eigen::Vector3d front_left_foot_position_;
 
+    /** @brief The front left foot last support 3d position. */
+    Eigen::Vector3d front_left_foot_last_support_position_;
+
     /** @brief The front left foot 3d velocity. */
     Eigen::Vector3d front_left_foot_velocity_;
 
@@ -378,6 +381,9 @@ private:
 
     /** @brief The front right foot 3d position. */
     Eigen::Vector3d front_right_foot_position_;
+
+    /** @brief The front right foot last support 3d position. */
+    Eigen::Vector3d front_right_foot_last_support_position_;
 
     /** @brief The front right foot 3d velocity. */
     Eigen::Vector3d front_right_foot_velocity_;
@@ -390,6 +396,9 @@ private:
     /** @brief The hind right foot 3d position. */
     Eigen::Vector3d hind_right_foot_position_;
 
+    /** @brief The hind right foot last support 3d position. */
+    Eigen::Vector3d hind_right_foot_last_support_position_;
+
     /** @brief The hind right foot 3d velocity. */
     Eigen::Vector3d hind_right_foot_velocity_;
 
@@ -400,6 +409,9 @@ private:
 
     /** @brief The hind left foot 3d position. */
     Eigen::Vector3d hind_left_foot_position_;
+
+    /** @brief The hind left foot last support 3d position. */
+    Eigen::Vector3d hind_left_foot_last_support_position_;
 
     /** @brief The hind left foot 3d velocity. */
     Eigen::Vector3d hind_left_foot_velocity_;
@@ -415,24 +427,40 @@ private:
     /** @brief Front left foot trajectory generator. */
     DynamicallyConsistentEndEffectorTrajectory
         fl_traj_;
+
+    /** @brief Planned front left foot forces. */
+    Eigen::VectorXd front_left_forces_;
     
     /** @brief Front right foot trajectory generator. */
     DynamicallyConsistentEndEffectorTrajectory
         fr_traj_;
+    
+    /** @brief Planned front right foot forces. */
+    Eigen::VectorXd front_right_forces_;
 
     /** @brief Hind left foot trajectory generator. */
     DynamicallyConsistentEndEffectorTrajectory
         hl_traj_;
 
+    /** @brief Planned hind left foot forces. */
+    Eigen::VectorXd hind_left_forces_;
+
     /** @brief Hind right foot trajectory generator. */
     DynamicallyConsistentEndEffectorTrajectory
         hr_traj_;
+
+    /** @brief Planned hind right foot forces. */
+    Eigen::VectorXd hind_right_forces_;
+
+    /** @brief The number of acceptable force at forces_. */
+    int nb_force_;
 
     /** @brief Contact array containing which foot are in contact, the order is
      * [FL, FR, HL, HR]. */
     Eigen::Vector4d contact_array_;
 
-    /** @brief Feedforward forces for the swing foot. */
+    /** @brief Feedforward forces for the swing foot. the order is
+     * [FL, FR, HL, HR].*/
     Eigen::Vector24d forces_;
 
     /* PLanner settings. */
