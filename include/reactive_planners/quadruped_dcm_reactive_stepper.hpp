@@ -479,6 +479,9 @@ private:
 
     /** @brief Initial foot height during support. */
     double foot_height_offset_;
+
+    /** @brief Initial foot height during support. */
+    double mid_air_foot_height_;
 };
 
 }  // namespace reactive_planners
