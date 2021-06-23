@@ -109,6 +109,7 @@ set(py_lib_src
     srcpy/stepper_head.cpp
     srcpy/dcm_vrp_planner.cpp
     srcpy/polynomial_end_effector_trajectory.cpp
+    srcpy/dynamically_consistent_end_effector_trajectory.cpp
     srcpy/dcm_reactive_stepper.cpp
     srcpy/quadruped_dcm_reactive_stepper.cpp)
 # cmake-format: on
