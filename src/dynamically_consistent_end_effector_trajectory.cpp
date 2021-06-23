@@ -10,6 +10,8 @@
 
 #include "reactive_planners/dynamically_consistent_end_effector_trajectory.hpp"
 #include <iostream>
+#include <limits>
+#include <iomanip>
 
 namespace reactive_planners
 {
@@ -80,9 +82,9 @@ DynamicallyConsistentEndEffectorTrajectory::
     M_inv_[0] << 0.045, 0.0, 0.0,
                  0.0, 0.045, 0.0,
                  0.0, 0.0, 0.09;//Left_swing
-    M_inv_[1] << 0.045, -0.0, 0.0,
-                 -0.0, 0.045, -0.0,
-                 0.0, -0.0, 0.09;//Right_swing
+    M_inv_[1] << 0.045, 0.0, 0.0,
+                 0.0, 0.045, 0.0,
+                 0.0, 0.0, 0.09;//Right_swing
     // clang-format on
     M_inv_[0] = M_inv_[0].inverse();
     M_inv_[1] = M_inv_[1].inverse();
@@ -304,8 +306,6 @@ bool DynamicallyConsistentEndEffectorTrajectory::compute(
     target_pose_ = target_pose;
     current_pose_ = current_pose;
     current_velocity_ = current_velocity;
-    start_time_ = start_time;
-    current_time_ = current_time;
     last_end_time_seen_ = end_time;
 
     resize_matrices();
@@ -550,7 +550,12 @@ int DynamicallyConsistentEndEffectorTrajectory::get_forces(
     if (current_time_ < start_time_ ||
         current_time_ >= last_end_time_seen_ - BIG_EPSILON)
     {
-        forces.setZero();
+        std::cout << RED
+                  << "DynamicallyConsistentEndEffectorTrajectory::"
+                  << "get_forces(): Timing error."
+                  << RESET
+                  << std::endl;
+        forces.setZero();    
     }
     else if(is_compute())
     {
@@ -582,8 +587,6 @@ int DynamicallyConsistentEndEffectorTrajectory::get_forces(
         }
         else
         {
-            // Extract the information from the solution.
-            x_opt_.resize(nb_var_);
             x_opt_ = qp_solver_.result();
             for (int i = 0; i < nb_local_sampling_time_; i++)
             {
@@ -591,9 +594,10 @@ int DynamicallyConsistentEndEffectorTrajectory::get_forces(
                 forces(i * 3 + 1) = x_opt_[nb_local_sampling_time_ + i];
                 forces(i * 3 + 2) = x_opt_[2 * nb_local_sampling_time_ + i];
             }
+            slack_variables_ << x_opt_(nb_var_ - 6),
+                                x_opt_(nb_var_ - 5),
+                                x_opt_(nb_var_ - 4);
         }
-        slack_variables_ << x_opt_(nb_var_ - 6), x_opt_(nb_var_ - 5),
-            x_opt_(nb_var_ - 4);
     }
     update_robot_status(
         forces.head<3>(), next_pose, next_velocity, next_acceleration);
@@ -657,6 +661,58 @@ std::string DynamicallyConsistentEndEffectorTrajectory::to_string() const
 void DynamicallyConsistentEndEffectorTrajectory::print_solver() const
 {
     std::cout << to_string() << std::endl;
+}
+
+bool DynamicallyConsistentEndEffectorTrajectory::is_compute()
+{
+    const double current_duration = current_time_ - start_time_;  // To solve numeric problem - EPSILON
+    const double it_nb = floor(current_duration / planner_loop_);
+    // if it_nb is close to be an integer then we are at a computation node.
+    const double dist_to_node = current_duration - it_nb * planner_loop_;
+    assert(dist_to_node >= 0.0);
+    const bool dist_to_node_near_zero = dist_to_node <= BIG_EPSILON;
+    const bool dist_to_node_near_planner_loop =
+        (dist_to_node >= (planner_loop_ - BIG_EPSILON) && dist_to_node <= 1);
+    const bool is_compute_ret = dist_to_node_near_zero || dist_to_node_near_planner_loop;
+    return is_compute_ret;
+}
+
+void DynamicallyConsistentEndEffectorTrajectory::resize_matrices_t_min(int index)
+{
+    Q_t_min_.resize(3 * index, 3 * index);
+    Q_t_min_ = Eigen::MatrixXd::Identity(3 * index, 3 * index);
+    q_t_min_.resize(3 * index);
+    q_t_min_.setZero();
+
+    A_eq_t_min_.resize(2, 3 * index);
+    A_eq_t_min_.setZero();
+    B_eq_t_min_.resize(2);
+    B_eq_t_min_.setZero();
+
+    A_ineq_t_min_.resize(2 * 3 * index, 3 * index);
+    A_ineq_t_min_.setZero();
+    B_ineq_t_min_.resize(2 * 3 * index);
+    B_ineq_t_min_.setZero();
+    qp_solver_t_min_.problem(3 * index, 2, 2 * 3 * index);
+}
+
+void DynamicallyConsistentEndEffectorTrajectory::resize_matrices()
+{
+    Q_.resize(nb_var_, nb_var_);
+    Q_.setZero();
+    q_.resize(nb_var_);
+    q_.setZero();
+
+    A_eq_.resize(nb_eq_, nb_var_);
+    A_eq_.setZero();
+    B_eq_.resize(nb_eq_);
+    B_eq_.setZero();
+
+    A_ineq_.resize(nb_ineq_, nb_var_);
+    A_ineq_.setZero();
+    B_ineq_.resize(nb_ineq_);
+    B_ineq_.setZero();
+    qp_solver_.problem(nb_var_, nb_eq_, nb_ineq_);
 }
 
 }  // namespace reactive_planners

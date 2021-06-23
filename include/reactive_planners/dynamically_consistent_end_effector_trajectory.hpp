@@ -130,59 +130,17 @@ public:
 private:
     /** @brief resize QP variable at each step.
      */
-    void resize_matrices()
-    {
-        Q_.resize(nb_var_, nb_var_);
-        Q_.setZero();
-        q_.resize(nb_var_);
-        q_.setZero();
-
-        A_eq_.resize(nb_eq_, nb_var_);
-        A_eq_.setZero();
-        B_eq_.resize(nb_eq_);
-        B_eq_.setZero();
-
-        A_ineq_.resize(nb_ineq_, nb_var_);
-        A_ineq_.setZero();
-        B_ineq_.resize(nb_ineq_);
-        B_ineq_.setZero();
-        qp_solver_.problem(nb_var_, nb_eq_, nb_ineq_);
-    }
+    inline void resize_matrices();
+    
     /** @brief resize QP variable at each step.
      */
-    void resize_matrices_t_min(int index)
-    {
-        Q_t_min_.resize(3 * index, 3 * index);
-        Q_t_min_ = Eigen::MatrixXd::Identity(3 * index, 3 * index);
-        q_t_min_.resize(3 * index);
-        q_t_min_.setZero();
-
-        A_eq_t_min_.resize(2, 3 * index);
-        A_eq_t_min_.setZero();
-        B_eq_t_min_.resize(2);
-        B_eq_t_min_.setZero();
-
-        A_ineq_t_min_.resize(2 * 3 * index, 3 * index);
-        A_ineq_t_min_.setZero();
-        B_ineq_t_min_.resize(2 * 3 * index);
-        B_ineq_t_min_.setZero();
-        qp_solver_t_min_.problem(3 * index, 2, 2 * 3 * index);
-    }
+    inline void resize_matrices_t_min(int index);
 
     /** @brief initialize acceleration_terms and velocity_terms. */
     void init_acceleration_velocity_terms();
 
     /** @brief Check if we are at a computation node time. */
-    bool is_compute()
-    {
-        const double current_duration = current_time_ - start_time_;  // To solve numeric problem - EPSILON
-        const double it_nb = floor(current_duration / planner_loop_);
-        // if it_nb is close to be an integer then we are at a computation node.
-        const double dist_to_node = current_duration - it_nb * planner_loop_;
-        assert(dist_to_node >= 0.0);
-        return dist_to_node <= BIG_EPSILON || 
-               (dist_to_node >= (1 - BIG_EPSILON) && dist_to_node <= 1);
-    }
+    inline bool is_compute();
 
     /*
      * Constant problem parameters.
