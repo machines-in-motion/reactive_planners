@@ -17,7 +17,7 @@ import pinocchio as pin
 import mim_control_cpp
 
 import dynamic_graph_head as dgh
-from dynamic_graph_head import ThreadHead, Head, Vicon, HoldPDController
+from dynamic_graph_head import ThreadHead, Vicon, HoldPDController
 
 import dynamic_graph_manager_cpp_bindings
 
@@ -165,10 +165,10 @@ class ReactiveStepperController(CentroidalController):
         is_left_leg_in_contact = True
         l_min = -0.1
         l_max = 0.1
-        w_min = -0.08
-        w_max = 0.2
-        t_min = 0.2
-        t_max = 1.0
+        w_min = -0.10
+        w_max = 0.10
+        t_min = 0.1
+        t_max = 0.3
         l_p = 0.00  # Pelvis width
         com_height = 0.25
         weight = [1, 1, 5, 1000, 1000, 100000, 100000, 100000, 100000]
@@ -259,14 +259,14 @@ class ReactiveStepperController(CentroidalController):
         self.force_qp.run(self.w_com, self.rel_eff, cnt_array)
         self.F = self.force_qp.get_forces()
 
-        dcm_forces = self.stepper.get_forces()
+        # dcm_forces = self.stepper.get_forces()
 
-        if cnt_array[0] == 1:
-            self.F[3:6] = -dcm_forces[6:9]
-            self.F[6:9] = -dcm_forces[6:9]
-        else:
-            self.F[0:3] = -dcm_forces[:3]
-            self.F[9:12] = -dcm_forces[:3]
+        # if cnt_array[0] == 1:
+        #     self.F[3:6] = -dcm_forces[6:9]
+        #     self.F[6:9] = -dcm_forces[6:9]
+        # else:
+        #     self.F[0:3] = -dcm_forces[:3]
+        #     self.F[9:12] = -dcm_forces[:3]
 
         self.x_des = np.hstack([
             self.stepper.get_front_left_foot_position(),
@@ -308,7 +308,7 @@ thread_head = ThreadHead(
 )
 
 # Start the parallel processing.
-thread_head.run()
+thread_head.start()
 
 ###
 # List of helper go functions.
