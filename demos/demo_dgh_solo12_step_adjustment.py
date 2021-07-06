@@ -5,6 +5,8 @@
            License BSD-3-Clause
 @example
 """
+import time
+
 import numpy as np
 import pybullet as p
 from robot_properties_solo.config import Solo12Config
@@ -110,16 +112,14 @@ class CentroidalController:
         self.q = np.hstack([base_pos, self.joint_positions])
         self.dq = np.hstack([base_vel, self.joint_velocities])
 
-        self.w_com[:] = 0
-
         self.centrl_pd_ctrl.run(
             self.kc, self.dc, self.kb, self.db,
             self.q[:3], self.x_com, self.dq[:3], self.xd_com,
             self.q[3:7], self.x_ori, self.dq[3:6], self.x_angvel
         )
 
-        self.w_com[2] = 9.81 * Solo12Config.mass
-        self.w_com += self.centrl_pd_ctrl.get_wrench()
+        self.w_com = self.centrl_pd_ctrl.get_wrench()
+        self.w_com[2] += 9.81 * Solo12Config.mass
 
         # distrubuting forces to the active end effectors
         pin_robot = self.robot
@@ -152,15 +152,9 @@ class ReactiveStepperController(CentroidalController):
         super().__init__(
             head, 'solo12/solo12', 0.6,
             50, 0.7,
-            [0, 0, 200], [10, 10, 10], [25, 25, 25.], [22.5, 22.5, 22.5],
+            [0, 0, 200], [15, 15, 15], [25, 25, 25.], [10., 10., 10.],
             qp_weights=[1e0, 1e0, 1e6, 1e6, 1e6, 1e6]
         )
-
-    def warmup(self, thread_head):
-        super().warmup(thread_head)
-
-        base_pos, _ = self.get_base(thread_head)
-        q = np.hstack([base_pos, self.joint_positions])
 
         is_left_leg_in_contact = True
         l_min = -0.1
@@ -170,23 +164,21 @@ class ReactiveStepperController(CentroidalController):
         t_min = 0.1
         t_max = 0.3
         l_p = 0.00  # Pelvis width
-        com_height = 0.25
+        com_height = 0.27
         weight = [1, 1, 5, 1000, 1000, 100000, 100000, 100000, 100000]
-        mid_air_foot_height = 0.05
+        mid_air_foot_height = 0.1
         control_period = 0.001
         planner_loop = 0.010
-        # init poses
-        self.robot.framesForwardKinematics(q)
-        base_pose = q[:7]
 
-        front_left_foot_position = self.robot.data.oMf[
-            self.config.end_eff_ids[0]].translation
-        front_right_foot_position = self.robot.data.oMf[
-            self.config.end_eff_ids[1]].translation
-        hind_left_foot_position = self.robot.data.oMf[
-            self.config.end_eff_ids[2]].translation
-        hind_right_foot_position = self.robot.data.oMf[
-            self.config.end_eff_ids[3]].translation
+        self.x_com[2] = com_height
+
+        # init poses
+        base_pose = np.array([0.0, 0.0, 0.238, 0, 0, 0.0, 1.0])
+
+        front_left_foot_position = np.array([0.195, 0.147, 0.015])
+        front_right_foot_position = np.array([0.195, -0.147, 0.015])
+        hind_left_foot_position = np.array([-0.195, 0.147, 0.015])
+        hind_right_foot_position = np.array([-0.195, -0.147, 0.015])
 
         self.stepper = QuadrupedDcmReactiveStepper()
         self.stepper.initialize(
@@ -198,7 +190,7 @@ class ReactiveStepperController(CentroidalController):
             t_min,
             t_max,
             l_p,
-            com_height,
+            self.x_com[2],
             weight,
             mid_air_foot_height,
             control_period,
@@ -211,10 +203,19 @@ class ReactiveStepperController(CentroidalController):
         )
 
         self.stepper.set_desired_com_velocity(np.array([0.0, 0.0, 0.0]))
+        self.stepper.set_dynamical_end_effector_trajectory()
+        self.stepper.set_steptime_nominal(0.20)
+
+    def warmup(self, thread_head):
+        super().warmup(thread_head)
+
+        self.control_time = 0.
+
+    def start(self):
         self.stepper.start()
 
-        self.x_com[2] = com_height
-        self.control_time = 0.
+    def stop(self):
+        self.stepper.stop()
 
     def compute_F(self, thread_head):
         config = self.config
@@ -297,7 +298,6 @@ centroidal_controller = CentroidalController(head, 'solo12/solo12', 0.2, 50., 0.
 
 ctrl = ReactiveStepperController(head)
 
-
 thread_head = ThreadHead(
     0.001,
     hold_pd_controller,
@@ -315,6 +315,10 @@ thread_head.start()
 def go_hold():
     thread_head.switch_controllers(thread_head.safety_controllers)
 
+def go_hold_zero():
+    go_hold()
+    hold_pd_controller.go_zero()
+
 def go_cent():
     thread_head.switch_controllers(centroidal_controller)
 
@@ -331,3 +335,5 @@ if np.all(imu_gyro == np.zeros(3)):
     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 
     print('imu_gyro:', imu_gyro)
+
+go_hold_zero()
