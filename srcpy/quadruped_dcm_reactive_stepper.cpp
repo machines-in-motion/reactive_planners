@@ -93,6 +93,9 @@ void bind_quadruped_dcm_reactive_stepper(pybind11::module &module)
         .def(
             "set_dynamical_end_effector_trajectory",
             &QuadrupedDcmReactiveStepper::set_dynamical_end_effector_trajectory)
+        .def(
+            "set_steptime_nominal",
+            &QuadrupedDcmReactiveStepper::set_steptime_nominal)
 
         // Getters.
         .def("get_front_left_foot_position",
