@@ -11,7 +11,6 @@ from robot_properties_solo.config import Solo12Config
 from robot_properties_solo.solo12wrapper import Solo12Robot
 from reactive_planners_cpp import QuadrupedDcmReactiveStepper
 import pinocchio as pin
-from scipy.spatial.transform import Rotation
 
 import pinocchio as pin
 import mim_control_cpp
@@ -32,9 +31,8 @@ def zero_cnt_gain(kp, cnt_array):
 
 
 def yaw(q):
-    return np.array(
-        Rotation.from_quat([np.array(q)[3:7]]).as_euler("xyz", degrees=False)
-    )[0, 2]
+    se3 = pin.XYZQUATToSE3(q[:7])
+    return pin.rpy.matrixToRpy(se3.rotation)[2]
 
 import pinocchio as pin
 import mim_control_cpp
@@ -339,3 +337,4 @@ thread_head.sim_run(1000)
 thread_head.switch_controllers(ctrl)
 
 thread_head.sim_run(1000)
+thread_head.plot_timing()
