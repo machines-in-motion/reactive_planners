@@ -144,6 +144,7 @@ class CentroidalController:
 
         head.set_control('ctrl_joint_torques', self.tau[6:])
 
+
 class ReactiveStepperController(CentroidalController):
     def __init__(self, head):
         super().__init__(
@@ -152,9 +153,6 @@ class ReactiveStepperController(CentroidalController):
             [0, 0, 200], [10, 10, 10], [25, 25, 25.], [22.5, 22.5, 22.5],
             qp_weights=[1e0, 1e0, 1e6, 1e6, 1e6, 1e6]
         )
-
-    def warmup(self, thread_head):
-        super().warmup(thread_head)
 
         base_pos, _ = self.get_base(thread_head)
         q = np.hstack([base_pos, self.joint_positions])
@@ -206,11 +204,15 @@ class ReactiveStepperController(CentroidalController):
             hind_left_foot_position,
             hind_right_foot_position,
         )
-
+        self.stepper.set_dynamical_end_effector_trajectory()
         self.stepper.set_desired_com_velocity(np.array([0.0, 0.0, 0.0]))
-        self.stepper.start()
 
         self.x_com[2] = com_height
+
+    def warmup(self, thread_head):
+        super().warmup(thread_head)
+
+        self.stepper.start()
         self.control_time = 0.
 
     def compute_F(self, thread_head):
@@ -256,14 +258,14 @@ class ReactiveStepperController(CentroidalController):
         self.force_qp.run(self.w_com, self.rel_eff, cnt_array)
         self.F = self.force_qp.get_forces()
 
-        dcm_forces = self.stepper.get_forces()
+#         dcm_forces = self.stepper.get_forces()
 
-        if cnt_array[0] == 1:
-            self.F[3:6] = -dcm_forces[6:9]
-            self.F[6:9] = -dcm_forces[6:9]
-        else:
-            self.F[0:3] = -dcm_forces[:3]
-            self.F[9:12] = -dcm_forces[:3]
+#         if cnt_array[0] == 1:
+#             self.F[3:6] = -dcm_forces[6:9]
+#             self.F[6:9] = -dcm_forces[6:9]
+#         else:
+#             self.F[0:3] = -dcm_forces[:3]
+#             self.F[9:12] = -dcm_forces[:3]
 
         self.x_des = np.hstack([
             self.stepper.get_front_left_foot_position(),
@@ -283,7 +285,7 @@ class ReactiveStepperController(CentroidalController):
 
 ###
 # Create the simulator.
-bullet_env = BulletEnvWithGround()
+bullet_env = BulletEnvWithGround(p.DIRECT)
 
 # Create a robot instance. This initializes the simulator as well.
 robot = Solo12Robot()
