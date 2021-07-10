@@ -285,7 +285,8 @@ class ReactiveStepperController(CentroidalController):
 
 ###
 # Create the simulator.
-bullet_env = BulletEnvWithGround(p.DIRECT)
+# bullet_env = BulletEnvWithGround(p.DIRECT)
+bullet_env = BulletEnvWithGround(p.GUI)
 
 # Create a robot instance. This initializes the simulator as well.
 robot = Solo12Robot()
