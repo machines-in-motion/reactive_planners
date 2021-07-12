@@ -240,8 +240,9 @@ bool DcmReactiveStepper::walk(
 
     /// change solver loop time_step
     if (new_ && time_from_last_step_touchdown_ == 0.0) nb_usage_of_force_ = 0;
-    if (new_ && nb_usage_of_force_ % 10 != 0)
-    {  // Lhum TODO update 10 automatically
+    int planner_frequency = round(planner_loop_ * 1000);
+    if (new_ && nb_usage_of_force_ % planner_frequency != 0)
+    {
         // Compute the flying foot trajectory.
         if (is_left_leg_in_contact_)  // check which foot is in contact
         {
