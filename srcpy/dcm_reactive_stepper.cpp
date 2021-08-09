@@ -50,6 +50,8 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
         // Setters.
         .def("set_right_foot_position",
              &DcmReactiveStepper::set_right_foot_position)
+        .def("set_omega",
+             &DcmReactiveStepper::set_omega)
         .def("set_right_foot_velocity",
              &DcmReactiveStepper::set_right_foot_velocity)
         .def("set_left_foot_position",
@@ -83,6 +85,8 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
         .def("get_step_duration", &DcmReactiveStepper::get_step_duration)
         .def("get_time_from_last_step_touchdown",
              &DcmReactiveStepper::get_time_from_last_step_touchdown)
+        .def("get_duration_of_flight_phase",
+             &DcmReactiveStepper::get_duration_of_flight_phase)
         .def("get_flying_foot_position",
              &DcmReactiveStepper::get_flying_foot_position)
         .def("get_is_left_leg_in_contact",

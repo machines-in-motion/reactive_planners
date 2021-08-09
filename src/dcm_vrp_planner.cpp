@@ -22,10 +22,30 @@ DcmVrpPlanner::DcmVrpPlanner(
     const double& ht,
     const double& t_f,
     const double& omega,
-    const Eigen::Ref<const Eigen::Vector9d>& cost_weights_local)
+    const Eigen::Ref<const Eigen::Vector10d>& cost_weights_local)
 {
     initialize(
         l_min, l_max, w_min, w_max, t_min, t_max, l_p, ht, t_f, omega, cost_weights_local);
+}
+void DcmVrpPlanner::set_omega(const double& omega){
+    omega_ = omega;
+    tau_min_ = exp(omega_ * t_min_);
+    tau_max_ = exp(omega_ * t_max_);
+    bx_min_ = l_min_ / (tau_min_ - 1);
+    bx_max_ = l_max_ / (tau_min_ - 1);
+    by_max_in_ = l_p_ / (1 + tau_min_) +
+                 (w_min_ - w_max_ * tau_min_) / (1 - exp(2 * omega_ * t_min_));
+    by_max_out_ = l_p_ / (1 + tau_min_) +
+                  (w_max_ - w_min_ * tau_min_) / (1 - exp(2 * omega_ * t_min_));
+
+//    double v_x = l_nom_ / (t_f_nom_ + 2 * (tau_nom_ - 1) / (omega_ * (tau_nom_ + 1))) ,
+//            v_r = (v_des_local(1) * T_nom_ + l_p_) / (t_f_nom_ + 2 * (tau_nom_ + 1) / (omega_ * (tau_nom_ - 1))),
+//            v_l = (v_des_local(1) * T_nom_ - l_p_) / (t_f_nom_ + 2 * (tau_nom_ + 1) / (omega_ * (tau_nom_ - 1)));
+//    bx_nom_ = (l_nom_ - v_x * t_f_nom_) / ((tau_nom_ - 1) * (1 + omega_ * omega_ / 9.81 * (c - 9.81 / (omega_ * omega_))));
+//    by_nom_ = (pow(-1, contact_switcher_) * (l_p_ / (1 + tau_nom_))) -
+//              v_des_local(1) * T_nom_ / (1 - tau_nom_) +
+//              t_f_nom_ * (pow(-1, contact_switcher_) * -v_r * exp(omega_ * t_nom_) - pow(-1, contact_switcher_) * v_l) / (exp(omega_ * t_nom_) * exp(omega_ * t_nom_) - 1);
+
 }
 
 void DcmVrpPlanner::initialize(
@@ -39,7 +59,7 @@ void DcmVrpPlanner::initialize(
     const double& ht,
     const double& t_f,
     const double& omega,
-    const Eigen::Ref<const Eigen::Vector9d>& cost_weights_local)
+    const Eigen::Ref<const Eigen::Vector10d>& cost_weights_local)
 {
     l_min_ = l_min;
     l_max_ = l_max;
@@ -62,7 +82,7 @@ void DcmVrpPlanner::initialize(
                  (w_min_ - w_max_ * tau_min_) / (1 - exp(2 * omega_ * t_min_));
     by_max_out_ = l_p_ / (1 + tau_min_) +
                   (w_max_ - w_min_ * tau_min_) / (1 - exp(2 * omega_ * t_min_));
-    nb_var_ = 9;
+    nb_var_ = 10;
 
     // psi are slack variables here.
     // u_x, u_y, tau, b_x, b_y, psi_0, psi_1, psi_2, psi_3
@@ -86,32 +106,61 @@ void DcmVrpPlanner::initialize(
     B_eq_.resize(nb_eq_);
     B_eq_.setZero();
 
-    nb_ineq_ = 10;
+    nb_ineq_ = 12;
     A_ineq_.resize(nb_ineq_, nb_var_);
     // clang-format off
-    //          ux    uy    tau   bx    by    psi0  psi1  psi2  psi3
-    A_ineq_ <<  1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 0
-                0.0,  1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 1
-               -1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 2
-                0.0, -1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 3
-                0.0,  0.0,  1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 4
-                0.0,  0.0, -1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 5
-                0.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,  0.0,   // 6
-                0.0,  0.0,  0.0, -1.0,  0.0,  1.0,  0.0,  0.0,  0.0,   // 7
-                0.0,  0.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,   // 8
-                0.0,  0.0,  0.0,  0.0, -1.0,  0.0,  0.0,  0.0,  1.0;   // 9
+    //          ux    uy    tau   bx    by    t_f    psi0  psi1  psi2  psi3
+    A_ineq_ <<  1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 0
+                0.0,  1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 1
+               -1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 2
+                0.0, -1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 3
+                0.0,  0.0,  1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 4
+                0.0,  0.0, -1.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,  0.0,   // 5
+                0.0,  0.0,  0.0,  1.0,  0.0,  0.0,  1.0,  0.0,  0.0,  0.0,   // 6
+                0.0,  0.0,  0.0, -1.0,  0.0,  0.0,  0.0,  1.0,  0.0,  0.0,   // 7
+                0.0,  0.0,  0.0,  0.0,  1.0,  0.0,  0.0,  0.0,  1.0,  0.0,   // 8
+                0.0,  0.0,  0.0,  0.0, -1.0,  0.0,  0.0,  0.0,  0.0,  1.0,   // 9
+                0.0,  0.0,  0.0,  0.0,  0.0,  1.0,  0.0,  0.0,  0.0,  0.0,   // 10
+                0.0,  0.0,  0.0,  0.0,  0.0, -1.0,  0.0,  0.0,  0.0,  0.0;   // 11
     // clang-format on
     B_ineq_.resize(nb_ineq_);
     B_ineq_.setZero();
 
     qp_solver_.problem(nb_var_, nb_eq_, nb_ineq_);
+    solver_version_ = 2;
+    if(solver_version_ != 2)
+        Q_(5, 5) = 1;
 }
 
 void DcmVrpPlanner::compute_nominal_step_values(
-    const bool& is_left_leg_in_contact,
-    const Eigen::Ref<const Eigen::Vector3d>& v_des_local)
+    const contact& is_left_leg_in_contact,
+    const Eigen::Ref<const Eigen::Vector3d>& v_des_local,
+    const Eigen::Ref<const Eigen::Vector3d>& com,
+    const Eigen::Ref<const Eigen::Vector3d>& com_vel)
 {
-    double contact_switcher = is_left_leg_in_contact ? 2.0 : 1.0;
+    contact local_is_left_leg_in_contact = is_left_leg_in_contact;
+    if(is_left_leg_in_contact > 2){
+        local_is_left_leg_in_contact = contact(is_left_leg_in_contact - 3);
+    }
+    contact_switcher_ = local_is_left_leg_in_contact ? 2.0 : 1.0;
+
+    double c, v;
+    if(omega_ == 10.18){
+        c = 0.3;
+        v = -0.9807185;
+        t_nom_ = 0.1;
+    }
+    else if(omega_ == 5.7183913822) {
+        c = 0.2;
+        v = 0.0;
+        t_nom_ = 0.2;
+    }
+
+//    t_nom_ = 0.1;//(t_lower_bound + t_upper_bound) * 0.5; //Lhum running TODO !!! change its name to t_s_nom_
+    tau_nom_ = exp(omega_ * t_nom_);
+    t_f_nom_ = 2 * omega_ * (tau_nom_ - 1) / (9.81 * (tau_nom_ + 1)) * (c - 9.81 / (omega_ * omega_));
+    T_nom_ = t_nom_ + t_f_nom_;
+
     double t_lower_bound(0.0), t_upper_bound(0.0);
     Eigen::Vector3d max_or_min_time;
     /** @todo Better manage the lower and upper bound on `t`. */
@@ -120,7 +169,7 @@ void DcmVrpPlanner::compute_nominal_step_values(
     if(l_min_ < 0 && 0 < l_max_)
         fabs_l_min = 0;
     double fabs_l_max = std::max(fabs(l_min_), fabs(l_max_));
-    double fabs_w_min = std:: min(fabs(w_min_), fabs(w_max_));
+    double fabs_w_min = std::min(fabs(w_min_), fabs(w_max_));
     if(w_min_ < 0 && w_max_ > 0)
         fabs_w_min = 0;
     double fabs_w_max = std::max(fabs(w_min_), fabs(w_max_));
@@ -131,21 +180,76 @@ void DcmVrpPlanner::compute_nominal_step_values(
     }
     else
     {
-        max_or_min_time << fabs_l_min / fabs(v_des_local(0)), fabs_w_min / fabs(v_des_local(1)), t_min_;
+        max_or_min_time << fabs_l_min / fabs(v_des_local(0)), fabs_w_min / fabs(v_des_local(1)), t_min_ + t_f_nom_;
         t_lower_bound = max_or_min_time.maxCoeff();
-        max_or_min_time << fabs_l_max / fabs(v_des_local(0)), fabs_w_max / fabs(v_des_local(1)), t_max_;
+        max_or_min_time << fabs_l_max / fabs(v_des_local(0)), fabs_w_max / fabs(v_des_local(1)), t_max_ + t_f_nom_;
         t_upper_bound = max_or_min_time.minCoeff();
     }
-    t_nom_ = 0.1;//(t_lower_bound + t_upper_bound) * 0.5; //Lhum running TODO !!!
-    t_f_nom_ = 0.20182;//(sqrt(2*g*pow(omega_,2) *(x_T_s[2] - b_z) + pow(g,2) + pow(x_d_T_s[2] * omega_,2)) - g + x_d_T_s[2] * omega_)/ (g * omega_);
-    x_dot_y_nom_ = 0.2946;
-    tau_nom_ = exp(omega_ * t_nom_);
-    l_nom_ = v_des_local(0) * t_nom_;
-    w_nom_ = is_left_leg_in_contact ? v_des_local(1) * t_nom_ - l_p_
-                                    : v_des_local(1) * t_nom_ + l_p_;
-    bx_nom_ = l_nom_ / (tau_nom_ - 1);
-    by_nom_ = (pow(-1, contact_switcher) * (l_p_ / (1 + tau_nom_))) -
-              v_des_local(1) * t_nom_ / (1 - tau_nom_);
+    double z_min = 0.1;
+    double z_max = 0.4;
+    double z_nom = c;
+    if(is_left_leg_in_contact > 2){
+        t_f_min_ = std::max((current_time_ - time_from_last_step_touchdown_), (sqrt(2 * 9.81 * (com[2] - z_max) + pow(com_vel[2], 2)) + com_vel[2]) / 9.81);
+        t_f_max_ = (sqrt(2 * 9.81 * (com[2] - z_min) + pow(com_vel[2], 2)) + com_vel[2]) / 9.81;
+//        std::cout << "T_F_MIN " << t_f_min_ << "   " << com[2] << " " << com_vel[2] <<
+//                                                        2 * 9.81 * (com[2] - z_max) << " " <<
+//                                                        2 * 9.81 * (com[2] - z_max) + pow(com_vel[2], 2) << "   " <<
+//                                                        sqrt(2 * 9.81 * (com[2] - z_max) + pow(com_vel[2], 2)) << " " <<
+//                                                        (sqrt(2 * 9.81 * (com[2] - z_max) + pow(com_vel[2], 2)) + com_vel[2]) / 9.81 << std::endl;
+
+        if(t_f_min_ != t_f_min_)
+            t_f_min_ = current_time_ - time_from_last_step_touchdown_ - EPSILON;
+        if(t_f_max_ != t_f_max_)
+            t_f_max_ = current_time_ - time_from_last_step_touchdown_;
+    }
+    else{
+        t_f_min_ = (sqrt(2 * 9.81 * (c - z_max) + pow(-v, 2)) + -v) / 9.81;
+        t_f_max_ = (sqrt(2 * 9.81 * (c - z_min) + pow(-v, 2)) + -v) / 9.81;
+
+        if(t_f_min_ != t_f_min_)
+            t_f_min_ = 0;
+        if(t_f_max_ != t_f_max_)
+            t_f_max_ = 0;
+    }
+    t_f_min_ = std::max(t_f_min_, current_time_ - time_from_last_step_touchdown_);
+//    std::cout << "T_F" << current_time_ << " " << current_time_ - time_from_last_step_touchdown_ << " " << t_f_min_ << " " << t_f_max_ << std::endl;
+
+//    if(is_left_leg_in_contact > 2){
+//        std::cout << "FIRST!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
+//        t_f_nom_ = (sqrt(2 * 9.81 * (com[2] - z_nom) + pow(com_vel[2], 2)) + com_vel[2]) / 9.81;
+//        std::cout << "TTTTTTTTTT" << time_from_last_step_touchdown_ << " " << com[2] << " " << com_vel[2] << " " << t_f_nom_ << std::endl;
+//
+//        if(t_f_nom_ != t_f_nom_)
+//            t_f_nom_ = current_time_ - time_from_last_step_touchdown_;
+//
+//    }
+//    else{
+//        std::cout << "SECOND@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n";
+//        double z_t_s = 1.0 / 2 * ((com[2] - 9.81 / (omega_ * omega_) + com_vel[2] / omega_) * exp(omega_ * std::max(0.0, (t_nom_ - time_from_last_step_touchdown_))) +
+//                                (com[2] - 9.81 / (omega_ * omega_) - com_vel[2] / omega_) * exp(-omega_ * std::max(0.0, (t_nom_ - time_from_last_step_touchdown_)))) + 9.81 / (omega_ * omega_);
+//        double z_dot_t_s = omega_ / 2 * ((com[2] - 9.81 / (omega_ * omega_) + com_vel[2] / omega_) * exp(omega_ * std::max(0.0, (t_nom_ - time_from_last_step_touchdown_))) -
+//                                         (com[2] - 9.81 / (omega_ * omega_) - com_vel[2] / omega_) * exp(-omega_ * std::max(0.0, (t_nom_ - time_from_last_step_touchdown_))));
+//        t_f_nom_ = (sqrt(2 * 9.81 * (z_t_s - z_nom) + pow(z_dot_t_s, 2)) + z_dot_t_s) / 9.81;
+//
+//        if(t_f_nom_ != t_f_nom_)
+//            t_f_nom_ = 0;
+//        std::cout << "TTTTTTTTTT" << time_from_last_step_touchdown_ << " " << com[2] << " " << com_vel[2] << " " << z_t_s << " " << z_dot_t_s << "   " << t_f_nom_ << std::endl;
+//    }
+//    std::cout << "T_F_NOM " << t_f_nom_ << std::endl;
+
+    l_nom_ = v_des_local(0) * T_nom_;
+    w_nom_ = local_is_left_leg_in_contact ? v_des_local(1) * T_nom_ - l_p_
+                                    : v_des_local(1) * T_nom_ + l_p_;
+
+    double v_x = l_nom_ / (t_f_nom_ + 2 * (tau_nom_ - 1) / (omega_ * (tau_nom_ + 1))) ,
+           v_r = (v_des_local(1) * T_nom_ + l_p_) / (t_f_nom_ + 2 * (tau_nom_ + 1) / (omega_ * (tau_nom_ - 1))),
+           v_l = (v_des_local(1) * T_nom_ - l_p_) / (t_f_nom_ + 2 * (tau_nom_ + 1) / (omega_ * (tau_nom_ - 1)));
+//    std::cout << "VVVVVVVVV" << v_des_local(0) << "    " << v_des_local(1) << "   " << v_x << "    " << v_l << "    " << v_r << " " << -0.397849661649 / 2;
+    bx_nom_ = (l_nom_ - v_x * t_f_nom_) / ((tau_nom_ - 1) * (1 + omega_ * omega_ / 9.81 * (c - 9.81 / (omega_ * omega_))));
+    by_nom_ = (pow(-1, contact_switcher_) * (l_p_ / (1 + tau_nom_))) -
+              v_des_local(1) * T_nom_ / (1 - tau_nom_) +
+              t_f_nom_ * (pow(-1, contact_switcher_) * -v_r * exp(omega_ * t_nom_) - pow(-1, contact_switcher_) * v_l) / (exp(omega_ * t_nom_) * exp(omega_ * t_nom_) - 1);
+//    std::cout << "bx_nom" << bx_nom_ << std::endl;
 }
 
 #define dbg_dump(var) std::cout << "  " << #var << ": " << var << std::endl
@@ -153,7 +257,7 @@ void DcmVrpPlanner::compute_nominal_step_values(
 void DcmVrpPlanner::update(
     const Eigen::Ref<const Eigen::Vector3d>& current_step_location,
     const double& time_from_last_step_touchdown,
-    const bool& is_left_leg_in_contact,
+    const contact& is_left_leg_in_contact,
     const Eigen::Ref<const Eigen::Vector3d>& v_des,
     const Eigen::Ref<const Eigen::Vector3d>& com,
     const Eigen::Ref<const Eigen::Vector3d>& com_vel,
@@ -183,7 +287,7 @@ void DcmVrpPlanner::update(
 void DcmVrpPlanner::update(
     const Eigen::Ref<const Eigen::Vector3d>& current_step_location,
     const double& time_from_last_step_touchdown,
-    const bool& is_left_leg_in_contact,
+    const contact& is_left_leg_in_contact,
     const Eigen::Ref<const Eigen::Vector3d>& v_des,
     const Eigen::Ref<const Eigen::Vector3d>& com,
     const Eigen::Ref<const Eigen::Vector3d>& com_vel,
@@ -193,8 +297,18 @@ void DcmVrpPlanner::update(
     const Eigen::Ref<const Eigen::Vector3d>& x_T_s,
     const Eigen::Ref<const Eigen::Vector3d>& x_d_T_s)
 {
+    contact local_is_left_leg_in_contact = is_left_leg_in_contact;
+    if(is_left_leg_in_contact > 2){
+        local_is_left_leg_in_contact = contact(is_left_leg_in_contact - 3);
+    }
     omega_ = omega;
-    time_from_last_step_touchdown_ = time_from_last_step_touchdown;
+    if(time_from_last_step_touchdown < duration_before_step_landing_) {
+        time_from_last_step_touchdown_ = time_from_last_step_touchdown;//stance duration has passed
+    }
+    else{
+        time_from_last_step_touchdown_ = duration_before_step_landing_;
+    }
+    current_time_ = time_from_last_step_touchdown;
     double ground_height = 0.0;
 
     // Local frame parallel to the world frame and aligned with the base yaw.
@@ -211,13 +325,14 @@ void DcmVrpPlanner::update(
     dcm_local_ = world_M_local_.actInv(dcm_local_);
 
     // Express the desired velocity in the local frame.
+//    std::cout << "VVVVVVVVVVVVVVVVV" << v_des(0) << "   " << v_des(1) << std::endl;
     v_des_local_ = v_des;
     v_des_local_ = world_M_local_.rotation().transpose() * v_des_local_;
-    //    v_des_local_ = world_M_local_.actInv(v_des_local_);
+    // v_des_local_ = world_M_local_.actInv(v_des_local_);
     // Nominal value tracked by the QP.
     pinocchio::SE3 world_M_local_yaw;
     world_M_local_yaw.rotation() = world_M_local_.rotation();
-    compute_nominal_step_values(is_left_leg_in_contact, v_des_local_);
+    compute_nominal_step_values(is_left_leg_in_contact, v_des_local_, com, com_vel);
 
     // Current step location in the local frame.
     const Eigen::Vector3d& tmp = current_step_location;
@@ -236,55 +351,159 @@ void DcmVrpPlanner::update(
     q_(2) = -cost_weights_local_(2) * tau_nom_;
     q_(3) = -cost_weights_local_(3) * bx_nom_;
     q_(4) = -cost_weights_local_(4) * by_nom_;
+    if(solver_version_ == 2)
+        q_(5) = -cost_weights_local_(5) * t_f_nom_;
+    else
+        q_(5) = -1;
     q_.tail<4>().setZero();
 
-    // Inequality constraints
-    // A_ineq_ is constant see initialize.
-    double w_max_local, w_min_local, by_max, by_min;
-    if (is_left_leg_in_contact)
-    {
-        w_max_local = -w_min_ - l_p_;
-        w_min_local = -w_max_ - l_p_;
-        by_max = -by_max_out_;  // by_max_in_;
-        by_min = -by_max_in_;   // by_max_out_;
-//        by_max = 0;//Lhum running
-//        by_min = 0;
+
+//    double mul_x_dot_t_s_t_f = 1 / 9.81 * omega_ * omega_ * (tau_nom_ - 1) * bx_nom_ * (c - 9.81 / (omega_ * omega_));
+//    double mul_y_dot_t_s_t_f = 1 / 9.81 * omega_ * omega_ * (tau_nom_ - 1) * by_nom_ * (c - 9.81 / (omega_ * omega_));
+//    double x_dot_t_s = omega_ * (tau_nom_ + 1) * bx_nom_ / 2;
+    double x_dot_t_s = omega_ / 2 * ((com[0] + com_vel[0] / omega_) * exp(omega_ * std::max(0.0, t_nom_ - time_from_last_step_touchdown_)) -
+                                     (com[0] - com_vel[0] / omega_) * exp(-omega_ * std::max(0.0, t_nom_ - time_from_last_step_touchdown_)));
+//    double y_dot_t_s = omega_ * (tau_nom_ - 1) * by_nom_ / 2;
+    double y_dot_t_s = omega_ / 2 * ((com[1] + com_vel[1] / omega_) * exp(omega_ * std::max(0.0, t_nom_ - time_from_last_step_touchdown_)) -
+                                     (com[1] - com_vel[1] / omega_) * exp(-omega_ * std::max(0.0, t_nom_ - time_from_last_step_touchdown_)));
+//    double mul_z_dot_t_s_t_f = 1 / 9.81 * omega_ * (tau_nom_ - 1) * bz_nom_ * (c - 9.81 / (omega_ * omega_));
+    if(solver_version_ == 2) {/*Lhum TODO*/
+        if(local_is_left_leg_in_contact == left || local_is_left_leg_in_contact == right){
+            A_ineq_(0, 5) = -x_dot_t_s;
+            A_ineq_(1, 5) = -y_dot_t_s;
+            A_ineq_(2, 5) = x_dot_t_s;
+            A_ineq_(3, 5) = y_dot_t_s;
+
+        }
+        else{
+            A_ineq_(0, 5) = -com_vel[0];
+            A_ineq_(1, 5) = -com_vel[1];
+            A_ineq_(2, 5) = com_vel[0];
+            A_ineq_(3, 5) = com_vel[1];
+        }
     }
-    else
-    {
-        w_max_local = w_max_ + l_p_;
-        w_min_local = w_min_ + l_p_;
-        by_max = by_max_in_;   //-by_max_out_;
-        by_min = by_max_out_;  //-by_max_in_;
-//        by_max = 0; //Lhum running
-//        by_min = 0;
+    else{
+        A_ineq_(0, 5) = 0;
+        A_ineq_(1, 5) = 0;
+        A_ineq_(2, 5) = 0;
+        A_ineq_(3, 5) = 0;
+    }
+
+    switch(local_is_left_leg_in_contact){
+        case left:
+        case flight_l:
+            w_max_local_ = -w_min_ - l_p_;
+            w_min_local_ = -w_max_ - l_p_;
+            by_max_ = -by_max_out_;
+            by_min_ = -by_max_in_;
+            break;
+        case right:
+        case flight_r:
+            w_max_local_ = w_max_ + l_p_;
+            w_min_local_ = w_min_ + l_p_;
+            by_max_ = by_max_in_;
+            by_min_ = by_max_out_;
+            break;
+        default:
+            break;
     }
 //    tau_min_ = exp(
 //        omega_ *
 //        std::max(t_min_, time_from_last_step_touchdown_ + new_t_min - 0.0001));//Lhum running
 
+    // Inequality constraints
+    // A_ineq_ is constant see initialize.
     // clang-format off
-    B_ineq_ << l_max_,                // 0
-            w_max_local,           // 1
-            -l_min_,                // 2
-            -w_min_local,           // 3
-            tau_max_,              // 4
-            -tau_min_,              // 5
-            bx_max_,               // 6
-            -bx_min_,               // 7
-            by_max,                // 8
-            -by_min;                // 9
+
+    if(is_left_leg_in_contact > 2) {
+        if(solver_version_ == 2){
+            B_ineq_ << l_max_,                // 0
+                    w_max_local_,           // 1
+                    -l_min_,                // 2
+                    -w_min_local_,           // 3
+                    x_opt_(2),              // 4
+                    -x_opt_(2),              // 5
+                    bx_max_,               // 6
+                    -bx_min_,               // 7
+                    by_max_,                // 8
+                    -by_min_,               // 9
+                    t_f_max_,               //10
+                    -t_f_min_;                // 11
+        }
+        else{
+            B_ineq_ << l_max_,                // 0
+                    w_max_local_,           // 1
+                    -l_min_,                // 2
+                    -w_min_local_,           // 3
+                    x_opt_(2),              // 4
+                    -x_opt_(2),              // 5
+                    bx_max_,               // 6
+                    -bx_min_,               // 7
+                    by_max_,                // 8
+                    -by_min_,
+                    0,
+                    0;                // 9
+        }
+    }
+    else{
+        if(solver_version_ == 2){
+            B_ineq_ << l_max_,                // 0
+                    w_max_local_,           // 1
+                    -l_min_,                // 2
+                    -w_min_local_,           // 3
+                    tau_max_,              // 4
+                    -tau_min_,              // 5
+                    bx_max_,               // 6
+                    -bx_min_,               // 7
+                    by_max_,                // 8
+                    -by_min_,               // 9
+                    t_f_max_,               //10
+                    -t_f_min_;                // 11
+        }
+        else{
+            B_ineq_ << l_max_,                // 0
+                    w_max_local_,           // 1
+                    -l_min_,                // 2
+                    -w_min_local_,           // 3
+                    tau_max_,              // 4
+                    -tau_min_,              // 5
+                    bx_max_,               // 6
+                    -bx_min_,               // 7
+                    by_max_,                // 8
+                    -by_min_,
+                    0,
+                    0;                // 9
+        }
+    }
 
     double tmp0 = (dcm_local_(0) - current_step_location_local_[0]) *
                   exp(-1.0 * omega_ * time_from_last_step_touchdown_);
     double tmp1 = (dcm_local_(1) - current_step_location_local_[1]) *
                   exp(-1.0 * omega_ * time_from_last_step_touchdown_);
+    double tmp2 = (dcm_local_(2) - current_step_location_local_[2] - 9.81 / (omega_ * omega_)) *
+                  exp(-1.0 * omega_ * time_from_last_step_touchdown_);//current_step_location_local_[2] should be 0
 
-    A_eq_ << 1.0, 0.0, -1.0 * tmp0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-             0.0, 1.0, -1.0 * tmp1, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0;
-
-    B_eq_ << 0.0,
-             0.0;
+    if(solver_version_ == 2){
+        if(is_left_leg_in_contact > 2){
+            A_eq_ << 1.0, 0.0, -1.0 * tmp0, 1.0, 0.0, -com_vel[0], 0.0, 0.0, 0.0, 0.0,
+                     0.0, 1.0, -1.0 * tmp1, 0.0, 1.0, -com_vel[1], 0.0, 0.0, 0.0, 0.0;
+            B_eq_ << current_step_location_local_[0],
+                     current_step_location_local_[1];
+        }
+        else {
+            A_eq_ << 1.0, 0.0, -1.0 * tmp0, 1.0, 0.0, -x_dot_t_s, 0.0, 0.0, 0.0, 0.0,
+                     0.0, 1.0, -1.0 * tmp1, 0.0, 1.0, -y_dot_t_s, 0.0, 0.0, 0.0, 0.0;
+            B_eq_ << current_step_location_local_[0],
+                     current_step_location_local_[1];
+        }
+    }
+    else {
+        A_eq_ << 1.0, 0.0, -1.0 * tmp0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                 0.0, 1.0, -1.0 * tmp1, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+        B_eq_ << 0.0,
+                 0.0;
+    }
+//    std::cout << "finalt_f" << is_left_leg_in_contact << std::endl;
     // clang-format on
 }
 
@@ -312,14 +531,27 @@ bool DcmVrpPlanner::solve()
     if (!failure)
     {
         // Extract the information from the solution.
+//        std::cout << "x_opt_ " << x_opt_ << std::endl;
         x_opt_ = qp_solver_.result();
+//        std::cout << "CURRENT" << current_step_location_local_ << std::endl;
         next_step_location_ =
             current_step_location_local_ +
             (Eigen::Vector3d() << x_opt_(0), x_opt_(1), 0.0).finished();
         next_step_location_ = world_M_local_.act(next_step_location_);
+        dcm_offset_ = (Eigen::Vector3d() << x_opt_(3),- x_opt_(4), 0.0).finished();
+//        dcm_offset_ = world_M_local_.act(dcm_offset_);
         //pow(-1, is_left_leg_in_contact) * x_dot_y_nom_ * t_f_nom_
         duration_before_step_landing_ = log(x_opt_(2)) / omega_;
+        duration_of_flight_phase_ = x_opt_(5);
+//        std::cout << "finalt_f" << t_f_min_ << " <  " << t_f_nom_ << " = " << t_f_nom_ << " <  " << t_f_max_ << "  = " << duration_before_step_landing_ << " " << x_opt_(5) << std::endl;
+//        std::cout << "finalRESULT" << l_min_ << " < " << x_opt_(0) << " = " << l_nom_ << " < " << l_max_ << " \n" <<
+//                     w_min_local_ << " < " << x_opt_(1) << " = " << w_nom_ << " < " << w_max_local_ << " \n" <<
+//                     -B_ineq_(5) << " < " << x_opt_(2) << " = " << tau_nom_ << " < " << B_ineq_(4) << " \n" <<
+//                     bx_min_ << " < " << x_opt_(3) << " = " << bx_nom_ << " < " << bx_max_ << " \n" <<
+//                     by_min_ << " < " << x_opt_(4) << " = " << by_nom_ << " < " << by_max_ << " \n" <<
+//                     t_f_min_ << " < " << x_opt_(5) << " = " << t_f_nom_ << " < " << t_f_max_ << " \n";
         slack_variables_ = x_opt_.tail<4>();
+//        std::cout << "bx_" << x_opt_(3) << std::endl;
 
     }
     else
@@ -341,7 +573,13 @@ bool DcmVrpPlanner::solve()
         }
         slack_variables_.setZero();
 
-        duration_before_step_landing_ = t_nom_ + t_f_;
+        if(solver_version_ == 2){
+            duration_before_step_landing_ = t_nom_;
+        }
+        else{
+            duration_before_step_landing_ = t_nom_ + t_f_;
+        }
+        duration_of_flight_phase_ = t_f_;
         next_step_location_ << l_nom_, w_nom_, 0.0;
         next_step_location_ += current_step_location_local_;
         next_step_location_ = world_M_local_.act(next_step_location_);
@@ -378,9 +616,9 @@ bool DcmVrpPlanner::internal_checks()
     assert_DcmVrpPlanner(A_eq_.rows() == 2);
     assert_DcmVrpPlanner(A_eq_.cols() == x_opt_.size());
     assert_DcmVrpPlanner(B_eq_.size() == 2);
-    assert_DcmVrpPlanner(A_ineq_.rows() == 10);
+    assert_DcmVrpPlanner(A_ineq_.rows() == 12);
     assert_DcmVrpPlanner(A_ineq_.cols() == x_opt_.size());
-    assert_DcmVrpPlanner(B_ineq_.size() == 10);
+    assert_DcmVrpPlanner(B_ineq_.size() == 12);
     //    assert_DcmVrpPlanner((t_min_ - log(tau_min_) / omega_) *
     //                             (t_min_ - log(tau_min_) / omega_) <
     //                         1e-8)// Lhum TODO

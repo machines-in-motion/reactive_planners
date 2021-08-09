@@ -184,7 +184,7 @@ void DcmReactiveStepper::initialize(
     const double &t_max,
     const double &l_p,
     const double &com_height,
-    Eigen::Ref<const Eigen::Vector9d> cost_weights_local,
+    Eigen::Ref<const Eigen::Vector10d> cost_weights_local,
     const double &mid_air_foot_height,
     const double &control_period,
     const double &planner_loop,
@@ -557,13 +557,13 @@ void DcmReactiveStepper::initializeParamVector(
                params(6),               // t_max
                params(7),               // l_p
                params(8),               // com_height
-               params.segment<9>(9),    // Vector9d weight,
-               params(18),              // mid_air_foot_height,
-               params(19),              // control_period,
-               params(20),              // planner_loop,
-               params.segment<3>(21),   // Vector3d left_foot_position,
-               params.segment<3>(24),   // Vector3d right_foot_position,
-               params.segment<3>(27));  // Vector3d v_des
+               params.segment<9>(9),    // Vector10d weight,
+               params(19),              // mid_air_foot_height,
+               params(20),              // control_period,
+               params(21),              // planner_loop,
+               params.segment<3>(22),   // Vector3d left_foot_position,
+               params.segment<3>(25),   // Vector3d right_foot_position,
+               params.segment<3>(28));  // Vector3d v_des
 }
 
 DcmReactiveStepper::InitializeCommand::InitializeCommand(

@@ -18,13 +18,6 @@
 #include "reactive_planners/stepper_head.hpp"
 #include "reactive_planners/com_planner.hpp"
 
-enum contact{
-    right=0,
-    left=1,
-    double_support=2,
-    flight=3
-};
-
 namespace reactive_planners
 {
 class DcmReactiveStepper
@@ -65,7 +58,7 @@ public:
         const double &t_max,
         const double &l_p,
         const double &com_height,
-        const Eigen::Vector9d &weight,
+        const Eigen::Vector10d &weight,
         const double &mid_air_foot_height,
         const double &control_period,
         const double &planner_loop,
@@ -194,6 +187,17 @@ public:
     }
 
     /**
+     * @brief Set omega
+     *
+     * @return const double&
+     */
+    void set_omega(const double& omega){
+        omega_ = omega;
+        dcm_vrp_planner_.set_omega(omega_);
+    };
+
+
+    /**
      * @brief Set the left foot 3d velocity.
      *
      * @return const Eigen::Vector3d&
@@ -217,7 +221,7 @@ public:
                                         const double &t_max,
                                         const double &l_p,
                                         const double &com_height,
-                                        const Eigen::Vector9d &weight)
+                                        const Eigen::Vector10d &weight)
     {
         dcm_vrp_planner_.initialize(
             l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, flying_phase_duration_, omega_, weight);
@@ -479,6 +483,14 @@ public:
         return contact_;
     }
 
+    /**
+     * @brief Return the duration of flight phase.
+     */
+    const double& get_duration_of_flight_phase() const
+    {
+        return duration_of_flight_phase_;
+    }
+
     /*
      * Private methods
      */
@@ -560,6 +572,9 @@ private:
     /** @brief Time from the last foot touchdown. */
     double time_from_last_step_touchdown_;
 
+    /** @brief Duration of flight phase. */
+    double duration_of_flight_phase_;
+
     /** @brief Previous support foot. The corresponding foot is now flying. */
     Eigen::Vector3d previous_support_foot_position_;
 
@@ -568,6 +583,9 @@ private:
 
     /** @brief The next upcoming support foot location. */
     Eigen::Vector3d next_support_foot_position_;
+
+    /** @brief The DCM offset. */
+    Eigen::Vector3d dcm_offset_;
 
     /** @brief The desired center of mass velocity. */
     Eigen::Vector3d desired_com_velocity_;
@@ -675,10 +693,12 @@ private:
 
     bool first_;
 
-//    Eigen::Vector3d last_support_foot_position_during_stance_;
-//    Eigen::Vector3d last_com_position_during_stance_;
-//    Eigen::Vector3d last_com_velocity_during_stance_;
-//    Eigen::Vector3d last_local_frame_during_stance_;
+    Eigen::Vector3d last_support_foot_position_during_stance_;
+    Eigen::Vector3d last_com_position_during_stance_;
+    Eigen::Vector3d last_com_velocity_during_stance_;
+    pinocchio::SE3 last_local_frame_during_stance_;
+
+    int solver_version_;
 
 
 };

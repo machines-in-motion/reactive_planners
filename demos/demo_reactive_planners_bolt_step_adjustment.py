@@ -35,7 +35,7 @@ def yaw(q):
 if __name__ == "__main__":
     # Create a robot instance. This initializes the simulator as well.
     env = BulletEnvWithGround()
-    robot = env.add_robot(BoltRobot)
+    robot = env.add_robot(BoltRobot())
     tau = np.zeros(6)
 
     time = 0
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     ]
     past_x = x_des_local.copy()
     v_des = [0.0, 0.0, 0.0]
-    sim = LipmSimpulator(com_height)
+    # sim = LipmSimpulator(com_height)
     dcm_reactive_stepper = DcmReactiveStepper()
     dcm_reactive_stepper.initialize(
         is_left_leg_in_contact,

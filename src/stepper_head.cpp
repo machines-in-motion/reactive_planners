@@ -20,6 +20,7 @@ StepperHead::StepperHead()
     next_support_location_.setZero();
     current_time_ = 0.0;
     contact_<< 1, 1;
+    dcm_offset_nom_ = 0.2;
 
     // outputs
     time_from_last_step_touchdown_ = 0.0;
@@ -32,6 +33,7 @@ StepperHead::StepperHead()
 }
 
 void StepperHead::run(const double& duration_stance_phase,
+                      const double& duration_flight_phase,
                       const double& v_z,
                       const double& kesay,
                       const Eigen::Vector3d& next_support_location,
@@ -39,6 +41,7 @@ void StepperHead::run(const double& duration_stance_phase,
 {
     // copy the argument
     duration_stance_phase_ = duration_stance_phase;
+    duration_flight_phase_ = duration_flight_phase;
     next_support_location_ = next_support_location;
     current_time_ = current_time;
 
@@ -46,12 +49,13 @@ void StepperHead::run(const double& duration_stance_phase,
     time_from_last_step_touchdown_ = current_time_ - time_support_switch_;
     contact_ << is_left_leg_in_contact_, !is_left_leg_in_contact_;
 //    std::cout << time_from_last_step_touchdown_ << "   " << duration_stance_phase_ << "    " << duration_swing_phase << std::endl;
-    std::cout << "UPDATE  stepper    " << time_from_last_step_touchdown_ << "    " << duration_stance_phase_ << std::endl;
     if(time_from_last_step_touchdown_ > duration_stance_phase_){
         contact_<< 0, 0;
     }
-    std::cout << "UPDATE switch " << time_from_last_step_touchdown_ << " > " << duration_stance_phase_ << "     0 >=" << v_z << "      0.2 >=" << kesay << std::endl;
-    if (time_from_last_step_touchdown_ > duration_stance_phase_ && v_z <= 0 && kesay <= 0.2)
+//    std::cout << "UPDATE switch " << time_from_last_step_touchdown_ << " > " << duration_stance_phase_ << "   + " << duration_flight_phase_ << std::endl;
+
+    if ((duration_flight_phase_ == -1 && time_from_last_step_touchdown_ > duration_stance_phase_ && v_z <= EPSILON && kesay <= dcm_offset_nom_ + EPSILON) ||
+        (duration_flight_phase_ != -1 && time_from_last_step_touchdown_ + 0.002 >= duration_flight_phase_ + duration_stance_phase_))
     {
         // Switch the contact phase.
         is_left_leg_in_contact_ = !is_left_leg_in_contact_;
@@ -62,6 +66,7 @@ void StepperHead::run(const double& duration_stance_phase,
         previous_support_location_ = current_support_location_;
         current_support_location_ = next_support_location_;
     }
+//    std::cout << "KESAY" << contact_ << "    " << v_z << "                " << (time_from_last_step_touchdown_ > duration_stance_phase_) << " " << (v_z <= EPSILON) << " " << (kesay <= dcm_offset_nom_) << " " << kesay << " " << dcm_offset_nom_<< std::endl;
 }
 
 }  // namespace reactive_planners

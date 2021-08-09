@@ -34,11 +34,15 @@ namespace reactive_planners
             last_x_com_ = previous_x_com;
             last_xd_com_ = previous_xd_com;
             r_vrp_current_step_ = u_current_step;
-            r_vrp_current_step_[2] += 9.81 / (omega * omega);
+            r_vrp_current_step_[2] = 9.81 / (omega * omega);
         }
         com_ = 0.5 * (last_x_com_ - r_vrp_current_step_ + last_xd_com_ / omega) * exp(omega * time) +
                0.5 * (last_x_com_ - r_vrp_current_step_ - last_xd_com_ / omega) * exp(-omega * time) +
                r_vrp_current_step_;
+
+//        std::cout << "COM_E_ " << omega << "   " << last_x_com_ << "    " << - r_vrp_current_step_ << "   " << (last_xd_com_ / omega) << "    " << exp(omega * time) << std::endl;
+//        std::cout << "COM_D_ " << omega * 0.5 * (last_x_com_ - r_vrp_current_step_ + (last_xd_com_ / omega)) * exp(omega * time) << "                 " <<
+//                     omega * 0.5 * (last_x_com_ - r_vrp_current_step_ - (last_xd_com_ / omega)) * exp(-omega * time) << std::endl;
         com_d_ = omega * 0.5 * (last_x_com_ - r_vrp_current_step_ + (last_xd_com_ / omega)) * exp(omega * time) -
                  omega * 0.5 * (last_x_com_ - r_vrp_current_step_ - (last_xd_com_ / omega)) * exp(-omega * time);
         com_dd_ = pow(omega, 2) * (com_ - r_vrp_current_step_);

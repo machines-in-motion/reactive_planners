@@ -85,6 +85,7 @@ public:
     void set_planner_loop(double planner_loop)
     {
         planner_loop_ = planner_loop;
+        init_acceleration_velocity_terms();
     }
 
     /** @brief Set the height of the flying foot.

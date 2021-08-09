@@ -64,7 +64,7 @@ void DcmReactiveStepper::initialize(
     const double& t_max,
     const double& l_p,
     const double& com_height,
-    const Eigen::Vector9d& weight,
+    const Eigen::Vector10d& weight,
     const double& mid_air_foot_height,
     const double& control_period,
     const double& planner_loop,
@@ -80,7 +80,8 @@ void DcmReactiveStepper::initialize(
     control_period_ = control_period;
     planner_loop_ = planner_loop;
     is_left_leg_in_contact_ = is_left_leg_in_contact;
-    step_duration_ = 0.0;
+    step_duration_ = 0.1;
+    duration_of_flight_phase_ = 0.2;
     time_from_last_step_touchdown_ = 0.0;
     previous_support_foot_position_.setZero();
     current_support_foot_position_.setZero();
@@ -129,6 +130,9 @@ void DcmReactiveStepper::initialize(
     forces_.resize(ceil((t_max + 1.) * 1000) * 3);
     f_swing_.resize(ceil((t_max + 1.) * 1000) * 3);
     running_ = false;
+    solver_version_ = 2;//0=> finds t_f base of equation that dcm_z_nom = dcm_z_T
+    //1=> last one + based on COM_nom trajectory for finding flight duration at stance phase. NOTE: it consider t_s calculated in controller.
+    //2=> last algorithm!(it's hard to explain!)
 }
 
 bool DcmReactiveStepper::run(
@@ -200,6 +204,10 @@ bool DcmReactiveStepper::run(
     return succeed;
 }
 
+//bool DcmReactiveStepper::update_z(double dcm_offset_nom_z_ , double t_s_, double cop_z_, double g){
+//    return (pow(omega_, 2) * (dcm_offset_nom_z_ * exp(omega_ * t_s_) + dcm_offset_nom_z_ - cop_z_ * exp(omega_ * t_s_) + cop_z_) - g * exp(omega_ * t_s_) + g) / (2 * pow(omega_, 2))
+//}
+
 bool DcmReactiveStepper::walk(
     double time,
     const Eigen::Ref<const Eigen::Vector3d>& left_foot_position,
@@ -219,11 +227,39 @@ bool DcmReactiveStepper::walk(
     // Run the scheduler of the planner.
     if (is_left_leg_in_contact_)
     {
-        stepper_head_.run(stance_phase_duration_, com_velocity[2], com_position[2] + com_velocity[2] / omega_, right_on_ground, time);
+        switch (solver_version_) {
+            case 0:
+                stepper_head_.run(step_duration_, -1.0, com_velocity[2], com_position[2] + com_velocity[2] / omega_, right_on_ground, time);
+                break;
+            case 1:
+//                std::cout << "KESAY" << time << "                   " << com_[2] + v_com_[2] / omega_ << std::endl;
+                stepper_head_.run(step_duration_, -1.0, v_com_[2], com_[2] + v_com_[2] / omega_, right_on_ground, time);
+                break;
+            case 2:
+//                std::cout << "UPDATE FIRST " << step_duration_ << " " << duration_of_flight_phase_ << std::endl;
+                stepper_head_.run(step_duration_, duration_of_flight_phase_, com_velocity[2], com_position[2] + com_velocity[2] / omega_, right_on_ground, time);
+                break;
+            default:
+                break;
+        }
     }
     else
     {
-        stepper_head_.run(stance_phase_duration_, com_velocity[2], com_position[2] + com_velocity[2] / omega_, left_on_ground, time);
+        switch (solver_version_) {
+            case 0:
+                stepper_head_.run(step_duration_, -1.0, com_velocity[2], com_position[2] + com_velocity[2] / omega_, left_on_ground, time);
+                break;
+            case 1:
+//                std::cout << "KESAY" << time << "                   " << com_[2] + v_com_[2] / omega_ << std::endl;
+                stepper_head_.run(step_duration_, -1.0, v_com_[2], com_[2] + v_com_[2] / omega_, left_on_ground, time);
+                break;
+            case 2:
+//                std::cout << "UPDATE FIRST " << step_duration_ << " " << duration_of_flight_phase_ << std::endl;
+                stepper_head_.run(step_duration_, duration_of_flight_phase_, com_velocity[2], com_position[2] + com_velocity[2] / omega_, left_on_ground, time);
+                break;
+            default:
+                break;
+        }
     }
     contact_ = stepper_head_.get_contact_phase();
 
@@ -261,7 +297,8 @@ bool DcmReactiveStepper::walk(
     }
     /// change solver loop time_step
     if (!is_polynomial_ && time_from_last_step_touchdown_ == 0.0) nb_usage_of_force_ = 0;
-    if (!is_polynomial_ && nb_usage_of_force_ % 1 != 0) //Lhum Change it if you want to change loop_period
+    int planner_frequency = round(planner_loop_ * 1000);
+    if (!is_polynomial_ && nb_usage_of_force_ % planner_frequency != 0) //Lhum Change it if you want to change loop_period
     {  // Lhum TODO update 10 automatically
         if(contact_(0) == contact_(1)) {
             if (is_left_leg_in_contact_)  // check which foot is in contact
@@ -343,7 +380,7 @@ bool DcmReactiveStepper::walk(
                     left_foot_velocity_,
                     is_left_leg_in_contact_);
     }
-    Eigen::Vector3d stance_pos = is_left_leg_in_contact_? left_foot_position_:right_foot_position_;
+    Eigen::Vector3d stance_pos = is_left_leg_in_contact_? left_foot_position:right_foot_position;
     if(current_time < stance_phase_duration_) {
         com_planner_.update_com_in_t_s_(omega_, current_time,stance_pos,
                                                com_position, com_velocity);
@@ -353,11 +390,32 @@ bool DcmReactiveStepper::walk(
     }
 
     //calculate com and vcom traj
-
-    if(!first_ && current_time < 0.01){
-       std::cout << "UPDATE!! \n" ;
-       com << 0., 0., com_position[2];
-       vcom << 0., 0., com_velocity[2];
+    if(current_time < 0.01){
+       if(omega_ == 10.18){
+           stepper_head_.set_dcm_offset_nom(0.2);
+           com << 0., 0., 0.3;
+           vcom << 0., 0., -0.9807185;
+       }
+       else if(omega_ == 9){
+           stepper_head_.set_dcm_offset_nom(0.2);
+           com << 0., 0., 0.265;
+           vcom << 0., 0., -0.54;
+       }
+       else if(omega_ == 8){
+           stepper_head_.set_dcm_offset_nom(0.2);
+           com << 0., 0., 0.2357;
+           vcom << 0., 0., -0.24;
+       }
+       else if(omega_ == 5.7183913822){
+           stepper_head_.set_dcm_offset_nom(0.3);
+           com << 0., 0., 0.3;
+           vcom << 0., 0., -0.0;
+       }
+       else{
+           stepper_head_.set_dcm_offset_nom(0.2);
+           com << 0., 0., 0.2;
+           vcom << 0., 0., 0.;
+       }
     }
     if(contact_(0) != contact_(1)) {
         com_planner_.update_com_single_support(omega_, current_time, stance_pos, com, vcom);
@@ -372,11 +430,13 @@ bool DcmReactiveStepper::walk(
         a_com_.setZero();
         first_ = false;
     }
-
+//    std::cout << "T_F____" << time_from_last_step_touchdown_ << " " << dcm_vrp_planner_.get_duration_before_step_landing() << std::endl;
+//    std::cout << "VVVVVVVVVVVVVVVVVVVV v_des " << desired_com_velocity_(0) << "    " << desired_com_velocity_(1) << std::endl;
     if(time_from_last_step_touchdown_<= dcm_vrp_planner_.get_duration_before_step_landing()){
+        //At least one leg is in contact
         dcm_vrp_planner_.update(current_support_foot_position_,
                                 time_from_last_step_touchdown_,
-                                is_left_leg_in_contact_,
+                                static_cast<contact>(is_left_leg_in_contact_),
                                 desired_com_velocity_,
                                 com_position,
                                 com_velocity,
@@ -386,19 +446,67 @@ bool DcmReactiveStepper::walk(
                                 x_T_s_,
                                 x_d_T_s_);
         succeed = succeed && dcm_vrp_planner_.solve();
+
+        last_support_foot_position_during_stance_ = current_support_foot_position_;
+        last_com_position_during_stance_ = com_position;
+        last_com_velocity_during_stance_ = com_velocity;
+        last_local_frame_during_stance_ = local_frame;
+
         // Extract the useful information.
         step_duration_ = dcm_vrp_planner_.get_duration_before_step_landing();
-//        self.is_left_leg_in_contact = self.stepper_head.get_is_left_leg_in_contact()
-        next_support_foot_position_ = dcm_vrp_planner_.get_next_step_location();
-        b_ = -next_support_foot_position_ + com_position + com_velocity / omega_;
-
-        std::cout << "B: " << b_ << "Next" <<  -next_support_foot_position_ << "kesay " << com_position + com_velocity / omega_ << std::endl;
+//        std::cout << "UPDATE 455 " << step_duration_ << std::endl;
+        duration_of_flight_phase_ = dcm_vrp_planner_.get_duration_of_flight_phase();
+        if(solver_version_ != 2){
+            next_support_foot_position_ = dcm_vrp_planner_.get_next_step_location();
+            next_support_foot_position_[2] = 0;
+        }
+        else{
+            dcm_offset_ = dcm_vrp_planner_.get_dcm_offset();
+            next_support_foot_position_ = dcm_offset_ + com_position + com_velocity / omega_;
+            next_support_foot_position_[2] = 0;
+//            if(time_from_last_step_touchdown_>= dcm_vrp_planner_.get_duration_before_step_landing() + duration_of_flight_phase_ - 0.01)
+//                std::cout << "OFFSET " << time_from_last_step_touchdown_
+//                          << "         NEXT" << next_support_foot_position_
+//                          << "           u" << dcm_vrp_planner_.get_next_step_location()
+//                          << "           dcm" << com_position + com_velocity / omega_;
+        }
+//        std::cout << "project_______\n";
     }
     else{
-        std::cout << "B:X\n";
-        next_support_foot_position_ = -b_ + com_position + com_velocity / omega_;
+        // Flight phase
+//        std::cout << "B:X\n";
+        Eigen::Vector3d projected_com_velocity = com_velocity;
+        projected_com_velocity[2] += 9.81 * (time_from_last_step_touchdown_ - dcm_vrp_planner_.get_duration_before_step_landing());
+        Eigen::Vector3d projected_com = com_position - projected_com_velocity * (time_from_last_step_touchdown_ - dcm_vrp_planner_.get_duration_before_step_landing());
+        projected_com[2] += 1.0 / 2 * 9.81 * pow(time_from_last_step_touchdown_ - dcm_vrp_planner_.get_duration_before_step_landing(), 2);
+//        std::cout << "project" << com_position[0] << " " << projected_com[0] << std::endl;
+        dcm_vrp_planner_.update(last_support_foot_position_during_stance_ - last_com_position_during_stance_ + projected_com,//
+                                time_from_last_step_touchdown_,//
+                                contact(is_left_leg_in_contact_ + 3),//
+                                desired_com_velocity_,
+                                projected_com,//
+                                projected_com_velocity,
+                                last_local_frame_during_stance_,//
+                                new_t_min,//#
+                                omega_,//#
+                                x_T_s_,//#
+                                x_d_T_s_);//#
+        succeed = succeed && dcm_vrp_planner_.solve();
+
+        next_support_foot_position_ = dcm_vrp_planner_.get_next_step_location();
+        step_duration_ = dcm_vrp_planner_.get_duration_before_step_landing();
+//        std::cout << "UPDATE 485 " << step_duration_ << std::endl;
+        duration_of_flight_phase_ = dcm_vrp_planner_.get_duration_of_flight_phase();
+        dcm_offset_ = dcm_vrp_planner_.get_dcm_offset();
+        next_support_foot_position_ = dcm_offset_ + com_position + com_velocity / omega_;
+//        next_support_foot_position_ = dcm_vrp_planner_.get_next_step_location();
         next_support_foot_position_[2] = 0;
-        return true;
+//        if(time_from_last_step_touchdown_>= dcm_vrp_planner_.get_duration_before_step_landing() + duration_of_flight_phase_ - 0.01)
+//            std::cout << "OFFSET " << time_from_last_step_touchdown_
+//                      << " " << dcm_offset_
+//                      << "         NEXT" << next_support_foot_position_
+//                      << "           u" << dcm_vrp_planner_.get_next_step_location()
+//                      << "           dcm" << com_position + com_velocity / omega_;
     }
     double start_time = 0.0;
     double end_time = dcm_vrp_planner_.get_duration_before_step_landing();
@@ -525,11 +633,11 @@ bool DcmReactiveStepper::stand_still(
     // Run the scheduler of the planner.
     if (is_left_leg_in_contact_)
     {
-        stepper_head_.run(0.0, 0.1, 0.0, right_foot_position, time);
+        stepper_head_.run(0.0, -1.0, 0.1, 0.0, right_foot_position, time);
     }
     else
     {
-        stepper_head_.run(0.0, 0.1, 0.0, left_foot_position, time);
+        stepper_head_.run(0.0, -1.0, 0.1, 0.0, left_foot_position, time);
     }
     // Extract the useful information.
     time_from_last_step_touchdown_ =
@@ -542,6 +650,7 @@ bool DcmReactiveStepper::stand_still(
 
     // Extract the useful information.
     step_duration_ = 0.0;
+//    std::cout << "UPDATE 633 " << step_duration_ << std::endl;
     next_support_foot_position_ = dcm_vrp_planner_.get_next_step_location();
 
     // Feet do not move.

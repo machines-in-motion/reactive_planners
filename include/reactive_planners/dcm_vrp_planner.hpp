@@ -21,12 +21,21 @@
 #define RESET "\033[0m"
 #define RED "\033[31m"  /* Red */
 #define BLUE "\033[34m" /* Blue */
+#define EPSILON 1e-9
+
+enum contact{
+    right=0,
+    left=1,
+    double_support=2,
+    flight_r=3,
+    flight_l=4,
+};
 
 namespace Eigen
 {
 /** @brief Column vector of size 9 which correspond to the number of
  * optimization variables. */
-typedef Matrix<double, 9, 1> Vector9d;
+typedef Matrix<double, 10, 1> Vector10d;
 }  // namespace Eigen
 
 namespace reactive_planners
@@ -76,7 +85,7 @@ public:
                   const double& ht,
                   const double& t_f,
                   const double& omega,
-                  const Eigen::Ref<const Eigen::Vector9d>& cost_weights_local);
+                  const Eigen::Ref<const Eigen::Vector10d>& cost_weights_local);
 
     /**
      * @brief Construct a new DcmVrpPlanner object with some default parameters.
@@ -84,7 +93,7 @@ public:
     DcmVrpPlanner()
     {
         initialize(
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Eigen::Vector9d::Zero());
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, Eigen::Vector10d::Zero());
     }
 
     /**
@@ -103,7 +112,7 @@ public:
         const double& ht,
         const double& t_f,
         const double& omega,
-        const Eigen::Ref<const Eigen::Vector9d>& cost_weights_local);
+        const Eigen::Ref<const Eigen::Vector10d>& cost_weights_local);
 
     /**
      * @brief Computes adapted step location.
@@ -134,7 +143,7 @@ public:
      */
     void update(const Eigen::Ref<const Eigen::Vector3d>& current_step_location,
                 const double& time_from_last_step_touchdown,
-                const bool& is_left_leg_in_contact,
+                const contact& is_left_leg_in_contact,
                 const Eigen::Ref<const Eigen::Vector3d>& v_des,
                 const Eigen::Ref<const Eigen::Vector3d>& com,
                 const Eigen::Ref<const Eigen::Vector3d>& com_vel,
@@ -171,7 +180,7 @@ public:
      */
     void update(const Eigen::Ref<const Eigen::Vector3d>& current_step_location,
                 const double& time_from_last_step_touchdown,
-                const bool& is_left_leg_in_contact,
+                const contact& is_left_leg_in_contact,
                 const Eigen::Ref<const Eigen::Vector3d>& v_des,
                 const Eigen::Ref<const Eigen::Vector3d>& com,
                 const Eigen::Ref<const Eigen::Vector3d>& com_vel,
@@ -272,6 +281,16 @@ public:
     }
 
     /**
+     * @brief @copydoc DcmVrpPlanner::by_nom_
+     *
+     * @return const double&
+     */
+    const double& get_bz_nom() const
+    {
+        return bz_nom_;
+    }
+
+    /**
      * @brief @copydoc DcmVrpPlanner::world_M_local_
      *
      * @return const pinocchio::SE3&
@@ -340,6 +359,16 @@ public:
     }
 
     /**
+     * @brief @copydoc DcmVrpPlanner::dcm_offset_
+     *
+     * @return Eigen::Ref<const Eigen::Vector3d>
+     */
+    Eigen::Ref<const Eigen::Vector3d> get_dcm_offset() const
+    {
+        return dcm_offset_;
+    }
+
+    /**
      * @brief Return the slack values from the last solution.
      **/
     const Eigen::Vector4d& get_slack_variables() const
@@ -355,6 +384,14 @@ public:
     const double& get_duration_before_step_landing() const
     {
         return duration_before_step_landing_;
+    }
+
+    /**
+     * @brief Return the duration of flight phase.
+     */
+    const double& get_duration_of_flight_phase() const
+    {
+        return duration_of_flight_phase_;
     }
 
     /**
@@ -387,6 +424,13 @@ public:
         B_eq_(2) = exp(omega_ * time);
     }
 
+    /**
+     * @brief Set omega
+     *
+     * @return const double&
+     */
+    void set_omega(const double& omega);
+
     /*
      * Private methods
      */
@@ -401,13 +445,17 @@ private:
      * @param v_des_local in the local frame.
      */
     void compute_nominal_step_values(
-        const bool& is_left_leg_in_contact,
-        const Eigen::Ref<const Eigen::Vector3d>& v_des_local);
+        const contact& is_left_leg_in_contact,
+        const Eigen::Ref<const Eigen::Vector3d>& v_des_local,
+        const Eigen::Ref<const Eigen::Vector3d>& x_T_s,
+        const Eigen::Ref<const Eigen::Vector3d>& x_d_T_s);
 
     /*
      * Attributes
      */
 private:
+    double contact_switcher_;
+
     /** @brief Minimum step length in the x direction (in the direction of
      * forward motion). */
     double l_min_;
@@ -429,6 +477,13 @@ private:
      * direction).
      */
     double w_max_;
+    /** @brief Minimum flight time.
+     */
+    double t_f_min_;
+
+    /** @brief Maximum flight time.
+     */
+    double t_f_max_;
 
     /** @brief Nominal step length in the y direction (in the lateral
      * direction).
@@ -441,11 +496,14 @@ private:
     /** @brief Maximum step time. */
     double t_max_;
 
-    /** @brief Nominal step time. */
+    /** @brief Nominal stance phase time. */
     double t_nom_ = 0.1;
 
-    /** @brief Nominal step time. */
+    /** @brief Nominal flight phase time. */
     double t_f_nom_;
+
+    /** @brief Nominal step time. */
+    double T_nom_;
 
     /** @brief Nominal velocity of Y axis at t_s time. */
     double x_dot_y_nom_;
@@ -493,6 +551,9 @@ private:
     /** @brief Nominal DCM offset along the Y-axis. */
     double by_nom_;
 
+    /** @brief Nominal DCM offset along the Z-axis. */
+    double bz_nom_;
+
     /** @brief SE3 position of the robot base in the world frame. */
     pinocchio::SE3 world_M_local_;
 
@@ -512,12 +573,21 @@ private:
      * optimizing after t_min_ is passed. */
     double time_from_last_step_touchdown_;
 
+    /** @brief Time from the last foot touchdown. */
+    double current_time_;
+
+    /** @brief Time of flight phase. */
+    double duration_of_flight_phase_;
+
     /*
      * Problem results
      */
 
     /** @brief Next step location expressed in the world frame. */
     Eigen::Vector3d next_step_location_;
+
+    /** @brief DCM offset expressed in the world frame. */
+    Eigen::Vector3d dcm_offset_;
 
     /** @brief Slack variable values corresponding to last solution. */
     Eigen::Vector4d slack_variables_;
@@ -561,7 +631,7 @@ private:
     Eigen::MatrixXd Q_;
 
     /** @brief Cost weights expressed in the local frame. */
-    Eigen::Vector9d cost_weights_local_;
+    Eigen::Vector10d cost_weights_local_;
 
     /** @brief Linear term of the quadratic cost.
      * @see DcmVrpPlanner::compute_adapted_step_locations. */
@@ -588,6 +658,10 @@ private:
     double tmp0_, tmp1_;
 
     Eigen::VectorXd tmp5_;
+
+    double w_max_local_, w_min_local_, by_max_, by_min_;
+
+    int solver_version_;
 };
 
 }  // namespace reactive_planners

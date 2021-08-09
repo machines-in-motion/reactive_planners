@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Eigen/Eigen"
+#define EPSILON 1e-9
 
 namespace reactive_planners
 {
@@ -27,6 +28,11 @@ public:
      * parameters. Please call init() in order to setup this class properly. */
     StepperHead();
 
+    void set_dcm_offset_nom(const double& dcm_offset_nom)
+    {
+        dcm_offset_nom_ = dcm_offset_nom;
+    }
+
     void set_support_feet_pos(
         const Eigen::Ref<const Eigen::Vector3d> &previous_support_location,
         const Eigen::Ref<const Eigen::Vector3d> &current_support_location)
@@ -34,12 +40,15 @@ public:
         previous_support_location_ = previous_support_location;
         current_support_location_ = current_support_location;
     }
+
     void set_support_foot_pos(
         const Eigen::Ref<const Eigen::Vector3d> &current_support_location)
     {
         current_support_location_ = current_support_location;
     }
+
     void run(const double &duration_stance_phase,
+             const double& duration_flight_phase,
              const double& v_z,
              const double& kesay,
              const Eigen::Vector3d &next_support_location,
@@ -108,6 +117,9 @@ protected:
     /** @brief This is the duration of stance phase. */
     double duration_stance_phase_;
 
+    /** @brief This is the duration of flight phase. */
+    double duration_flight_phase_;
+
     /** @brief This is the duration before the current flying foot needs to
      * land. */
     double duration_before_foot_landing_;
@@ -118,6 +130,10 @@ protected:
 
     /** @brief Current absolute time; */
     double current_time_;
+
+    /** @brief DCM offset nominal
+     * DCM_z_T = DCM_offset_nominal */
+    double dcm_offset_nom_;
 
     /*
      * Outputs
