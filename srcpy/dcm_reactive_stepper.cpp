@@ -50,8 +50,8 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
         // Setters.
         .def("set_right_foot_position",
              &DcmReactiveStepper::set_right_foot_position)
-        .def("set_omega",
-             &DcmReactiveStepper::set_omega)
+        .def("set_new_motion",
+             &DcmReactiveStepper::set_new_motion)
         .def("set_right_foot_velocity",
              &DcmReactiveStepper::set_right_foot_velocity)
         .def("set_left_foot_position",

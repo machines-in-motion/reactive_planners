@@ -23,13 +23,6 @@
 #define BLUE "\033[34m" /* Blue */
 #define EPSILON 1e-9
 
-enum contact{
-    right=0,
-    left=1,
-    double_support=2,
-    flight_r=3,
-    flight_l=4,
-};
 
 namespace Eigen
 {
@@ -40,6 +33,14 @@ typedef Matrix<double, 10, 1> Vector10d;
 
 namespace reactive_planners
 {
+
+enum contact{
+    right=0,
+    left=1,
+    double_support=2,
+    flight_r=3,
+    flight_l=4,
+};
 /**
  * @brief Implements the "Walking Control Based on Step Timing Adaptation" step
  * planner. The pdf can be found in https://arxiv.org/abs/1704.01271, and in the
@@ -83,8 +84,8 @@ public:
                   const double& t_max,
                   const double& l_p,
                   const double& ht,
-                  const double& t_f,
                   const double& omega,
+                  const double& t_s_nom,
                   const Eigen::Ref<const Eigen::Vector10d>& cost_weights_local);
 
     /**
@@ -110,8 +111,8 @@ public:
         const double& t_max,
         const double& l_p,
         const double& ht,
-        const double& t_f,
         const double& omega,
+        const double& t_s_nom,
         const Eigen::Ref<const Eigen::Vector10d>& cost_weights_local);
 
     /**
@@ -148,10 +149,7 @@ public:
                 const Eigen::Ref<const Eigen::Vector3d>& com,
                 const Eigen::Ref<const Eigen::Vector3d>& com_vel,
                 const pinocchio::SE3& world_M_base,
-                const double& new_t_min,
-                const double& omega,
-                const Eigen::Ref<const Eigen::Vector3d>& x_T_s,
-                const Eigen::Ref<const Eigen::Vector3d>& x_d_T_s);
+                const double& omega);
     /**
      * @brief Computes adapted step location for python3.
      *
@@ -185,10 +183,7 @@ public:
                 const Eigen::Ref<const Eigen::Vector3d>& com,
                 const Eigen::Ref<const Eigen::Vector3d>& com_vel,
                 const double& yaw,
-                const double& new_t_min,
-                const double& omega,
-                const Eigen::Ref<const Eigen::Vector3d>& x_T_s,
-                const Eigen::Ref<const Eigen::Vector3d>& x_d_T_s);
+                const double& omega);
 
     /**
      * @brief Solve the Quadratic program and extract the solution. Use
@@ -221,13 +216,23 @@ public:
      */
 
     /**
-     * @brief @copydoc DcmVrpPlanner::t_nom_
+     * @brief @copydoc DcmVrpPlanner::t_s_nom_
      *
      * @return const double&
      */
-    const double& get_t_nom() const
+    const double& get_t_s_nom() const
     {
-        return t_nom_;
+        return t_s_nom_;
+    }
+
+    /**
+     * @brief @copydoc DcmVrpPlanner::t_f_nom_
+     *
+     * @return const double&
+     */
+    const double& get_t_f_nom() const
+    {
+        return t_f_nom_;
     }
 
     /**
@@ -281,16 +286,6 @@ public:
     }
 
     /**
-     * @brief @copydoc DcmVrpPlanner::by_nom_
-     *
-     * @return const double&
-     */
-    const double& get_bz_nom() const
-    {
-        return bz_nom_;
-    }
-
-    /**
      * @brief @copydoc DcmVrpPlanner::world_M_local_
      *
      * @return const pinocchio::SE3&
@@ -332,16 +327,6 @@ public:
     Eigen::Ref<const Eigen::Vector3d> get_v_des_local() const
     {
         return v_des_local_;
-    }
-
-    /**
-     * @brief @copydoc DcmVrpPlanner::dcm_nominal_
-     *
-     * @return Eigen::Ref<const Eigen::Vector3d>
-     */
-    Eigen::Ref<const Eigen::Vector3d> get_dcm_nominal() const
-    {
-        return dcm_nominal_;
     }
 
     /*
@@ -395,13 +380,13 @@ public:
     }
 
     /**
-     * @brief Get the desired com height.
+     * @brief Get the desired com height at the start of step.
      *
      * @return const double&
      */
-    const double& get_com_height() const
+    const double& get_z_0() const
     {
-        return ht_;
+        return z_0_;
     }
 
     /**
@@ -425,11 +410,13 @@ public:
     }
 
     /**
-     * @brief Set omega
+     * @brief Set new motion
      *
      * @return const double&
      */
-    void set_omega(const double& omega);
+    void set_new_motion(const double& ht,
+                        const double& omega,
+                        const double& t_s_nom);
 
     /*
      * Private methods
@@ -497,7 +484,7 @@ private:
     double t_max_;
 
     /** @brief Nominal stance phase time. */
-    double t_nom_ = 0.1;
+    double t_s_nom_;
 
     /** @brief Nominal flight phase time. */
     double t_f_nom_;
@@ -526,8 +513,8 @@ private:
     /** @brief Default step width. */
     double l_p_;
 
-    /** @brief Average desired height of the com above the ground. */
-    double ht_;
+    /** @brief Desired height of the com at the start of step. */
+    double z_0_;
 
     /** @brief Natural frequency of the pendulum: \f$ \omega =
      * \sqrt{\frac{g}{z_0}} \f$. */
@@ -551,17 +538,18 @@ private:
     /** @brief Nominal DCM offset along the Y-axis. */
     double by_nom_;
 
-    /** @brief Nominal DCM offset along the Z-axis. */
-    double bz_nom_;
-
     /** @brief SE3 position of the robot base in the world frame. */
     pinocchio::SE3 world_M_local_;
 
     /** @brief Current DCM computed from the CoM estimation. */
     Eigen::Vector3d dcm_local_;
 
-    /** @brief Nominal DCM computed from the CoM estimation and nominal time. */
-    Eigen::Vector3d dcm_nominal_;
+    /** @brief Current velocity in local frame. */
+    Eigen::Vector3d com_local_;
+
+    /** @brief Current velocity in local frame. */
+    Eigen::Vector3d com_vel_local_;
+
 
     /** @brief Current DCM computed from the CoM estimation. */
     Eigen::Vector3d current_step_location_local_;
@@ -653,15 +641,12 @@ private:
      * @see DcmVrpPlanner::compute_adapted_step_locations. */
     Eigen::VectorXd B_ineq_;
 
-    double t_f_;
-
     double tmp0_, tmp1_;
 
-    Eigen::VectorXd tmp5_;
+    Eigen::Vector3d x_dot_t_s_;
 
     double w_max_local_, w_min_local_, by_max_, by_min_;
 
-    int solver_version_;
 };
 
 }  // namespace reactive_planners

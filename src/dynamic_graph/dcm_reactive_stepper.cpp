@@ -184,6 +184,7 @@ void DcmReactiveStepper::initialize(
     const double &t_max,
     const double &l_p,
     const double &com_height,
+    const double &t_s_nom,
     Eigen::Ref<const Eigen::Vector10d> cost_weights_local,
     const double &mid_air_foot_height,
     const double &control_period,
@@ -201,6 +202,7 @@ void DcmReactiveStepper::initialize(
                                      t_max,
                                      l_p,
                                      com_height,
+                                     t_s_nom,
                                      cost_weights_local,
                                      mid_air_foot_height,
                                      control_period,
@@ -557,13 +559,14 @@ void DcmReactiveStepper::initializeParamVector(
                params(6),               // t_max
                params(7),               // l_p
                params(8),               // com_height
-               params.segment<9>(9),    // Vector10d weight,
-               params(19),              // mid_air_foot_height,
-               params(20),              // control_period,
-               params(21),              // planner_loop,
-               params.segment<3>(22),   // Vector3d left_foot_position,
-               params.segment<3>(25),   // Vector3d right_foot_position,
-               params.segment<3>(28));  // Vector3d v_des
+               params(9),               // com_height
+               params.segment<9>(10),    // Vector10d weight,
+               params(20),              // mid_air_foot_height,
+               params(21),              // control_period,
+               params(22),              // planner_loop,
+               params.segment<3>(23),   // Vector3d left_foot_position,
+               params.segment<3>(26),   // Vector3d right_foot_position,
+               params.segment<3>(29));  // Vector3d v_des
 }
 
 DcmReactiveStepper::InitializeCommand::InitializeCommand(
@@ -571,6 +574,7 @@ DcmReactiveStepper::InitializeCommand::InitializeCommand(
     : dynamicgraph::command::Command(
           entity,
           boost::assign::list_of(dynamicgraph::command::Value::BOOL)(
+              dynamicgraph::command::Value::DOUBLE)(
               dynamicgraph::command::Value::DOUBLE)(
               dynamicgraph::command::Value::DOUBLE)(
               dynamicgraph::command::Value::DOUBLE)(
@@ -594,23 +598,24 @@ dynamicgraph::command::Value DcmReactiveStepper::InitializeCommand::doExecute()
 {
     DcmReactiveStepper &entity = static_cast<DcmReactiveStepper &>(owner());
     std::vector<dynamicgraph::command::Value> values = getParameterValues();
-
-    const bool &is_left_leg_in_contact = values[0].value();
-    const double &l_min = values[1].value();
-    const double &l_max = values[2].value();
-    const double &w_min = values[3].value();
-    const double &w_max = values[4].value();
-    const double &t_min = values[5].value();
-    const double &t_max = values[6].value();
-    const double &l_p = values[7].value();
-    const double &ht = values[8].value();
-    const Eigen::VectorXd &cost_weights_local = values[9].value();
-    const double &mid_air_foot_height = values[10].value();
-    const double &control_period = values[11].value();
-    const double &planner_loop = values[12].value();
-    const Eigen::VectorXd &left_foot_position = values[13].value();
-    const Eigen::VectorXd &right_foot_position = values[14].value();
-    const Eigen::VectorXd &v_des = values[15].value();
+    int counter = 0;
+    const bool &is_left_leg_in_contact = values[counter++].value();
+    const double &l_min = values[counter++].value();
+    const double &l_max = values[counter++].value();
+    const double &w_min = values[counter++].value();
+    const double &w_max = values[counter++].value();
+    const double &t_min = values[counter++].value();
+    const double &t_max = values[counter++].value();
+    const double &l_p = values[counter++].value();
+    const double &ht = values[counter++].value();
+    const double &t_s_nom = values[counter++].value();
+    const Eigen::VectorXd &cost_weights_local = values[counter++].value();
+    const double &mid_air_foot_height = values[counter++].value();
+    const double &control_period = values[counter++].value();
+    const double &planner_loop = values[counter++].value();
+    const Eigen::VectorXd &left_foot_position = values[counter++].value();
+    const Eigen::VectorXd &right_foot_position = values[counter++].value();
+    const Eigen::VectorXd &v_des = values[counter++].value();
 
     if (cost_weights_local.size() != 9)
     {
@@ -629,6 +634,7 @@ dynamicgraph::command::Value DcmReactiveStepper::InitializeCommand::doExecute()
                           t_max,
                           l_p,
                           ht,
+                          t_s_nom,
                           cost_weights_local,
                           mid_air_foot_height,
                           control_period,

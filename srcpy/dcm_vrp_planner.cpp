@@ -30,10 +30,7 @@ void bind_dcm_vrp_planner(pybind11::module &module)
                                       const Eigen::Ref<const Eigen::Vector3d> &,
                                       const Eigen::Ref<const Eigen::Vector3d> &,
                                       const pinocchio::SE3 &,
-                                      const double &,
-                                      const double &,
-                                      const Eigen::Ref<const Eigen::Vector3d> &,
-                                      const Eigen::Ref<const Eigen::Vector3d> &)) &
+                                      const double &)) &
                  DcmVrpPlanner::update)
         .def("update",
              (void (DcmVrpPlanner::*)(const Eigen::Ref<const Eigen::Vector3d> &,
@@ -43,14 +40,11 @@ void bind_dcm_vrp_planner(pybind11::module &module)
                                       const Eigen::Ref<const Eigen::Vector3d> &,
                                       const Eigen::Ref<const Eigen::Vector3d> &,
                                       const double &,
-                                      const double &,
-                                      const double &,
-                                      const Eigen::Ref<const Eigen::Vector3d> &,
-                                      const Eigen::Ref<const Eigen::Vector3d> &)) &
+                                      const double &)) &
                  DcmVrpPlanner::update)
 
         // getters
-        .def("get_t_nom", &DcmVrpPlanner::get_t_nom)
+        .def("get_t_s_nom", &DcmVrpPlanner::get_t_s_nom)
         .def("get_tau_nom", &DcmVrpPlanner::get_tau_nom)
         .def("get_l_nom", &DcmVrpPlanner::get_l_nom)
         .def("get_w_nom", &DcmVrpPlanner::get_w_nom)
@@ -61,7 +55,6 @@ void bind_dcm_vrp_planner(pybind11::module &module)
         .def("get_current_step_location_local",
              &DcmVrpPlanner::get_current_step_location_local)
         .def("get_v_des_local", &DcmVrpPlanner::get_v_des_local)
-        .def("get_dcm_nominal", &DcmVrpPlanner::get_dcm_nominal)
         .def("get_next_step_location", &DcmVrpPlanner::get_next_step_location)
         .def("get_duration_before_step_landing",
              &DcmVrpPlanner::get_duration_before_step_landing)
@@ -69,4 +62,10 @@ void bind_dcm_vrp_planner(pybind11::module &module)
         // String representation of the solver.
         .def("__repr__",
              [](const DcmVrpPlanner &planner) { return planner.to_string(); });
+
+
+    pybind11::enum_<contact>(module, "contact")
+            .value("flight_l", contact::flight_l)
+            .value("flight_r", contact::flight_r)
+            .export_values();
 }

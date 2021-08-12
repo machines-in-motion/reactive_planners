@@ -44,13 +44,12 @@ if __name__ == "__main__":
         t_max=t_max,
         l_p=l_p,
         com_height=x_com[2][0],
-        weight=[1, 1, 5, 1000, 1000, 100000, 100000, 100000, 100000],
+        weight=[1, 1, 5, 1000, 1000, 5, 100000, 100000, 100000, 100000],
         mid_air_foot_height=0.05,
         control_period=0.001,
         previous_support_foot=swing_foot,
         current_support_foot=support_foot,
     )
-    dcm_reactive_stepper.set_end_eff_traj_costs(1e1, 1e1, 1e0, 1e-6)
     v_des = np.zeros((3, 1))
     v_des[:] = [[0.0], [0.0], [0.0]]
     dcm_reactive_stepper.set_des_com_vel(v_des)
@@ -80,7 +79,7 @@ if __name__ == "__main__":
 
     for i in range(3265):
         dcm_reactive_stepper.run(
-            time, swing_foot, support_foot, x_com, xd_com, 0, contact
+            time, swing_foot, support_foot, x_com, xd_com, 0
         )
         # if i == 760:
         #     xd_com[1] = xd_com[1] - 0.2

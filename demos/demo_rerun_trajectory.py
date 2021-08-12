@@ -44,7 +44,9 @@ if __name__ == "__main__":
 
     for t in tau:
         # print(np.array(t))
+        q, qdot = robot.get_state()
         print([Decimal(i) for i in t])
         robot.send_joint_command(np.around(t, decimals=6))
         p.stepSimulation()
-        time.sleep(0.001)
+        print(q, qdot)
+        time.sleep(0.0001)

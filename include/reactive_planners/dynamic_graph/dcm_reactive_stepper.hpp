@@ -50,6 +50,7 @@ public:
                     const double &t_max,
                     const double &l_p,
                     const double &com_height,
+                    const double &t_s_nom,
                     Eigen::Ref<const Eigen::Vector10d> cost_weights_local,
                     const double &mid_air_foot_height,
                     const double &control_period,

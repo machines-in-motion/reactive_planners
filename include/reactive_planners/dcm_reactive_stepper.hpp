@@ -58,6 +58,7 @@ public:
         const double &t_max,
         const double &l_p,
         const double &com_height,
+        const double &t_s_nom,
         const Eigen::Vector10d &weight,
         const double &mid_air_foot_height,
         const double &control_period,
@@ -187,13 +188,16 @@ public:
     }
 
     /**
-     * @brief Set omega
+     * @brief Set new motion
      *
      * @return const double&
      */
-    void set_omega(const double& omega){
+    void set_new_motion(const double& z_0,
+                   const double& omega,
+                   const double& t_s_nom){
+        com_0_[2] = z_0;
         omega_ = omega;
-        dcm_vrp_planner_.set_omega(omega_);
+        dcm_vrp_planner_.set_new_motion(z_0, omega, t_s_nom);
     };
 
 
@@ -221,10 +225,11 @@ public:
                                         const double &t_max,
                                         const double &l_p,
                                         const double &com_height,
+                                        const double & t_s_nom,
                                         const Eigen::Vector10d &weight)
     {
         dcm_vrp_planner_.initialize(
-            l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, flying_phase_duration_, omega_, weight);
+            l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, omega_, t_s_nom, weight);
     }
 
     /*
@@ -678,16 +683,13 @@ private:
     /** @brief Omega. */
     double omega_;
 
+    /** @brief Desired height of the com at the start of step. */
+    double com_0;
+
     /** @brief DCM offset. */
     Eigen::Vector3d b_;
 
-    Eigen::Vector3d x_T_s_;
-
-    Eigen::Vector3d x_d_T_s_;
-
-    Eigen::Vector3d x_dd_T_s_;
-
-    Eigen::Vector3d com;
+    Eigen::Vector3d com_0_;
 
     Eigen::Vector3d vcom;
 
@@ -698,7 +700,6 @@ private:
     Eigen::Vector3d last_com_velocity_during_stance_;
     pinocchio::SE3 last_local_frame_during_stance_;
 
-    int solver_version_;
 
 
 };

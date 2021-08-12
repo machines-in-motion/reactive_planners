@@ -13,6 +13,14 @@ from reactive_planners_cpp import (
     DcmVrpPlanner,
     EndEffectorTrajectory3D,
 )
+from enum import Enum
+
+class contact(Enum):
+    right = 0
+    left = 1
+    double_support = 2
+    flight_r = 3
+    flight_l = 4
 
 
 class DcmReactiveStepper(object):
@@ -55,11 +63,8 @@ class DcmReactiveStepper(object):
         self.t_s = 0.1
         self.omega = 10.18
         self.dcm_vrp_planner.initialize(
-            l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, self.t_f, self.omega, weight
+            l_min, l_max, w_min, w_max, t_min, t_max, l_p, com_height, self.omega, self.t_s, weight,
         )
-        # Create the end-effector trajecotry generator.
-        self.end_eff_traj3d = EndEffectorTrajectory3D()
-        self.end_eff_traj3d.set_mid_air_height(mid_air_foot_height)
 
         # Parameters
         self.is_left_leg_in_contact = is_left_leg_in_contact
@@ -98,7 +103,6 @@ class DcmReactiveStepper(object):
         com_position,
         com_velocity,
         base_yaw,
-        contact,
     ):
         if current_support_foot_position is not None:
             self.stepper_head.set_support_feet_pos(
@@ -126,18 +130,16 @@ class DcmReactiveStepper(object):
         x_t_s = com_position
         x_d_t_s = com_velocity
         if self.time_from_last_step_touchdown <= self.duration_before_step_landing:
+            print(self.dcm_vrp_planner.flight_l)
             self.dcm_vrp_planner.update(
                 self.stepper_head.get_current_support_location(),
                 self.stepper_head.get_time_from_last_step_touchdown(),
-                self.stepper_head.get_is_left_leg_in_contact(),
+                self.dcm_vrp_planner.flight_l,#(self.stepper_head.get_is_left_leg_in_contact())
                 self.des_com_vel,
                 com_position,
                 com_velocity,
                 base_yaw,
-                new_t_min,
-                self.omega,
-                x_t_s,
-                x_d_t_s
+                self.omega
             )
             assert self.dcm_vrp_planner.solve()
 
