@@ -16,11 +16,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 #
-# Local include module.
-#
-include(cmake/boost_python.cmake)
-
-#
 # Dependencies.
 #
 
@@ -35,6 +30,7 @@ find_package(eigen-quadprog REQUIRED)
 find_package(pinocchio REQUIRED)
 find_package(pybind11 REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(Python ${PYTHON_VERSION_STRING} REQUIRED)
 # Specific search of boost python as it is yet not trivial.
 search_for_boost_python()
 
