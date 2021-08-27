@@ -16,6 +16,7 @@ from reactive_planners_cpp import DcmReactiveStepper
 import pinocchio as se3
 from scipy.spatial.transform import Rotation as R
 from bullet_utils.env import BulletEnvWithGround
+import time as Time
 
 
 def zero_cnt_gain(kp, cnt_array):
@@ -35,7 +36,7 @@ def yaw(q):
 if __name__ == "__main__":
     # Create a robot instance. This initializes the simulator as well.
     env = BulletEnvWithGround()
-    robot = env.add_robot(BoltRobot)
+    robot = env.add_robot(BoltRobot())
     tau = np.zeros(6)
 
     time = 0
@@ -65,7 +66,7 @@ if __name__ == "__main__":
     kp = np.array([150.0, 150.0, 150.0, 150.0, 150.0, 150.0])
     kd = [5.0, 5.0, 5.0, 5.0, 5.0, 5.0]
     robot_config = BoltConfig()
-    config_file = robot_config.paths["imp_ctrl_yaml"]
+    config_file = robot_config.ctrl_path
     bolt_leg_ctrl = RobotImpedanceController(robot, config_file)
     centr_controller = RobotCentroidalController(
         robot_config,
