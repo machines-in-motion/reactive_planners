@@ -30,8 +30,8 @@ Then follow the instructions below:
 # install treep and colcon
 pip install -U treep colcon-common-extensions
 # change directory to your devel folder
-mkdir ~/devel
-cd ~/devel
+mkdir devel
+cd devel
 # Clone the treep configuration
 git clone https://github.com/machines-in-motion/treep_machines_in_motion.git
 # Clone the code base
@@ -47,6 +47,11 @@ source install/setup.bash
 
 This package contains the implementation of the algorithms depicted in:
 
-- Khadiv, Majid, Alexander Herzog, S. Ali A. Moosavian and Ludovic Righetti.
+
+- Elham Daneshmand, Majid Khadiv , Felix Grimminger and Ludovic Righetti.
+  “Variable Horizon MPC With Swing Foot Dynamicsfor Bipedal Walking Control.”,
+  https://arxiv.org/abs/2010.08198 (2021)
+
+- Majid Khadiv, Alexander Herzog, S. Ali A. Moosavian and Ludovic Righetti.
   “A robust walking controller based on online step location and duration
   optimization for bipedal locomotion.”, https://arxiv.org/abs/1704.01271 (2017)
