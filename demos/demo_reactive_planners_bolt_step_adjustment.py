@@ -16,7 +16,6 @@ from reactive_planners_cpp import DcmReactiveStepper
 import pinocchio as se3
 from scipy.spatial.transform import Rotation as R
 from bullet_utils.env import BulletEnvWithGround
-import time as Time
 
 
 def zero_cnt_gain(kp, cnt_array):
