@@ -502,7 +502,7 @@ def external_force(com):
 if __name__ == "__main__":
     # Create a robot instance. This initializes the simulator as well.
     env = BulletEnvWithGround()
-    robot = env.add_robot(BoltRobot)
+    robot = env.add_robot(BoltRobot())
     tau = np.zeros(6)
     p.resetDebugVisualizerCamera(1.6, 50, -35, (0.0, 0.0, 0.0))
     p.setTimeStep(0.0001)
@@ -546,7 +546,7 @@ if __name__ == "__main__":
     x_ori = [0.0, 0.0, 0.0, 1.0]
     x_angvel = [0.0, 0.0, 0]
     robot_config = BoltConfig()
-    config_file = robot_config.paths["imp_ctrl_yaml"]
+    config_file = robot_config.ctrl_path
     bolt_leg_ctrl = RobotImpedanceController(robot, config_file)
     centr_controller = RobotCentroidalController(
         robot_config,
@@ -607,7 +607,6 @@ if __name__ == "__main__":
         planner_loop,
         x_des_local[:3],
         x_des_local[3:],
-        v_des,
     )
 
     dcm_reactive_stepper.set_desired_com_velocity(v_des)
@@ -670,7 +669,7 @@ if __name__ == "__main__":
     plt_eq_fifteen = []
     plt_F_M = []
     dcm_force = [0.0, 0.0, 0.0]
-    offset = 0.0171
+    offset = 0.025
     dcm_reactive_stepper.start()
     inv_kin = OperationalSpaceDynamics(
         robot.pin_robot.model, robot.end_effector_names
