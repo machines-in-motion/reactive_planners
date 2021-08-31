@@ -53,6 +53,11 @@ jobs:
           projects_or_repos: |
             REACTIVE_PLANNERS
 
+      # pip dependencies.
+      - name: "pip install"
+        shell: bash
+        run: |
+          python3.6 -m pip install -U xacro
       #
       # Build and test the current package.
       #
