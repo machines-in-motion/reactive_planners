@@ -1,29 +1,27 @@
+[![CodeFactor](https://www.codefactor.io/repository/github/machines-in-motion/reactive_planners/badge/master?s=2265cf35a56607421790341030c3b894f59b1c28)](https://www.codefactor.io/repository/github/machines-in-motion/reactive_planners/overview/master)
+
 Readme
 ------
 
-### What is it
-
 Contains a list of reactive planners specialized in locomotion of legged robots.
 
-### Authors
+### Installation
 
-- Avadesh Meduri
-- Julian Viereck
-- Majid Kadhiv
-- Maximilien Naveau
-- Elham Daneshmand
+#### Standard dependencies
 
-### Copyrights
+*Here all the pip and apt install-able stuff*
 
-Copyright (c) 2020, New York University and Max Planck Gesellschaft.
-
-### Getting started
+#### Download the package
 
 Install
 [treep](https://gitlab.is.tue.mpg.de/amd-clmc/treep)
 and
 [colcon](https://github.com/machines-in-motion/machines-in-motion.github.io/wiki/use_colcon)
 .
+
+
+#### Build the package
+
 
 Then follow the instructions below:
 ```bash
@@ -43,10 +41,19 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 source install/setup.bash
 ```
 
+### Usage
+
+#### Demos/Examples
+
+To run Bolt walking in simulation:
+ `python3 src/reactive_planners/demos/demo_reactive_planners_bolt_step_adjustment.py`
+
+To run Solo12 walking in simulation:
+ `python3 src/reactive_planners/demos/demo_dgh_sim_solo12_step_adjustment.py`
+
 ### Reference
 
 This package contains the implementation of the algorithms depicted in:
-
 
 - Elham Daneshmand, Majid Khadiv , Felix Grimminger and Ludovic Righetti.
   “Variable Horizon MPC With Swing Foot Dynamicsfor Bipedal Walking Control.”,
@@ -55,3 +62,8 @@ This package contains the implementation of the algorithms depicted in:
 - Majid Khadiv, Alexander Herzog, S. Ali A. Moosavian and Ludovic Righetti.
   “A robust walking controller based on online step location and duration
   optimization for bipedal locomotion.”, https://arxiv.org/abs/1704.01271 (2017)
+
+### License and Copyrights
+
+License BSD-3-Clause
+Copyright (c) 2020, New York University and Max Planck Gesellschaft.
