@@ -25,18 +25,14 @@ jobs:
       # Setup the machines and build environment
       #
       - name: Setup Ubuntu18.04.
-        uses: machines-in-motion/mim_github_actions/setup_ubuntu18_04@main
+        uses: Lhumd/mim_github_actions/setup_ubuntu18_04@edaneshmand/update_action
 
-
-      # pip dependencies.
-      - name: "pip install"
-        shell: bash
-        
-        run: |
-          python3.6 -m pip install -U \
-          pybullet \
-          xacro
-
+      #
+      # Setup the machines and build environment
+      #
+      - name: Setup laas packages.
+        uses: Lhumd/mim_github_actions/setup_laas_packages@edaneshmand/update_action
+      
       #
       # Checkout the current package locally
       #
