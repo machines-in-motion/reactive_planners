@@ -52,7 +52,7 @@ jobs:
       #
       - name: Clone dependencies and build them.
         id: clone_and_build_dep
-        uses: machines-in-motion/mim_github_actions/treep_clone_and_build@main
+        uses: Lhumd/mim_github_actions/treep_clone_and_build@edaneshmand/update_action
         with:
           treep_configurations: |
             git@github.com:machines-in-motion/treep_machines_in_motion.git
