@@ -32,6 +32,9 @@ find_package(pybind11 REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Python ${PYTHON_VERSION_STRING} REQUIRED)
 # Specific search of boost python as it is yet not trivial.
+if(NOT ${Python_FOUND})
+  message(FATAL_ERROR "PYTHON not FOUND by FindPython")
+endif()
 search_for_boost_python()
 
 # Optionnal
