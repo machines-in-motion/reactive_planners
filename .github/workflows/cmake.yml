@@ -65,6 +65,7 @@ jobs:
       - name: Build and run CTest.
         shell: bash
         run: |
+          source /opt/openrobots/setup.bash
           mkdir -p $BUILD_FOLDER
           cd $BUILD_FOLDER
           echo Source environment.
