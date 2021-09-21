@@ -26,13 +26,13 @@ jobs:
       # Setup the machines and build environment
       #
       - name: Setup Ubuntu18.04.
-        uses: Lhumd/mim_github_actions/setup_ubuntu18_04@edaneshmand/update_action
+        uses: machines-in-motion/mim_github_actions/setup_ubuntu18_04@main
 
       #
       # Setup the machines and build environment
       #
       - name: Setup laas packages.
-        uses: Lhumd/mim_github_actions/setup_laas_packages@edaneshmand/update_action
+        uses: machines-in-motion/mim_github_actions/setup_laas_packages@main
       
       #
       # Checkout the current package locally
@@ -53,7 +53,7 @@ jobs:
       #
       - name: Clone dependencies and build them.
         id: clone_and_build_dep
-        uses: Lhumd/mim_github_actions/treep_clone_and_build@edaneshmand/update_action
+        uses: machines-in-motion/mim_github_actions/treep_clone_and_build@main
         with:
           treep_configurations: |
             git@github.com:machines-in-motion/treep_machines_in_motion.git
