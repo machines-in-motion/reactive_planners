@@ -1,0 +1,76 @@
+name: CMake
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  BUILD_TYPE: Release
+  BUILD_FOLDER: ${{github.workspace}}/../build
+  DEVEL_FOLDER: ${{github.workspace}}/../devel
+
+jobs:
+  build-linux:
+    # The CMake configure and build commands are platform agnostic and should work equally
+    # well on Windows or Mac.  You can convert this to a matrix build if you need
+    # cross-platform coverage.
+    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        build_type: [Release, Debug]
+    steps:
+      #
+      # Setup the machines and build environment
+      #
+      - name: Setup Ubuntu18.04.
+        uses: machines-in-motion/mim_github_actions/setup_ubuntu18_04@main
+
+      #
+      # Setup the machines and build environment
+      #
+      - name: Setup laas packages.
+        uses: machines-in-motion/mim_github_actions/setup_laas_packages@main
+      
+      #
+      # Checkout the current package locally
+      #
+      - name: Checkout current repo.
+        uses: actions/checkout@v2
+
+      #
+      # Activate the secret ssh key
+      #
+      - name: Spawn ssh-agent
+        uses: webfactory/ssh-agent@v0.5.2
+        with:
+          ssh-private-key: ${{ secrets.GA_SSH_PRIVATE_KEY }}
+
+      #
+      # Clone the dependencies that needs to be built.
+      #
+      - name: Clone dependencies and build them.
+        id: clone_and_build_dep
+        uses: machines-in-motion/mim_github_actions/treep_clone_and_build@main
+        with:
+          treep_configurations: |
+            git@github.com:machines-in-motion/treep_machines_in_motion.git
+          projects_or_repos: |
+            REACTIVE_PLANNERS_DEPENDENCIES
+
+      #
+      # Build and test the current package.
+      #
+      - name: Build and run CTest.
+        shell: bash
+        run: |
+          source /opt/openrobots/setup.bash
+          mkdir -p $BUILD_FOLDER
+          cd $BUILD_FOLDER
+          echo Source environment.
+          source ${{ steps.clone_and_build_dep.outputs.setup_file }}
+          cmake ${{github.workspace}} -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -DGENERATE_DOCUMENTATION=ON
+          cmake --build . --config ${{matrix.build_type}}
+          env CTEST_OUTPUT_ON_FAILURE=1 ctest -C $BUILD_TYPE
