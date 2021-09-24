@@ -3,7 +3,7 @@
 Readme
 ------
 
-Contains a list of reactive planners specialized in locomotion of legged robots.
+Contains a list of reactive planners specialized in locomotion of legged robots. The reactive planner adapts the step location and timing of the gait based on feedbck from the CoM states and sends the desired swing foot trajectories to an instantanous controller for tracking.
 
 ### Installation
 
@@ -57,11 +57,13 @@ This package contains the implementation of the algorithms depicted in:
 
 - Elham Daneshmand, Majid Khadiv , Felix Grimminger and Ludovic Righetti.
   “Variable Horizon MPC With Swing Foot Dynamicsfor Bipedal Walking Control.”,
+  IEEE Robotics and Automation Letters, 6(2).
   https://arxiv.org/abs/2010.08198 (2021)
 
 - Majid Khadiv, Alexander Herzog, S. Ali A. Moosavian and Ludovic Righetti.
-  “A robust walking controller based on online step location and duration
-  optimization for bipedal locomotion.”, https://arxiv.org/abs/1704.01271 (2017)
+  “Walking Control Based on Step Timing Adaptation.”,
+  IEEE Transactions on Robotics, 36(3).
+  https://arxiv.org/abs/1704.01271 (2020)
 
 ### License and Copyrights
 
