@@ -12,21 +12,24 @@ env:
   DEVEL_FOLDER: ${{github.workspace}}/../devel
 
 jobs:
-  build-linux:
+  build:
     # The CMake configure and build commands are platform agnostic and should work equally
     # well on Windows or Mac.  You can convert this to a matrix build if you need
     # cross-platform coverage.
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    runs-on: ubuntu-18.04
+    runs-on: ${{ matrix.os }}
+
     strategy:
-      matrix:
-        build_type: [Release, Debug]
+        matrix:
+            os: [ubuntu-18.04, ubuntu-20.04]#macos-latest
+            build_type: [Release, Debug]
+            
     steps:
       #
       # Setup the machines and build environment
       #
-      - name: Setup Ubuntu18.04.
-        uses: machines-in-motion/mim_github_actions/setup_ubuntu18_04@main
+      - name: Setup ${{ matrix.os }}.
+        uses: machines-in-motion/mim_github_actions/setup_${{ matrix.os }}@main
 
       #
       # Setup the machines and build environment
