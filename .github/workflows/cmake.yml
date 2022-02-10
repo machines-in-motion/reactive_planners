@@ -24,8 +24,16 @@ jobs:
       #
       # Setup the machines and build environment
       #
-      - name: Setup ${{ matrix.os }}.
-        uses: machines-in-motion/mim_github_actions/setup_${{ matrix.os }}@main
+      - name: Setup ${{ matrix.os }}.             
+        uses: |
+              if [ "$RUNNER_OS" == "ubuntu-18.04" ]; then
+                   machines-in-motion/mim_github_actions/setup_ubuntu-18.04@main
+              elif [ "$RUNNER_OS" == "ubuntu-20.04" ]; then
+                   machines-in-motion/mim_github_actions/setup_ubuntu-20.04@main
+              else
+                   echo "$RUNNER_OS not supported"
+                   exit 1
+              fi
 
       #
       # Setup the machines and build environment
