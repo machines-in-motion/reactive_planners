@@ -24,16 +24,13 @@ jobs:
       #
       # Setup the machines and build environment
       #
-      - name: Setup ${{ matrix.os }}.             
-        run: |
-              if [ ${{ matrix.os }} == ubuntu-18.04 ]; then
-                   uses: machines-in-motion/mim_github_actions/setup_ubuntu-18.04@main
-              elif [ ${{ matrix.os }} == ubuntu-20.04 ]; then
-                   uses: machines-in-motion/mim_github_actions/setup_ubuntu-20.04@main
-              else
-                   echo "$RUNNER_OS not supported"
-                   exit 1
-              fi
+      - name: Setup ubuntu-18.04 
+        uses: machines-in-motion/mim_github_actions/setup_ubuntu-18.04@main
+        if: ${{ matrix.os }} == "ubuntu-18.04"
+        
+      - name: Setup ubuntu-20.04 
+        uses: machines-in-motion/mim_github_actions/setup_ubuntu-20.04@main
+        if: ${{ matrix.os }} == "ubuntu-20.04"
 
       #
       # Setup the machines and build environment
