@@ -25,20 +25,12 @@ jobs:
       # Setup the machines and build environment
       #
       - name: Setup ubuntu-18.04 
-        uses: machines-in-motion/mim_github_actions/setup_ubuntu-18.04@main
-#         if: ${{ matrix.os }} == "ubuntu-18.04"
+        uses: machines-in-motion/mim_github_actions/setup_ubuntu18_04@main
+        if: ${{ matrix.os }} == "ubuntu-18.04"
         
-#       - name: test
-#         run: echo 1
-#         if: ${{ matrix.os }} == "ubuntu-18.04"
-        
-#       - name: Setup ubuntu-20.04 
-#         uses: machines-in-motion/mim_github_actions/setup_ubuntu-20.04@main
-#         if: ${{ matrix.os }} == "ubuntu-20.04"
-        
-#       - name: test
-#         run: echo 2
-#         if: ${{ matrix.os }} == "ubuntu-20.04"
+      - name: Setup ubuntu-20.04 
+        uses: machines-in-motion/mim_github_actions/setup_ubuntu20_04@main
+        if: ${{ matrix.os }} == "ubuntu-20.04"
 
       #
       # Setup the machines and build environment
