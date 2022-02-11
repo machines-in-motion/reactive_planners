@@ -26,9 +26,9 @@ jobs:
       #
       - name: Setup ${{ matrix.os }}.             
         run: |
-              if [ "$RUNNER_OS" == "ubuntu-18.04" ]; then
+              if [ matrix.os == "ubuntu-18.04" ]; then
                    uses: machines-in-motion/mim_github_actions/setup_ubuntu-18.04@main
-              elif [ "$RUNNER_OS" == "ubuntu-20.04" ]; then
+              elif [ matrix.os == "ubuntu-20.04" ]; then
                    uses: machines-in-motion/mim_github_actions/setup_ubuntu-20.04@main
               else
                    echo "$RUNNER_OS not supported"
