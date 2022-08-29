@@ -13,7 +13,6 @@
 #include <iostream>
 
 #include "reactive_planners/dcm_vrp_planner.hpp"
-#include "reactive_planners/dynamically_consistent_end_effector_trajectory.hpp"
 #include "reactive_planners/polynomial_end_effector_trajectory.hpp"
 #include "reactive_planners/stepper_head.hpp"
 #include "reactive_planners/com_planner.hpp"
@@ -197,6 +196,7 @@ public:
                    const double& t_s_nom){
         com_0_[2] = z_0;
         omega_ = omega;
+        stance_phase_duration_ = t_s_nom;
         dcm_vrp_planner_.set_new_motion(z_0, omega, t_s_nom);
     };
 
@@ -342,9 +342,9 @@ public:
      *
      * @return const double&
      */
-    const double &get_step_duration() const
+    const double &get_duration_of_stance_phase() const
     {
-        return step_duration_;
+        return duration_of_stance_phase_;
     }
 
     /**
@@ -425,6 +425,16 @@ public:
     Eigen::Ref<const Eigen::Vector3d> get_dcm() const
     {
         return dcm_;
+    }
+
+    /**
+     * @brief Get dcm_offset.
+     *
+     * @return Eigen::Ref<const Eigen::Vector3d>
+     */
+    Eigen::Ref<const Eigen::Vector3d> get_dcm_offset() const
+    {
+        return dcm_offset_;
     }
 
     /**
@@ -557,22 +567,11 @@ private:
     /** @brief Set it to one if you want use the article's trajectory. */
     bool is_polynomial_;
 
-    /** @brief Computes the end-effector flying trajectory
-     * based on the PolynomialEndEffectorTrajectory. */
-    PolynomialEndEffectorTrajectory polynomial_end_eff_trajectory_;
-
-    /** @brief Computes the end-effector flying trajectory
-     * based on the DynamicallyConsistentEndEffectorTrajectory. */
-    DynamicallyConsistentEndEffectorTrajectory
-        dynamically_consistent_end_eff_trajectory_;
-
-    DynamicallyConsistentEndEffectorTrajectory swing_end_eff_traj3d_;
-
     /** @brief Is the left foot in contact? otherwise the right foot is. */
     bool is_left_leg_in_contact_;
 
-    /** @brief Duration from the last foot touchdown until the next. */
-    double step_duration_;
+    /** @brief Duration from the last foot touchdown until the end of stance phase. */
+    double duration_of_stance_phase_;
 
     /** @brief Time from the last foot touchdown. */
     double time_from_last_step_touchdown_;
@@ -699,9 +698,10 @@ private:
     Eigen::Vector3d last_com_position_during_stance_;
     Eigen::Vector3d last_com_velocity_during_stance_;
     pinocchio::SE3 last_local_frame_during_stance_;
+    Eigen::Vector3d last_kesay_;
 
-
-
+    /** @brief The gravity. */
+    double g_;
 };
 
 }  // namespace reactive_planners

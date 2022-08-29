@@ -82,7 +82,7 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
              &DcmReactiveStepper::get_current_support_foot_position)
         .def("get_next_support_foot_position",
              &DcmReactiveStepper::get_next_support_foot_position)
-        .def("get_step_duration", &DcmReactiveStepper::get_step_duration)
+        .def("get_duration_of_stance_phase", &DcmReactiveStepper::get_duration_of_stance_phase)
         .def("get_time_from_last_step_touchdown",
              &DcmReactiveStepper::get_time_from_last_step_touchdown)
         .def("get_duration_of_flight_phase",
@@ -95,6 +95,8 @@ void bind_dcm_reactive_stepper(pybind11::module &module)
         // Setters
         .def("set_desired_com_velocity",
              &DcmReactiveStepper::set_desired_com_velocity)
+        .def("get_dcm_offset",
+             &DcmReactiveStepper::get_dcm_offset)
         .def("get_com",
              &DcmReactiveStepper::get_com)
         .def("get_v_com",

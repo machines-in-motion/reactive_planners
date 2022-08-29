@@ -19,12 +19,12 @@ StepperHead::StepperHead()
     duration_before_foot_landing_ = 0.0;
     next_support_location_.setZero();
     current_time_ = 0.0;
-    contact_<< 1, 1;
     dcm_offset_nom_ = 0.2;
 
     // outputs
     time_from_last_step_touchdown_ = 0.0;
     is_left_leg_in_contact_ = true;
+    contact_ << is_left_leg_in_contact_, !is_left_leg_in_contact_;
     previous_support_location_.setZero();
     current_support_location_.setZero();
 
@@ -39,6 +39,7 @@ void StepperHead::run(const double& duration_stance_phase,
                       const Eigen::Vector3d& next_support_location,
                       const double& current_time)
 {
+    std::cout << "StepperHead RUN" << contact_ << std::endl;
     // copy the argument
     duration_stance_phase_ = duration_stance_phase;
     duration_flight_phase_ = duration_flight_phase;
@@ -48,12 +49,14 @@ void StepperHead::run(const double& duration_stance_phase,
     // Compute the time_from_last_step_touchdown_
     time_from_last_step_touchdown_ = current_time_ - time_support_switch_;
     contact_ << is_left_leg_in_contact_, !is_left_leg_in_contact_;
-    if(time_from_last_step_touchdown_ > duration_stance_phase_){
+    if(time_from_last_step_touchdown_ - B_EPSILON > duration_stance_phase_){
         contact_<< 0, 0;
     }
 
-    if (time_from_last_step_touchdown_ + 0.0001  >= duration_flight_phase_ + duration_stance_phase_)
+    if (time_from_last_step_touchdown_ - B_EPSILON  >= duration_flight_phase_ + duration_stance_phase_)
     {
+        std::cout << "START OF STANCE PHASE " << time_from_last_step_touchdown_ << "-" <<
+                     B_EPSILON  << ">=" << duration_flight_phase_ << "+" << duration_stance_phase_ << std::endl;
         // Switch the contact phase.
         is_left_leg_in_contact_ = !is_left_leg_in_contact_;
         time_support_switch_ = current_time;

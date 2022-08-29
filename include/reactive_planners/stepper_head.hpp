@@ -11,6 +11,7 @@
 
 #include "Eigen/Eigen"
 #define EPSILON 1e-9
+#define B_EPSILON 1e-6
 
 namespace reactive_planners
 {
@@ -27,6 +28,12 @@ public:
     /** @brief Construct a new StepperHead object with simple default
      * parameters. Please call init() in order to setup this class properly. */
     StepperHead();
+
+    void set_is_left_leg_in_contact(const bool& is_left_leg_in_contact)
+    {
+        is_left_leg_in_contact_ = is_left_leg_in_contact;
+        contact_ << is_left_leg_in_contact_, !is_left_leg_in_contact_;
+    }
 
     void set_dcm_offset_nom(const double& dcm_offset_nom)
     {

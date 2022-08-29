@@ -193,7 +193,7 @@ public:
         next_support_foot_position_sout_;
 
     /** @brief Current step duration. */
-    dynamicgraph::SignalTimeDependent<double, int> step_duration_sout_;
+    dynamicgraph::SignalTimeDependent<double, int> duration_of_stance_phase_sout_;
 
     /** @brief Time elapsed from the last step touchdown. */
     dynamicgraph::SignalTimeDependent<double, int>
@@ -393,13 +393,13 @@ protected:
                                                      int time);
 
     /**
-     * @brief Callback of the step_duration_sout_ signal.
+     * @brief Callback of the duration_of_stance_phase_sout_ signal.
      *
      * @param s
      * @param time
      * @return double&
      */
-    double &step_duration(double &s, int time);
+    double &duration_of_stance_phase(double &s, int time);
 
     /**
      * @brief Callback of the time_from_last_step_touchdown_sout_ signal.

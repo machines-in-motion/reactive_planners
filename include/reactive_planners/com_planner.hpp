@@ -86,6 +86,9 @@ class ComPlanner {
         /** @brief The r_vrp_current_step. */
         Eigen::Vector3d r_vrp_current_step_;
 
+        /** @brief The gravity. */
+        double g_;
+
 };
 
 }  // namespace reactive_planners

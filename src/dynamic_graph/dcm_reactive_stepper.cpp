@@ -102,8 +102,9 @@ DcmReactiveStepper::DcmReactiveStepper(const std::string &name)
       define_output_signal(next_support_foot_position_sout_,
                            "Vector3d",
                            &DcmReactiveStepper::next_support_foot_position),
-      define_output_signal(
-          step_duration_sout_, "double", &DcmReactiveStepper::step_duration),
+      define_output_signal(duration_of_stance_phase_sout_,
+                           "double",
+                           &DcmReactiveStepper::duration_of_stance_phase),
       define_output_signal(time_from_last_step_touchdown_sout_,
                            "double",
                            &DcmReactiveStepper::time_from_last_step_touchdown),
@@ -150,7 +151,7 @@ DcmReactiveStepper::DcmReactiveStepper(const std::string &name)
         << local_left_foot_velocity_sout_ << feasible_com_velocity_sout_
         << previous_support_foot_position_sout_
         << current_support_foot_position_sout_
-        << next_support_foot_position_sout_ << step_duration_sout_
+        << next_support_foot_position_sout_ << duration_of_stance_phase_sout_
         << time_from_last_step_touchdown_sout_ << flying_foot_position_sout_
         << is_left_leg_in_contact_sout_ << has_solution_sout_ << inner_sout_
         << dcm_sout_ << force_sout_);
@@ -240,12 +241,12 @@ bool &DcmReactiveStepper::inner(bool &s, int time)
     last_yaw_ = base_yaw(5);
     //    std::cout << dcm_reactive_stepper_.get_time_from_last_step_touchdown()
     //    << " + " << control_period_ + 0.0000001 << " > " <<
-    //    dcm_reactive_stepper_.get_step_duration() << std::endl;
+    //    dcm_reactive_stepper_.get_duration_of_stance_phase() << std::endl;
     //    std::cout << time_from_double_support_started_ << " < " <<
     //    double_support_time_ << std::endl;
     if (dcm_reactive_stepper_.get_time_from_last_step_touchdown() +
                 control_period_ + 0.0000001 >
-            dcm_reactive_stepper_.get_step_duration() &&
+            dcm_reactive_stepper_.get_duration_of_stance_phase() &&
         time_from_double_support_started_ < double_support_time_)
     {
         //        std::cout << "DOUBLESUPPORT\n";
@@ -253,7 +254,7 @@ bool &DcmReactiveStepper::inner(bool &s, int time)
         //        std::cout <<
         //        (dcm_reactive_stepper_.get_time_from_last_step_touchdown() +
         //        control_period_ + 0.0000001 >
-        //        dcm_reactive_stepper_.get_step_duration()) << std::endl;
+        //        dcm_reactive_stepper_.get_duration_of_stance_phase()) << std::endl;
         //        std::cout << (time_from_double_support_started_ <
         //        double_support_time_) << std::endl;
         time_from_double_support_started_ += control_period_;
@@ -477,11 +478,11 @@ dynamicgraph::Vector &DcmReactiveStepper::next_support_foot_position(
     return s;
 }
 
-double &DcmReactiveStepper::step_duration(double &s, int time)
+double &DcmReactiveStepper::duration_of_stance_phase(double &s, int time)
 {
     inner_sout_.access(time);
     start_stop_mutex_.lock();
-    s = dcm_reactive_stepper_.get_step_duration();
+    s = dcm_reactive_stepper_.get_duration_of_stance_phase();
     start_stop_mutex_.unlock();
     return s;
 }

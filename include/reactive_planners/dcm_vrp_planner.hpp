@@ -188,7 +188,7 @@ public:
     /**
      * @brief Solve the Quadratic program and extract the solution. Use
      * DcmVrpPlanner::get_next_step_location() and
-     * DcmVrpPlanner::get_duration_before_step_landing() to access the results.
+     * DcmVrpPlanner::get_duration_of_stance_phase() to access the results.
      */
     bool solve();
 
@@ -362,13 +362,13 @@ public:
     }
 
     /**
-     * @brief @copydoc DcmVrpPlanner::duration_before_step_landing_
+     * @brief @copydoc DcmVrpPlanner::duration_of_stance_phase_
      *
      * @return const double&
      */
-    const double& get_duration_before_step_landing() const
+    const double& get_duration_of_stance_phase() const
     {
-        return duration_before_step_landing_;
+        return duration_of_stance_phase_;
     }
 
     /**
@@ -489,6 +489,12 @@ private:
     /** @brief Nominal flight phase time. */
     double t_f_nom_;
 
+    /** @brief */
+    double t_f_nom_z_;
+
+    /** @brief  */
+    double b_z_nom_;
+
     /** @brief Nominal step time. */
     double T_nom_;
 
@@ -557,10 +563,6 @@ private:
     /** @brief Current DCM computed from the CoM estimation. */
     Eigen::Vector3d v_des_local_;
 
-    /** @brief Store the time from last step touchdown in order to stop
-     * optimizing after t_min_ is passed. */
-    double time_from_last_step_touchdown_;
-
     /** @brief Time from the last foot touchdown. */
     double current_time_;
 
@@ -581,7 +583,7 @@ private:
     Eigen::Vector4d slack_variables_;
 
     /** @brief Remaining time before the step landing. */
-    double duration_before_step_landing_;
+    double duration_of_stance_phase_;
 
     /**
      * QP variables
@@ -646,6 +648,9 @@ private:
     Eigen::Vector3d x_dot_t_s_;
 
     double w_max_local_, w_min_local_, by_max_, by_min_;
+
+    /** @brief The gravity. */
+    double g_;
 
 };
 

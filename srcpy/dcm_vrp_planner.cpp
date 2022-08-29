@@ -56,16 +56,17 @@ void bind_dcm_vrp_planner(pybind11::module &module)
              &DcmVrpPlanner::get_current_step_location_local)
         .def("get_v_des_local", &DcmVrpPlanner::get_v_des_local)
         .def("get_next_step_location", &DcmVrpPlanner::get_next_step_location)
-        .def("get_duration_before_step_landing",
-             &DcmVrpPlanner::get_duration_before_step_landing)
+        .def("get_duration_of_stance_phase",
+             &DcmVrpPlanner::get_duration_of_stance_phase)
+        .def("get_duration_of_flight_phase",
+             &DcmVrpPlanner::get_duration_of_flight_phase)
 
         // String representation of the solver.
         .def("__repr__",
              [](const DcmVrpPlanner &planner) { return planner.to_string(); });
 
-
     pybind11::enum_<contact>(module, "contact")
-            .value("flight_l", contact::flight_l)
-            .value("flight_r", contact::flight_r)
+            .value("flight_l", flight_l)
+            .value("flight_r", flight_r)
             .export_values();
 }
