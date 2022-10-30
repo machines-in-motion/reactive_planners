@@ -119,5 +119,7 @@ void bind_quadruped_dcm_reactive_stepper(pybind11::module &module)
         .def("get_contact_array",
              &QuadrupedDcmReactiveStepper::get_contact_array)
         .def("get_forces",
-             &QuadrupedDcmReactiveStepper::get_forces);
+             &QuadrupedDcmReactiveStepper::get_forces)
+        .def("get_next_support_feet_positions",
+             &QuadrupedDcmReactiveStepper::get_next_support_feet_positions);
 }

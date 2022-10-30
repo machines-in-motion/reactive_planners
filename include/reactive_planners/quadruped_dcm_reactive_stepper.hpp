@@ -353,6 +353,16 @@ public:
         return forces_;
     }
 
+    /* all feet */
+
+    /**
+     * @brief Get the next step foot position for each foot.
+     *
+     * @return const Eigen::Matrix<double, 4, 3>. Rows corresponds to [FL, FR, HL, HR] and columns
+     * correspond to [x, y, z]
+     */
+    const Eigen::Matrix<double, 4, 3> &get_next_support_feet_positions(const double& base_yaw);
+
 private:
     /* User inputs */
 
@@ -430,6 +440,9 @@ private:
 
     /** @brief Initial foot height during support. */
     double foot_height_offset_;
+
+    /** @brief Next step feet positions */
+    Eigen::Matrix<double, 4, 3> next_step_feet_pos;
 };
 
 }  // namespace reactive_planners
