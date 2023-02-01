@@ -1,3 +1,15 @@
+"""Demo file for running the reactive planner on SOLO 12
+The logic is the same as the demo_reactive_planners_solo12_step_adjustment_walk.ipynb
+This file is used for ROS 2. An example of the usage of this class is here: 
+https://github.com/swuuu/ros2_controllers_solo12/blob/master/ros2_control_test_nodes/ros2_control_test_nodes/node.py
+
+License BSD-3-Clause
+Copyright (c) 2023, New York University and Max Planck Gesellschaft.
+
+Author: Stanley Wu
+Date:   Jan 31, 2023
+"""
+
 import numpy as np
 from robot_properties_solo.solo12wrapper import Solo12Config
 from robot_properties_solo.solo12wrapper import Solo12RobotWithoutPybullet
@@ -293,29 +305,6 @@ class Demo:
             des_vel,
             F,
         )
-
-        if self.print_once:
-            print('#########################################')
-            # print(f'control time = {control_time}')
-            # print(f'q = {q}')
-            # print(f'dq = {qdot}')
-            # print(f'base position = {q[:3]}')
-            # print(f'base velocity = {qdot[:3]}')
-            # print(f'qdot = {qdot.copy()}')
-            print(f'current orientation = {q[3:7]}')
-            print(f'current yaw = {self.yaw(q)}')
-            print(f'x_des_local = {x_des_local}')
-            print(f'des_vel = {des_vel}')
-            print(f'yaw_des = {self.yaw_des}')
-            print(f'com_des = {[self.com_des[0], self.com_des[1], self.com_height]}')
-            print(f'v_des = {self.v_des}')
-            print(f'desired orientation = {pin.Quaternion(pin.rpy.rpyToMatrix(0., 0., self.yaw_des)).coeffs()}')
-            print(f'desired angular velocity = {[0.0, 0.0, self.y_des]}')
-            print(f'w_com = {w_com}')
-            print(f'F = {F}')
-            print(f'tau = {tau}')
-            print('#########################################')
-            self.print_once = False
 
         return tau
 

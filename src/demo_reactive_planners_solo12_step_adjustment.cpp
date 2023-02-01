@@ -1,3 +1,12 @@
+/**
+ * @file
+ * @license BSD 3-clause
+ * @copyright Copyright (c) 2023, New York University and Max Planck
+ * Gesellschaft
+ *
+ * @brief Implement the
+ * reactive_planners::demo_reactive_planners_solo12_step_adjustment class
+ */
 #include "reactive_planners/demo_reactive_planners_solo12_step_adjustment.hpp"
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/centroidal.hpp>
@@ -118,8 +127,6 @@ void DemoReactivePlanner::initialize(Eigen::Matrix<double, 19, 1> &q, std::strin
     quadruped_dcm_reactive_stepper.set_desired_com_velocity(v_des);
     quadruped_dcm_reactive_stepper.set_polynomial_end_effector_trajectory();
     quadruped_dcm_reactive_stepper.set_steptime_nominal(0.13);
-
-    print_once = true;
 }
 
 Eigen::VectorXd DemoReactivePlanner::compute_torques(Eigen::Matrix<double, 19, 1> &q, Eigen::Matrix<double, 18, 1> &dq,
@@ -287,32 +294,6 @@ Eigen::VectorXd DemoReactivePlanner::compute_torques(Eigen::Matrix<double, 19, 1
         );
         tau = tau + imp_ctrls[i].get_joint_torques();
     }
-
-    // if we want to debug
-//    if (print_once) {
-//        std::cout << "######################################" << std::endl;
-//        std::cout << "control time = " << control_time << std::endl;
-//        std::cout << "q = " << q << std::endl;
-//        std::cout << "dq = " << dq << std::endl;
-//        std::cout << "base position = " << q.head(3) << std::endl;
-//        std::cout << "base velocity = " << dq.head(3) << std::endl;
-//        std::cout << "dq.head(3) = " << dq.head(3) << std::endl;
-//        std::cout << "current orientation = " << q.segment(3, 4) << std::endl;
-//        std::cout << "current yaw = " << yaw(q) << std::endl;
-//        std::cout << "angular velocity = " << dq.segment(3, 3) << std::endl;
-//        std::cout << "x_des_local = " << x_des_local << std::endl;
-//        std::cout << "des_vel = " << des_vel << std::endl;
-//        std::cout << "yaw_des = " << yaw_des << std::endl;
-//        std::cout << "com_des = " << com_des << std::endl;
-//        std::cout << "v_des = " << v_des << std::endl;
-//        std::cout << "desired orientation = " << x_ori.coeffs() << std::endl;
-//        std::cout << "desired angular velocity = " << x_angvel << std::endl;
-//        std::cout << "w_com = " << w_com << std::endl;
-//        std::cout << "F = " << ee_forces << std::endl;
-//        std::cout << "tau = " << tau << std::endl;
-//        std::cout << "######################################" << std::endl;
-//        print_once = false;
-//    }
 
     return tau;
 }

@@ -1,3 +1,14 @@
+/**
+ * @file
+ * @license BSD 3-clause
+ * @copyright Copyright (c) 2023, New York University and Max Planck
+ * Gesellschaft
+ *
+ * @brief A C++ translation of the demos/demo_reactive_planners_solo12_step_adjustment_walk.ipynb script (the first part)
+ *
+ * The 4 fields to control the direction of SOLO are y_des, yaw_des, com_des, and v_des
+ */
+
 #include <Eigen/Dense>
 #include <pinocchio/parsers/urdf.hpp>
 #include <pinocchio/multibody/data.hpp>
@@ -6,10 +17,6 @@
 #include "mim_control/centroidal_force_qp_controller.hpp"
 #include "reactive_planners/quadruped_dcm_reactive_stepper.hpp"
 
-/**
- * A C++ translation of https://github.com/machines-in-motion/reactive_planners/blob/master/demos/demo_reactive_planners_solo12_step_adjustment_walk.ipynb (the first part)
- * The 4 fields to control the direction of SOLO are y_des, yaw_des, com_des, and v_des
- */
 class DemoReactivePlanner {
 public:
     DemoReactivePlanner();
@@ -108,7 +115,4 @@ private:
 
     // helper methods
     static double yaw(Eigen::Matrix<double, 19, 1> &q);
-
-    // prints some values for debugging
-    bool print_once = true;
 };
