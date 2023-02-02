@@ -5,6 +5,7 @@
     <version>0.0.0</version>
     <description>Reactive planners for locomotion of legged robots</description>
     <maintainer email="stanley.wu@mail.mcgill.ca">Stanley Wu</maintainer><!-- Maintainer for anything related to ROS -->
+    <license>TODO: License declaration</license>
 
     <buildtool_depend>ament_cmake</buildtool_depend>
     <depend>mpi_cmake_modules</depend>
