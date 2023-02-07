@@ -42,7 +42,6 @@ find_package(dynamic-graph QUIET)
 find_package(dynamic-graph-python QUIET)
 find_package(real_time_tools QUIET)
 find_package(eigenpy QUIET)
-find_package(ament_cmake QUIET)
 
 set(build_dynamic_graph_plugins FALSE)
 if(${dynamic-graph_FOUND}
@@ -187,14 +186,6 @@ if(BUILD_TESTING)
 endif()
 
 #
-# Allows other ROS packages to link to this package during compilation
-#
-if (ament_cmake_FOUND)
-  ament_export_targets(${PROJECT_NAME}Targets HAS_LIBRARY_TARGET)
-  ament_export_dependencies(yaml_utils)
-endif()
-
-#
 # Install all and export
 #
 
@@ -226,11 +217,3 @@ generate_cmake_package(INSTALL_EXPORT)
 # building documentation
 #
 add_documentation()
-
-#
-# Allow other ROS 2 packages to find the header files
-#
-if (ament_cmake_FOUND)
-  ament_export_include_directories(include)
-  ament_package()
-endif()
