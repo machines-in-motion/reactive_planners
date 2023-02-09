@@ -170,16 +170,12 @@ class Demo:
         :return: torques to send to SOLO
         """
         # normalize the quat (maybe not needed)
-        normalized_quat = pin.Quaternion(
+        curr_quat = pin.Quaternion(
             q[6], q[3], q[4], q[5]
-        ).normalized()
-        q[3] = normalized_quat[0]
-        q[4] = normalized_quat[1]
-        q[5] = normalized_quat[2]
-        q[6] = normalized_quat[3]
+        )
 
         # transform the base velocity to the local frame
-        curr_orientation = normalized_quat.matrix()
+        curr_orientation = curr_quat.matrix()
         qdot[:3] = curr_orientation.T.dot(qdot[:3])
         qdot[3:6] = curr_orientation.T.dot(qdot[3:6])
 
