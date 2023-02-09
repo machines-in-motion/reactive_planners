@@ -9,5 +9,6 @@
 
     <depend>mpi_cmake_modules</depend>
     <depend>yaml_utils</depend>
+    <depend>mim_control</depend>
 
 </package>

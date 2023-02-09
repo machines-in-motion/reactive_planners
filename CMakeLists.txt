@@ -24,6 +24,7 @@ find_package(mpi_cmake_modules REQUIRED)
 
 # Internal.
 find_package(yaml_utils REQUIRED)
+find_package(mim_control REQUIRED)
 
 # External.
 find_package(eigen-quadprog REQUIRED)
@@ -62,7 +63,8 @@ set(main_lib_src
     src/polynomial_end_effector_trajectory.cpp
     src/dynamically_consistent_end_effector_trajectory.cpp
     src/dcm_reactive_stepper.cpp
-    src/quadruped_dcm_reactive_stepper.cpp)
+    src/quadruped_dcm_reactive_stepper.cpp
+    src/demo_reactive_planners_solo12_step_adjustment.cpp)
 # Create library target.
 add_library(${PROJECT_NAME} SHARED ${main_lib_src})
 # Includes.
@@ -74,6 +76,7 @@ target_link_libraries(${PROJECT_NAME} yaml_utils::yaml_utils)
 target_link_libraries(${PROJECT_NAME} pinocchio::pinocchio)
 target_link_libraries(${PROJECT_NAME} Eigen3::Eigen)
 target_link_libraries(${PROJECT_NAME} eigen-quadprog::eigen-quadprog)
+target_link_libraries(${PROJECT_NAME} mim_control::mim_control)
 # Export.
 list(APPEND all_targets ${PROJECT_NAME})
 

@@ -24,7 +24,7 @@ np.set_printoptions(suppress=True, precision=2)
 class Demo:
     """
     Based on https://github.com/machines-in-motion/reactive_planners/blob/master/demos/demo_reactive_planners_solo12_step_adjustment_walk.ipynb
-    The 4 parameters to control the direction of SOLO are y_des, yaw_des, com_des, and v_des.
+    The 4 parameters to control the direction of SOLO are yaw_velocity_des, yaw_des, com_des, and v_des.
     """
 
     def __init__(self):
@@ -140,7 +140,7 @@ class Demo:
         )
 
         # default parameters related to the direction of SOLO
-        self.y_des = 0.0 # default yaw speed
+        self.yaw_velocity_des = 0.0 # default yaw speed
         self.yaw_des = self.yaw(q) # default desired yaw
         self.com_des = np.array([q[0], q[1]]) # default desired com position
         self.v_des = np.array([0.0, 0.0, 0.0])
@@ -195,11 +195,11 @@ class Demo:
         elif action == "left" or action == "right":
             self.com_des[1] = q[1] + self.v_des[1] * 0.001
         elif action == "turn_right":
-            self.y_des = 0.2
-            self.yaw_des += 0.001 * self.y_des
+            self.yaw_velocity_des = 0.2
+            self.yaw_des += 0.001 * self.yaw_velocity_des
         elif action == "turn_left":
-            self.y_des = 0.2
-            self.yaw_des -= 0.001 * self.y_des
+            self.yaw_velocity_des = 0.2
+            self.yaw_des -= 0.001 * self.yaw_velocity_des
 
         FL = self.solo_leg_ctrl.imp_ctrl_array[0]
         FR = self.solo_leg_ctrl.imp_ctrl_array[1]
@@ -257,7 +257,7 @@ class Demo:
             [self.com_des[0], self.com_des[1], self.com_height],
             self.v_des,
             pin.Quaternion(pin.rpy.rpyToMatrix(0., 0., self.yaw_des)).coeffs(),
-            [0.0, 0.0, self.y_des], # angular velocity desired
+            [0.0, 0.0, self.yaw_velocity_des], # angular velocity desired
         )
 
         # # for tracking the feet position
