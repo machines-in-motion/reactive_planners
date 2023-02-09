@@ -112,7 +112,7 @@ void DemoReactivePlanner::initialize(Eigen::Matrix<double, 19, 1> &q, std::strin
     );
 
     // default parameters related to the direction of SOLO
-    y_des = 0.0;
+    yaw_velocity_des = 0.0;
     yaw_des = yaw(q);
     v_des = {0.0, 0.0, 0.0};
     com_des = {q(0), q(1), com_height};
@@ -157,11 +157,11 @@ Eigen::VectorXd DemoReactivePlanner::compute_torques(Eigen::Matrix<double, 19, 1
     } else if (direction == "left" || direction == "right") {
         com_des(1) = q(1) + v_des(1) * 0.001;
     } else if (direction == "turn_left") {
-        y_des = 0.2;
-        yaw_des += 0.001 * y_des;
+        yaw_velocity_des = 0.2;
+        yaw_des += 0.001 * yaw_velocity_des;
     } else if (direction == "turn_right") {
-        y_des = 0.2;
-        yaw_des -= 0.001 * y_des;
+        yaw_velocity_des = 0.2;
+        yaw_des -= 0.001 * yaw_velocity_des;
     }
 
     // get feet position
@@ -221,7 +221,7 @@ Eigen::VectorXd DemoReactivePlanner::compute_torques(Eigen::Matrix<double, 19, 1
     x_ori = Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()) *
             Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
             Eigen::AngleAxisd(yaw_des, Eigen::Vector3d::UnitZ());
-    Eigen::Vector3d x_angvel = {0.0, 0.0, y_des};
+    Eigen::Vector3d x_angvel = {0.0, 0.0, yaw_velocity_des};
     Eigen::Quaterniond curr_orientation = Eigen::Quaterniond(q(6), q(3), q(4), q(5));
     curr_orientation.normalize();
     Eigen::MatrixXd curr_rot = curr_orientation.toRotationMatrix();

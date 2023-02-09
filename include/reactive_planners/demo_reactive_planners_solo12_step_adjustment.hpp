@@ -6,7 +6,7 @@
  *
  * @brief A C++ translation of the demos/demo_reactive_planners_solo12_step_adjustment_walk.ipynb script (the first part)
  *
- * The 4 fields to control the direction of SOLO are y_des, yaw_des, com_des, and v_des
+ * The 4 fields to control the direction of SOLO are yaw_velocity_des, yaw_des, com_des, and v_des
  */
 
 #include <Eigen/Dense>
@@ -89,7 +89,7 @@ private:
     reactive_planners::QuadrupedDcmReactiveStepper quadruped_dcm_reactive_stepper;
 
     // fields related to the direction of SOLO
-    double y_des; // desired speed of yaw angle
+    double yaw_velocity_des; // desired speed of yaw angle
     double yaw_des; // desired yaw
     Eigen::Vector3d v_des; // desired base speed
     Eigen::Vector3d com_des; // ddesired base position
