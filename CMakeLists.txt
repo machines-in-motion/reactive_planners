@@ -210,7 +210,7 @@ install(
   INCLUDES
   DESTINATION include)
   
-# Install the header files so other ROS packages can find them
+# Install the header files so other packages depending on this one can find them
 install(DIRECTORY include/ DESTINATION include)
 
 # Put the cmake files at the right place.
