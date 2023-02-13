@@ -5,9 +5,9 @@
  * Gesellschaft
  *
  * @brief Implement the
- * reactive_planners::demo_reactive_planners_solo12_step_adjustment class
+ * reactive_planners::reactive_planners_controller_solo12 class
  */
-#include "reactive_planners/demo_reactive_planners_solo12_step_adjustment.hpp"
+#include "reactive_planners/reactive_planners_controller_solo12.hpp"
 #include <pinocchio/algorithm/frames.hpp>
 #include <pinocchio/algorithm/centroidal.hpp>
 #include <pinocchio/algorithm/center-of-mass.hpp>
@@ -15,9 +15,13 @@
 #include <pinocchio/math/rpy.hpp>
 #include <cmath>
 
-DemoReactivePlanner::DemoReactivePlanner() {}
+namespace reactive_planners
+{
+ReactivePlannersControllerSolo::ReactivePlannersControllerSolo() {}
 
-DemoReactivePlanner::DemoReactivePlanner(std::string path_to_urdf) {
+ReactivePlannersControllerSolo::~ReactivePlannersControllerSolo() = default;
+
+ReactivePlannersControllerSolo::ReactivePlannersControllerSolo(std::string path_to_urdf) {
     // build the pinocchio model
     pinocchio::JointModelFreeFlyer root_joint;
     pinocchio::urdf::buildModel(path_to_urdf, root_joint, model);
@@ -34,18 +38,15 @@ DemoReactivePlanner::DemoReactivePlanner(std::string path_to_urdf) {
     qp_penalty_ang = {1e6, 1e6, 1e6};
     Eigen::VectorXd qp_penalty_weights(qp_penalty_lin.size() + qp_penalty_ang.size());
     qp_penalty_weights << qp_penalty_lin, qp_penalty_ang;
-
     // initialize the centroidal controllers
     centrl_pd_ctrl = mim_control::CentroidalPDController();
     force_qp = mim_control::CentroidalForceQPController();
     force_qp.initialize(4, mu, qp_penalty_weights);
-
     // parameters for the impedance controllers
     kp = Eigen::VectorXd::Zero(12);
     kd = Eigen::VectorXd::Zero(12);
     kp << 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0; // joint pos coef
     kd << 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0; // joint vel coef
-
     // initialize the impedance controllers and the reactive planner
     std::vector<std::string> frame_root_names = {"FL_HFE", "FR_HFE", "HL_HFE", "HR_HFE"};
     endeff_names = {"FL_FOOT", "FR_FOOT", "HL_FOOT", "HR_FOOT"};
@@ -59,7 +60,7 @@ DemoReactivePlanner::DemoReactivePlanner(std::string path_to_urdf) {
     quadruped_dcm_reactive_stepper = reactive_planners::QuadrupedDcmReactiveStepper();
 }
 
-void DemoReactivePlanner::initialize(Eigen::Matrix<double, 19, 1> &q, std::string direction) {
+void ReactivePlannersControllerSolo::initialize(Eigen::Matrix<double, 19, 1> &q, std::string direction) {
     // initialize fields for the quadruped Dcm reactive stepper
     open_loop = true;
     is_left_leg_in_contact = true;
@@ -129,11 +130,10 @@ void DemoReactivePlanner::initialize(Eigen::Matrix<double, 19, 1> &q, std::strin
     quadruped_dcm_reactive_stepper.set_steptime_nominal(0.13);
 }
 
-Eigen::VectorXd DemoReactivePlanner::compute_torques(Eigen::Matrix<double, 19, 1> &q, Eigen::Matrix<double, 18, 1> &dq,
+Eigen::VectorXd ReactivePlannersControllerSolo::compute_torques(Eigen::Matrix<double, 19, 1> &q, Eigen::Matrix<double, 18, 1> &dq,
                                                      double control_time, const std::string& direction) {
     // transform the base velocity to the local frame
     Eigen::Quaterniond curr_quat(q(6), q(3), q(4), q(5));
-    curr_quat.normalize();
     Eigen::Vector3d local_base_vel = curr_quat.toRotationMatrix().transpose() * dq.head(3);
     Eigen::Vector3d local_base_ang_vel = curr_quat.toRotationMatrix().transpose() * dq.segment(3, 3);
     dq[0] = local_base_vel(0);
@@ -223,7 +223,6 @@ Eigen::VectorXd DemoReactivePlanner::compute_torques(Eigen::Matrix<double, 19, 1
             Eigen::AngleAxisd(yaw_des, Eigen::Vector3d::UnitZ());
     Eigen::Vector3d x_angvel = {0.0, 0.0, yaw_velocity_des};
     Eigen::Quaterniond curr_orientation = Eigen::Quaterniond(q(6), q(3), q(4), q(5));
-    curr_orientation.normalize();
     Eigen::MatrixXd curr_rot = curr_orientation.toRotationMatrix();
 
     centrl_pd_ctrl.run(
@@ -246,7 +245,6 @@ Eigen::VectorXd DemoReactivePlanner::compute_torques(Eigen::Matrix<double, 19, 1
     w_com = w_com + centrl_pd_ctrl.get_wrench();
 
     // compute ee_forces
-    Eigen::Vector3d com = pinocchio::centerOfMass(model, data, q);
     Eigen::VectorXd rel_eff = Eigen::VectorXd::Zero(12);
 
     int i = 0;
@@ -298,7 +296,7 @@ Eigen::VectorXd DemoReactivePlanner::compute_torques(Eigen::Matrix<double, 19, 1
     return tau;
 }
 
-double DemoReactivePlanner::yaw(Eigen::Matrix<double, 19, 1> &q) {
+double ReactivePlannersControllerSolo::yaw(Eigen::Matrix<double, 19, 1> &q) {
     Eigen::Vector4d quat = q.segment(3, 4);
     double x = quat(0);
     double y = quat(1);
@@ -307,10 +305,12 @@ double DemoReactivePlanner::yaw(Eigen::Matrix<double, 19, 1> &q) {
     return atan2(2.0f * (w * z + x * y), w * w + x * x - y * y - z * z);
 }
 
-void DemoReactivePlanner::quadruped_dcm_reactive_stepper_start() {
+void ReactivePlannersControllerSolo::quadruped_dcm_reactive_stepper_start() {
     quadruped_dcm_reactive_stepper.start();
 }
 
-void DemoReactivePlanner::quadruped_dcm_reactive_stepper_stop() {
+void ReactivePlannersControllerSolo::quadruped_dcm_reactive_stepper_stop() {
     quadruped_dcm_reactive_stepper.stop();
 }
+
+}  // namespace reactive_planners

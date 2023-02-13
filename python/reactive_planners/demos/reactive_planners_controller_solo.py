@@ -1,7 +1,5 @@
-"""Demo file for running the reactive planner on SOLO 12
-The logic is the same as the demo_reactive_planners_solo12_step_adjustment_walk.ipynb
-This file is used for ROS 2. An example of the usage of this class is here: 
-https://github.com/swuuu/ros2_controllers_solo12/blob/master/ros2_control_test_nodes/ros2_control_test_nodes/node.py
+"""ReactivePlannersControllerSolo file for running the reactive planner on SOLO 12
+The logic is the same as the reactive_planners/demos/demo_reactive_planners_solo12_step_adjustment_walk.ipynb
 
 License BSD-3-Clause
 Copyright (c) 2023, New York University and Max Planck Gesellschaft.
@@ -21,7 +19,7 @@ import pinocchio as pin
 from scipy.spatial.transform import Rotation
 np.set_printoptions(suppress=True, precision=2)
 
-class Demo:
+class ReactivePlannersControllerSolo:
     """
     Based on https://github.com/machines-in-motion/reactive_planners/blob/master/demos/demo_reactive_planners_solo12_step_adjustment_walk.ipynb
     The 4 parameters to control the direction of SOLO are yaw_velocity_des, yaw_des, com_des, and v_des.

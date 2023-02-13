@@ -64,7 +64,7 @@ set(main_lib_src
     src/dynamically_consistent_end_effector_trajectory.cpp
     src/dcm_reactive_stepper.cpp
     src/quadruped_dcm_reactive_stepper.cpp
-    src/demo_reactive_planners_solo12_step_adjustment.cpp)
+    src/reactive_planners_controller_solo12.cpp)
 # Create library target.
 add_library(${PROJECT_NAME} SHARED ${main_lib_src})
 # Includes.

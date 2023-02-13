@@ -354,3 +354,9 @@ ENV/
 # Rope project settings
 .ropeproject
 
+# CLion
+.idea/
+
+# VSCode
+.vscode/
+
