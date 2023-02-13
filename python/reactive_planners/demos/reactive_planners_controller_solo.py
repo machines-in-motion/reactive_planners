@@ -308,4 +308,3 @@ class ReactivePlannersControllerSolo:
 
     def get_desired_next_step_pos(self, q):
         return self.quadruped_dcm_reactive_stepper.get_next_support_feet_positions(self.yaw(q))
-
