@@ -60,7 +60,7 @@ ReactivePlannersControllerSolo::ReactivePlannersControllerSolo(std::string path_
     quadruped_dcm_reactive_stepper = reactive_planners::QuadrupedDcmReactiveStepper();
 }
 
-void ReactivePlannersControllerSolo::initialize(Eigen::Matrix<double, 19, 1> &q, std::string direction) {
+void ReactivePlannersControllerSolo::initialize(Eigen::Matrix<double, 19, 1> &q, Eigen::Vector3d &v_des) {
     // initialize fields for the quadruped Dcm reactive stepper
     open_loop = true;
     is_left_leg_in_contact = true;
@@ -115,23 +115,16 @@ void ReactivePlannersControllerSolo::initialize(Eigen::Matrix<double, 19, 1> &q,
     // default parameters related to the direction of SOLO
     yaw_velocity_des = 0.0;
     yaw_des = yaw(q);
-    v_des = {0.0, 0.0, 0.0};
     com_des = {q(0), q(1), com_height};
-    if (direction == "forward") {
-        v_des(0) = 0.2;
-    } else if (direction == "left") {
-        v_des(1) = 0.2;
-    } else if (direction == "right") {
-        v_des(1) = -0.2;
-    }
-
-    quadruped_dcm_reactive_stepper.set_desired_com_velocity(v_des);
+    linear_vel_des = {v_des(0), v_des(1), 0}; // don't change the base height
+    
+    quadruped_dcm_reactive_stepper.set_desired_com_velocity(linear_vel_des);
     quadruped_dcm_reactive_stepper.set_polynomial_end_effector_trajectory();
     quadruped_dcm_reactive_stepper.set_steptime_nominal(0.13);
 }
 
 Eigen::VectorXd ReactivePlannersControllerSolo::compute_torques(Eigen::Matrix<double, 19, 1> &q, Eigen::Matrix<double, 18, 1> &dq,
-                                                     double control_time, const std::string& direction) {
+                                                     double control_time, Eigen::Vector3d &v_des) {
     // transform the base velocity to the local frame
     Eigen::Quaterniond curr_quat(q(6), q(3), q(4), q(5));
     Eigen::Vector3d local_base_vel = curr_quat.toRotationMatrix().transpose() * dq.head(3);
@@ -152,17 +145,9 @@ Eigen::VectorXd ReactivePlannersControllerSolo::compute_torques(Eigen::Matrix<do
     Eigen::MatrixXd xd_com = data.vcom[0];
 
     // update the relevant parameters related to SOLO's direction
-    if (direction == "forward") {
-        com_des(0) = q(0) + v_des(0) * 0.001;
-    } else if (direction == "left" || direction == "right") {
-        com_des(1) = q(1) + v_des(1) * 0.001;
-    } else if (direction == "turn_left") {
-        yaw_velocity_des = 0.2;
-        yaw_des += 0.001 * yaw_velocity_des;
-    } else if (direction == "turn_right") {
-        yaw_velocity_des = 0.2;
-        yaw_des -= 0.001 * yaw_velocity_des;
-    }
+    com_des(0) = q(0) + v_des(0) * 0.001;
+    com_des(1) = q(1) + v_des(1) * 0.001;
+    yaw_des = yaw(q) + 0.001 * v_des(2);
 
     // get feet position
     front_left_foot_position = data.oMf[imp_ctrls[0].get_endframe_index()].translation();
@@ -221,7 +206,7 @@ Eigen::VectorXd ReactivePlannersControllerSolo::compute_torques(Eigen::Matrix<do
     x_ori = Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()) *
             Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
             Eigen::AngleAxisd(yaw_des, Eigen::Vector3d::UnitZ());
-    Eigen::Vector3d x_angvel = {0.0, 0.0, yaw_velocity_des};
+    Eigen::Vector3d x_angvel = {0.0, 0.0, v_des(2)};
     Eigen::Quaterniond curr_orientation = Eigen::Quaterniond(q(6), q(3), q(4), q(5));
     Eigen::MatrixXd curr_rot = curr_orientation.toRotationMatrix();
 
@@ -233,7 +218,7 @@ Eigen::VectorXd ReactivePlannersControllerSolo::compute_torques(Eigen::Matrix<do
             q.head(3),
             com_des,
             curr_rot * dq.head(3), // rotate to world frame
-            v_des,
+            linear_vel_des,
             q.segment(3, 4),
             x_ori.coeffs(),
             dq.segment(3, 3),
@@ -292,6 +277,32 @@ Eigen::VectorXd ReactivePlannersControllerSolo::compute_torques(Eigen::Matrix<do
         );
         tau = tau + imp_ctrls[i].get_joint_torques();
     }
+
+    // if we want to debug
+    // if (print_once) {
+    //     std::cout << "######################################" << std::endl;
+    //     std::cout << "control time = " << control_time << std::endl;
+    //     std::cout << "q = " << q << std::endl;
+    //     std::cout << "dq = " << dq << std::endl;
+    //     std::cout << "base position = " << q.head(3) << std::endl;
+    //     std::cout << "base velocity = " << dq.head(3) << std::endl;
+    //     std::cout << "dq.head(3) = " << dq.head(3) << std::endl;
+    //     std::cout << "current orientation = " << q.segment(3, 4) << std::endl;
+    //     std::cout << "current yaw = " << yaw(q) << std::endl;
+    //     std::cout << "angular velocity = " << dq.segment(3, 3) << std::endl;
+    //     std::cout << "x_des_local = " << x_des_local << std::endl;
+    //     std::cout << "des_vel = " << des_vel << std::endl;
+    //     std::cout << "yaw_des = " << yaw_des << std::endl;
+    //     std::cout << "com_des = " << com_des << std::endl;
+    //     std::cout << "v_des = " << v_des << std::endl;
+    //     std::cout << "desired orientation = " << x_ori.coeffs() << std::endl;
+    //     std::cout << "desired angular velocity = " << x_angvel << std::endl;
+    //     std::cout << "w_com = " << w_com << std::endl;
+    //     std::cout << "F = " << ee_forces << std::endl;
+    //     std::cout << "tau = " << tau << std::endl;
+    //     std::cout << "######################################" << std::endl;
+    //     print_once = false;
+    // }
 
     return tau;
 }

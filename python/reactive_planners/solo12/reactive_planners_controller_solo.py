@@ -95,7 +95,7 @@ class ReactivePlannersControllerSolo:
             Rotation.from_quat([np.array(q)[3:7]]).as_euler("xyz", degrees=False)
         )[0, 2]
 
-    def initialize_quadruped_dcm_reactive_stepper(self, q, action="forward"):
+    def initialize_quadruped_dcm_reactive_stepper(self, q, v_des ,action="forward"):
         """
         Initializes the quadruped_dcm_reactive_stepper
         :param q: joint configuration
@@ -141,15 +141,8 @@ class ReactivePlannersControllerSolo:
         self.yaw_velocity_des = 0.0 # default yaw speed
         self.yaw_des = self.yaw(q) # default desired yaw
         self.com_des = np.array([q[0], q[1]]) # default desired com position
-        self.v_des = np.array([0.0, 0.0, 0.0])
-        if action == "forward":
-            self.v_des[0] = 0.2
-        elif action == "left":
-            self.v_des[1] = 0.2
-        elif action == "right":
-            self.v_des[1] = -0.2
 
-        self.quadruped_dcm_reactive_stepper.set_desired_com_velocity(self.v_des)
+        self.quadruped_dcm_reactive_stepper.set_desired_com_velocity(np.array([v_des[0], v_des[1], 0]))
         self.quadruped_dcm_reactive_stepper.set_polynomial_end_effector_trajectory()
 
     def quadruped_dcm_reactive_stepper_start(self):
@@ -158,16 +151,16 @@ class ReactivePlannersControllerSolo:
     def quadruped_dcm_reactive_stepper_stop(self):
         self.quadruped_dcm_reactive_stepper.stop()
 
-    def compute_torques(self, q, qdot, control_time, action=""):
+    def compute_torques(self, q, qdot, control_time, v_des):
         """
         Reactive planner script
         :param q: vector of 19 elements composed on [base position (3 elements), base orientation (4 elements), joint configurations (12 elements)]
         :param qdot: vector of 18 elements composed of [base velocity (3), base ang vel (3), joint velocities (12)]
         :param control_time: parameter for self.quadruped_dcm_reactive_stepper
-        :param action: either "forward", "right", "left", "turn_right", "turn_left", "stay" (anything else will be equivalent to stay)
+        :param v_des: [velocity desired in x, velocity desired in y, desired yaw]
         :return: torques to send to SOLO
         """
-        # normalize the quat (maybe not needed)
+        # get current quaternion
         curr_quat = pin.Quaternion(
             q[6], q[3], q[4], q[5]
         )
@@ -184,16 +177,8 @@ class ReactivePlannersControllerSolo:
         xd_com = self.robot.pin_robot.com(q, qdot)[1]
 
         # update the relevant params for the centroidal controller depending on the command
-        if action == "forward":
-            self.com_des[0] = q[0] + self.v_des[0] * 0.001
-        elif action == "left" or action == "right":
-            self.com_des[1] = q[1] + self.v_des[1] * 0.001
-        elif action == "turn_right":
-            self.yaw_velocity_des = 0.2
-            self.yaw_des += 0.001 * self.yaw_velocity_des
-        elif action == "turn_left":
-            self.yaw_velocity_des = 0.2
-            self.yaw_des -= 0.001 * self.yaw_velocity_des
+        self.com_des = q[:2] + v_des[:2] * 0.001
+        self.yaw_des += 0.001 * v_des[2]
 
         FL = self.solo_leg_ctrl.imp_ctrl_array[0]
         FR = self.solo_leg_ctrl.imp_ctrl_array[1]
@@ -244,14 +229,15 @@ class ReactivePlannersControllerSolo:
                 imp.frame_root_idx
             ].translation
 
+        linear_vel_des =np.array([v_des[0], v_des[1], 0]) # don't change the base height
         # compute the wrench
         w_com = self.centr_controller.compute_com_wrench(
             q.copy(),
             qdot.copy(),
             [self.com_des[0], self.com_des[1], self.com_height],
-            self.v_des,
+            linear_vel_des,
             pin.Quaternion(pin.rpy.rpyToMatrix(0., 0., self.yaw_des)).coeffs(),
-            [0.0, 0.0, self.yaw_velocity_des], # angular velocity desired
+            [0.0, 0.0, v_des[2]], # angular velocity desired
         )
 
         # # for tracking the feet position

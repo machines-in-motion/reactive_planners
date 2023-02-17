@@ -38,20 +38,20 @@ public:
      * Sets the parameters for some controllers used by the script (e.g., params related to SOLO's direction).
      *
      * @param q base + joint configuration
-     * @param direction either "forward", "right", "left", "turn_right", "turn_left", "stay" (anything else will be equivalent to stay)
+     * @param v_des {velocity desired in x, velocity desired in y, desired yaw velocity}
      */
-    void initialize(Eigen::Matrix<double, 19, 1> &q, std::string direction);
+    void initialize(Eigen::Matrix<double, 19, 1> &q, Eigen::Vector3d &v_des);
 
     /**
      * @brief Main function: computes the torques from the reactive planner
      *
      * @param q vector of 19 elements composed on [base position (3 elements), base orientation (4 elements), joint configurations (12 elements)]
      * @param dq vector of 18 elements composed of [base velocity (3), base ang vel (3), joint velocities (12)]
-     * @param control_time parameter for self.quadruped_dcm_reactive_stepper
-     * @param direction either "forward", "right", "left", "turn_right", "turn_left", "stay" (anything else will be equivalent to stay)
+     * @param control_time time parameter for the quadruped_dcm_reactive_stepper
+     * @param v_des {velocity desired in x, velocity desired in y, desired yaw}
      * @return torques to send to SOLO
      */
-    Eigen::VectorXd compute_torques(Eigen::Matrix<double, 19, 1> &q, Eigen::Matrix<double, 18, 1> &dq, double control_time, const std::string& direction);
+    Eigen::VectorXd compute_torques(Eigen::Matrix<double, 19, 1> &q, Eigen::Matrix<double, 18, 1> &dq, double control_time, Eigen::Vector3d &v_des);
 
     /**
      * @brief Start the stepping
@@ -110,8 +110,8 @@ private:
     /** @brief QP angular penalty */
     Eigen::Vector3d qp_penalty_ang;
 
-    /** @brief QP penalty weights */
-    // Eigen::Matrix<double, 6, 1> qp_penalty_weights = Eigen::Matrix<double, 6, 1>::Zero(6);
+    /** @brief linear velocity desired */
+    Eigen::Vector3d linear_vel_des;
 
     /** @brief Centroidal PD controller */
     mim_control::CentroidalPDController centrl_pd_ctrl;
@@ -172,9 +172,6 @@ private:
     /** @brief desired yaw */
     double yaw_des;
 
-    /** @brief desired base speed */
-    Eigen::Vector3d v_des;
-
     /** @brief desired base position */
     Eigen::Vector3d com_des;
 
@@ -219,6 +216,8 @@ private:
      * @return double The yaw of the robot
      */
     static double yaw(Eigen::Matrix<double, 19, 1> &q);
+
+    bool print_once = true;
 };
 
 }  // namespace reactive_planners

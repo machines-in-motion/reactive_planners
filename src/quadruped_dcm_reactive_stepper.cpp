@@ -245,9 +245,9 @@ const Eigen::Matrix<double, 4, 3> &QuadrupedDcmReactiveStepper::get_next_support
             biped_stepper_.get_next_support_foot_position() + base_yaw_rot * hl_offset_;
 
     next_step_feet_pos.row(0) << front_left_next_foot_position_;
-    next_step_feet_pos.row(1) << front_right_next_foot_position;
-    next_step_feet_pos.row(2) << hind_left_next_foot_position;
-    next_step_feet_pos.row(3) << hind_right_next_foot_position;
+    next_step_feet_pos.row(1) << front_right_next_foot_position_;
+    next_step_feet_pos.row(2) << hind_left_next_foot_position_;
+    next_step_feet_pos.row(3) << hind_right_next_foot_position_;
 
     return next_step_feet_pos;
 }
