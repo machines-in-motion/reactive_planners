@@ -82,9 +82,17 @@ void QuadrupedDcmReactiveStepper::initialize(
          hind_right_foot_position(2) + hind_left_foot_position(2)) /
         4.0;
 
+//    fr_offset_(0) += 0.15;
+//    fr_offset_(1) += 0.15;
     fr_offset_(2) = foot_height_offset_;
+//    fl_offset_(0) += -0.15;
+//    fl_offset_(1) += 0.15;
     fl_offset_(2) = foot_height_offset_;
+//    hr_offset_(0) += 0.15;
+//    hr_offset_(1) += -0.15;
     hr_offset_(2) = foot_height_offset_;
+//    hl_offset_(0) += -0.15;
+//    hl_offset_(1) += -0.15;
     hl_offset_(2) = foot_height_offset_;
 
     Eigen::Vector3d virtual_left_foot_position =
@@ -152,6 +160,8 @@ bool QuadrupedDcmReactiveStepper::run(
                        com_velocity,
                        base_yaw,
                        is_closed_loop);
+
+
 
     Eigen::Matrix3d base_yaw_rot =
         pinocchio::rpy::rpyToMatrix(0.0, 0.0, base_yaw);
