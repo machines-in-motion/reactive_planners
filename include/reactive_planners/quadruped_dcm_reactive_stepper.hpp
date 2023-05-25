@@ -430,6 +430,24 @@ private:
 
     /** @brief Initial foot height during support. */
     double foot_height_offset_;
+
+    /** @brief Last position of front left foot before the flight phase start. */
+    Eigen::Vector3d last_touchdown_front_left_foot_position_;
+
+    /** @brief Last position of hind right foot before the flight phase start. */
+    Eigen::Vector3d last_touchdown_hind_right_foot_position_;
+
+    /** @brief Last position of front right foot before the flight phase start. */
+    Eigen::Vector3d last_touchdown_front_right_foot_position_;
+
+    /** @brief Last position of hind left foot before the flight phase start. */
+    Eigen::Vector3d last_touchdown_hind_left_foot_position_;
+
+    /** @brief Last base yaw before the flight phase of left virtual foot start. */
+    double last_touchdown_base_yaw_left_;
+
+    /** @brief Last base yaw before the flight phase of right virtual foot start. */
+    double last_touchdown_base_yaw_right_;
 };
 
 }  // namespace reactive_planners

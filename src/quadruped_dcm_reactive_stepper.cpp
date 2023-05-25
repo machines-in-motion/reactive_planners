@@ -139,6 +139,8 @@ bool QuadrupedDcmReactiveStepper::run(
     bool succeed = true;
     Eigen::Matrix<double, 12, 1> stepper_forces;
 
+    std::cout << "front_left_foot_position" << front_left_foot_position << std::endl;
+
     Eigen::Vector3d virtual_left_foot_position =
         (front_left_foot_position + hind_right_foot_position) * 0.5;
     virtual_left_foot_position(2) -= foot_height_offset_;
@@ -151,6 +153,46 @@ bool QuadrupedDcmReactiveStepper::run(
     Eigen::Vector3d virtual_right_foot_velocity =
         (front_right_foot_velocity + hind_left_foot_velocity) * 0.5;
 
+
+    Eigen::Matrix3d base_yaw_rot =
+            pinocchio::rpy::rpyToMatrix(0.0, 0.0, base_yaw);
+    Eigen::Matrix3d base_yaw_rot_t =
+            pinocchio::rpy::rpyToMatrix(0.0, 0.0, base_yaw).transpose();
+
+    if(biped_stepper_.is_running()) {
+        if (biped_stepper_.get_is_left_leg_in_contact()) {
+            std::cout << "LEFT" << std::endl;
+            std::cout << "base_yaw" << base_yaw << std::endl;
+            last_touchdown_front_left_foot_position_ = base_yaw_rot_t * (front_left_foot_position - virtual_left_foot_position);
+            last_touchdown_hind_right_foot_position_ = base_yaw_rot_t * (hind_right_foot_position - virtual_left_foot_position);
+            last_touchdown_front_left_foot_position_[2] = 0.0;
+            last_touchdown_hind_right_foot_position_[2] = 0.0;
+            last_touchdown_base_yaw_left_ = base_yaw;
+        }
+        else {
+            std::cout << "Right" << std::endl;
+            last_touchdown_front_right_foot_position_ = base_yaw_rot_t * (front_right_foot_position - virtual_right_foot_position);
+            last_touchdown_hind_left_foot_position_ = base_yaw_rot_t * (hind_left_foot_position - virtual_right_foot_position);
+            last_touchdown_front_right_foot_position_[2] = 0.0;
+            last_touchdown_hind_left_foot_position_[2] = 0.0;
+            last_touchdown_base_yaw_right_ = base_yaw;
+        }
+    }
+    else{
+        std::cout << "Both" << std::endl;
+        last_touchdown_front_left_foot_position_ = base_yaw_rot_t * (front_left_foot_position - virtual_left_foot_position);
+        last_touchdown_hind_right_foot_position_ = base_yaw_rot_t * (hind_right_foot_position - virtual_left_foot_position);
+        last_touchdown_front_right_foot_position_ = base_yaw_rot_t * (front_right_foot_position - virtual_right_foot_position);
+        last_touchdown_hind_left_foot_position_ = base_yaw_rot_t * (hind_left_foot_position - virtual_right_foot_position);
+        last_touchdown_front_left_foot_position_[2] = 0.0;
+        last_touchdown_hind_right_foot_position_[2] = 0.0;
+        last_touchdown_front_right_foot_position_[2] = 0.0;
+        last_touchdown_hind_left_foot_position_[2] = 0.0;
+        last_touchdown_base_yaw_left_ = base_yaw;
+        last_touchdown_base_yaw_right_ = base_yaw;
+    }
+
+
     biped_stepper_.run(time,
                        virtual_left_foot_position,
                        virtual_right_foot_position,
@@ -161,18 +203,17 @@ bool QuadrupedDcmReactiveStepper::run(
                        base_yaw,
                        is_closed_loop);
 
+//    Eigen::Matrix3d base_yaw_rot =
+//            pinocchio::rpy::rpyToMatrix(0.0, 0.0, base_yaw);
 
-
-    Eigen::Matrix3d base_yaw_rot =
-        pinocchio::rpy::rpyToMatrix(0.0, 0.0, base_yaw);
     front_left_foot_position_ =
-        biped_stepper_.get_left_foot_position() + base_yaw_rot * fl_offset_;
+        biped_stepper_.get_left_foot_position() + base_yaw_rot * last_touchdown_front_left_foot_position_;
     hind_right_foot_position_ =
-        biped_stepper_.get_left_foot_position() + base_yaw_rot * hr_offset_;
+        biped_stepper_.get_left_foot_position() + base_yaw_rot * last_touchdown_hind_right_foot_position_;
     front_right_foot_position_ =
-        biped_stepper_.get_right_foot_position() + base_yaw_rot * fr_offset_;
+        biped_stepper_.get_right_foot_position() + base_yaw_rot * last_touchdown_front_right_foot_position_;
     hind_left_foot_position_ =
-        biped_stepper_.get_right_foot_position() + base_yaw_rot * hl_offset_;
+        biped_stepper_.get_right_foot_position() + base_yaw_rot * last_touchdown_hind_left_foot_position_;
 
     front_left_foot_velocity_ = biped_stepper_.get_left_foot_velocity();
     hind_right_foot_velocity_ = biped_stepper_.get_left_foot_velocity();

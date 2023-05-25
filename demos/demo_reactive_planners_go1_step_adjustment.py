@@ -54,16 +54,16 @@ plan_freq = 1000
 p.resetDebugVisualizerCamera(1.6, 50, -35, (0.0, 0.0, 0.0))
 p.setTimeStep(1.0 / sim_freq)
 p.setRealTimeSimulation(0)
-for ji in range(12):
-    p.changeDynamics(
-        robot.robotId,
-        ji,
-        linearDamping=0.04,
-        angularDamping=0.04,
-        restitution=0.0,
-        lateralFriction=40.0,
-        spinningFriction=0.04,
-    )
+# for ji in range(12):
+#     p.changeDynamics(
+#         robot.robotId,
+#         ji,
+#         linearDamping=0.04,
+#         angularDamping=0.04,
+#         restitution=0.0,
+#         lateralFriction=40.0,
+#         spinningFriction=0.04,
+#     )
 q = np.array(Go1Config.initial_configuration)
 q[0] = 0.
 # q[3:7] = pin.Quaternion(pin.rpy.rpyToMatrix(0., 0., np.pi/4)).coeffs() #
@@ -72,7 +72,7 @@ robot.reset_state(q, qdot)
 print(q)
 total_mass = sum([i.mass for i in robot.pin_robot.model.inertias[1:]])
 warmup = 50
-kp = np.array(4 * [1000, 1000, 1000.0])
+kp = np.array(4 * [1000, 1000, 1000])
 kd = 12 * [15.0]#Lhum
 robot_config = Go1Config()
 config_file = robot_config.ctrl_path
@@ -82,10 +82,10 @@ centr_controller = RobotCentroidalController(
     mu=0.6,
     kc=[0, 0, 200],
     dc=[10, 10, 10],
-    kb=[25, 25, 25.],
+    kb=[125, 25, 25.],
     db=[22.5, 22.5, 22.5],
     qp_penalty_lin=[1e0, 1e0, 1e6],
-    qp_penalty_ang=[1e8, 1e8, 1e6],
+    qp_penalty_ang=[1e6, 1e6, 1e6],
 )
 is_left_leg_in_contact = True
 l_min = -0.4
@@ -112,9 +112,9 @@ hind_left_foot_position = robot.pin_robot.data.oMf[
 hind_right_foot_position = robot.pin_robot.data.oMf[
     go1_leg_ctrl.imp_ctrl_array[3].frame_end_idx].translation
 
-v_des = np.array([-0.0, 0.0, 0.0])
+v_des = np.array([-0.0, -0.0, 0.0])
 # p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "Yaw=-0.5.mp4")
-y_des = -0.5 # Speed of the yaw angle #Lhum check to see these works correctly
+y_des = -0.3 # Speed of the yaw angle #Lhum check to see these works correctly
 
 quadruped_dcm_reactive_stepper = QuadrupedDcmReactiveStepper()
 quadruped_dcm_reactive_stepper.initialize(
@@ -150,7 +150,7 @@ cnt_array = [1, 1]
 control_time = 0
 open_loop = True
 dcm_force = np.array([0.0, 0.0, 0.0])
-offset = 0.05  # foot radius
+offset = -0.02  # foot radius
 # quadruped_dcm_reactive_stepper.start()
 
 traj_q = np.zeros((2000 + warmup, 19))
@@ -165,6 +165,8 @@ plt_des_front_left_foot_position = []
 plt_des_front_right_foot_position = []
 plt_des_hind_left_foot_position = []
 plt_des_hind_right_foot_position = []
+plt_x_com = []
+plt_com_des = []
 
 
 for i in range(traj_q.shape[0]):
@@ -179,6 +181,7 @@ for i in range(traj_q.shape[0]):
 
     last_qdot = qdot
     q, qdot = robot.get_state()
+
     print("q,", q)
     print("roll pitch yaw", np.array(
         Rotation.from_quat([np.array(q)[3:7]]).as_euler("xyz", degrees=False))[0])
@@ -199,10 +202,10 @@ for i in range(traj_q.shape[0]):
         FR = go1_leg_ctrl.imp_ctrl_array[1]
         HL = go1_leg_ctrl.imp_ctrl_array[2]
         HR = go1_leg_ctrl.imp_ctrl_array[3]
-        print("FL", FL.frame_end_idx)
-        print("FR", FR.frame_end_idx)
-        print("HL", HL.frame_end_idx)
-        print("HR", HR.frame_end_idx)
+        # print("FL", FL.frame_end_idx)
+        # print("FR", FR.frame_end_idx)
+        # print("HL", HL.frame_end_idx)
+        # print("HR", HR.frame_end_idx)
         # Define left as front left and back right leg
         front_left_foot_position = robot.pin_robot.data.oMf[FL.frame_end_idx].translation
         front_right_foot_position = robot.pin_robot.data.oMf[FR.frame_end_idx].translation
@@ -270,6 +273,7 @@ for i in range(traj_q.shape[0]):
     )
 
     F = centr_controller.compute_force_qp(q, qdot, cnt_array, w_com)
+    print("F", F)
 
     des_vel = np.concatenate(
         (
@@ -302,6 +306,10 @@ for i in range(traj_q.shape[0]):
     p.stepSimulation()
 
     plt_timer.append(control_time)
+    plt_x_com.append(
+        x_com.copy())
+    plt_com_des.append(
+        com_des.copy())
     plt_front_left_foot_position.append(
         front_left_foot_position.copy())
     plt_front_right_foot_position.append(
@@ -325,7 +333,6 @@ quadruped_dcm_reactive_stepper.stop()
 # p.stopStateLogging()
 from matplotlib import pyplot as plt
 
-plt.figure("y")
 # plt.plot(plt_timer, np.array(plt_left_foot_position)[:, 1], label="left")
 # plt.plot(plt_timer, np.array(plt_right_foot_position)[:, 1], label="right")
 # plt.plot(plt_timer, np.array(plt_x_com)[warmup:, 1], label="com")
@@ -339,31 +346,159 @@ plt.figure("y")
 #     label="next_step_location",
 # )
 
-plt.figure("y")
+plt.figure("x")
 plt.plot(
-    plt_timer[warmup:],
-    np.array(plt_front_left_foot_position)[warmup:, 0],
-    label="left_y",
+    plt_timer[:],
+    np.array(plt_front_left_foot_position)[:, 0],
+    label="front_left_x",
 )
 plt.plot(
-    plt_timer[warmup:],
-    np.array(plt_des_front_left_foot_position)[warmup:, 0],
-    label="des_left_y",
+    plt_timer[:],
+    np.array(plt_des_front_left_foot_position)[:, 0],
+    label="des_front_left_x",
+)
+plt.plot(
+    plt_timer[:],
+    np.array(plt_front_right_foot_position)[:, 0],
+    label="front_right_x",
+)
+plt.plot(
+    plt_timer,
+    np.array(plt_des_front_right_foot_position)[:, 0],
+    label="des_front_right_x",
+)
+
+plt.plot(
+    plt_timer[:],
+    np.array(plt_hind_left_foot_position)[:, 0],
+    label="hind_left_x",
+)
+plt.plot(
+    plt_timer[:],
+    np.array(plt_des_hind_left_foot_position)[:, 0],
+    label="des_hind_left_x",
+)
+
+plt.plot(
+    plt_timer[:],
+    np.array(plt_hind_right_foot_position)[:, 0],
+    label="hind_right_x",
+)
+plt.plot(
+    plt_timer[:],
+    np.array(plt_des_hind_right_foot_position)[:, 0],
+    label="des_hind_right_x",
+)
+plt.plot(
+    plt_timer[:],
+    np.array(plt_x_com)[:, 0],
+    label="com_x",
 )
 # plt.plot(
 #     plt_timer[:],
-#     np.array(plt_right_eef_real_pos)[warmup:, 0],
-#     label="right_x",
+#     np.array(plt_com_des)[:, 0],
+#     label="com_des_x",
 # )
+plt.legend()
+
+plt.figure("y")
 plt.plot(
-    plt_timer[warmup:],
-    np.array(plt_hind_left_foot_position)[warmup:, 0],
-    label="right_y",
+    plt_timer[:],
+    np.array(plt_front_left_foot_position)[:, 1],
+    label="front_left_y",
 )
 plt.plot(
-    plt_timer[warmup:],
-    np.array(plt_des_hind_left_foot_position)[warmup:, 0],
-    label="des_right_y",
+    plt_timer[:],
+    np.array(plt_des_front_left_foot_position)[:, 1],
+    label="des_front_left_y",
 )
+plt.plot(
+    plt_timer[:],
+    np.array(plt_front_right_foot_position)[:, 1],
+    label="front_right_y",
+)
+plt.plot(
+    plt_timer,
+    np.array(plt_des_front_right_foot_position)[:, 1],
+    label="des_front_right_y",
+)
+
+plt.plot(
+    plt_timer[:],
+    np.array(plt_hind_left_foot_position)[:, 1],
+    label="hind_left_y",
+)
+plt.plot(
+    plt_timer[:],
+    np.array(plt_des_hind_left_foot_position)[:, 1],
+    label="des_hind_left_y",
+)
+
+plt.plot(
+    plt_timer[:],
+    np.array(plt_hind_right_foot_position)[:, 1],
+    label="hind_right_y",
+)
+plt.plot(
+    plt_timer[:],
+    np.array(plt_des_hind_right_foot_position)[:, 1],
+    label="des_hind_right_y",
+)
+plt.plot(
+    plt_timer[:],
+    np.array(plt_x_com)[:, 1],
+    label="com_y",
+)
+# plt.plot(
+#     plt_timer[:],
+#     np.array(plt_com_des)[:, 1],
+#     label="com_des_y",
+# )
+plt.legend()
+
+plt.figure("z")
+plt.plot(
+    plt_timer[:],
+    np.array(plt_front_left_foot_position)[:, 2],
+    label="front_left_z",
+)
+plt.plot(
+    plt_timer[:],
+    np.array(plt_des_front_left_foot_position)[:, 2],
+    label="des_front_left_z",
+)
+plt.plot(
+    plt_timer[:],
+    np.array(plt_front_right_foot_position)[:, 2],
+    label="front_right_z",
+)
+plt.plot(
+    plt_timer[:],
+    np.array(plt_des_front_right_foot_position)[:, 2],
+    label="des_front_right_z",
+)
+
+plt.plot(
+    plt_timer[:],
+    np.array(plt_hind_left_foot_position)[:, 2],
+    label="hind_left_z",
+)
+plt.plot(
+    plt_timer[:],
+    np.array(plt_des_hind_left_foot_position)[:, 2],
+    label="des_hind_left_z",
+)
+
+plt.plot(
+    plt_timer[:],
+    np.array(plt_hind_right_foot_position)[:, 2],
+    label="hind_right_z",
+)
+plt.plot(
+    plt_timer[:],
+    np.array(plt_des_hind_right_foot_position)[:, 2],
+    label="des_hind_right_z",
+)
+
 plt.legend()
 plt.show()
