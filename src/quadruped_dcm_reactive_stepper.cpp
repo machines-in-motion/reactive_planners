@@ -161,7 +161,10 @@ bool QuadrupedDcmReactiveStepper::run(
                        base_yaw,
                        is_closed_loop);
 
+    std::cout << biped_stepper_.stepper_head_.get_time_from_last_step_touchdown();
+    if(biped_stepper_.stepper_head_.get_time_from_last_step_touchdown() == 0){
 
+    }
 
     Eigen::Matrix3d base_yaw_rot =
         pinocchio::rpy::rpyToMatrix(0.0, 0.0, base_yaw);
