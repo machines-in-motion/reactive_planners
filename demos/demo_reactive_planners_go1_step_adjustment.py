@@ -184,9 +184,6 @@ for i in range(traj_q.shape[0]):
     last_qdot = qdot
     q, qdot = robot.get_state()
 
-    print("q,", q)
-    print("roll pitch yaw", np.array(
-        Rotation.from_quat([np.array(q)[3:7]]).as_euler("xyz", degrees=False))[0])
     robot.pin_robot.com(q, qdot)
     robot.update_pinocchio(q, qdot)
     x_com = robot.pin_robot.com(q, qdot)[0]
@@ -275,7 +272,6 @@ for i in range(traj_q.shape[0]):
     )
 
     F = centr_controller.compute_force_qp(q, qdot, cnt_array, w_com)
-    print("F", F)
 
     des_vel = np.concatenate(
         (

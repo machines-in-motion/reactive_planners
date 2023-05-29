@@ -140,8 +140,6 @@ bool QuadrupedDcmReactiveStepper::run(
     bool succeed = true;
     Eigen::Matrix<double, 12, 1> stepper_forces;
 
-    std::cout << "front_left_foot_position" << front_left_foot_position << std::endl;
-
     Eigen::Vector3d virtual_left_foot_position =
         (front_left_foot_position + hind_right_foot_position) * 0.5;
     virtual_left_foot_position(2) -= foot_height_offset_;
@@ -163,15 +161,12 @@ bool QuadrupedDcmReactiveStepper::run(
 
     if(biped_stepper_.is_running()) {
         if (biped_stepper_.get_is_left_leg_in_contact()) {
-            std::cout << "LEFT" << std::endl;
-            std::cout << "base_yaw" << base_yaw << std::endl;
             last_touchdown_front_left_foot_position_ = base_yaw_rot_t * (front_left_foot_position - virtual_left_foot_position);
             last_touchdown_hind_right_foot_position_ = base_yaw_rot_t * (hind_right_foot_position - virtual_left_foot_position);
             last_touchdown_front_left_foot_position_[2] = 0.0;
             last_touchdown_hind_right_foot_position_[2] = 0.0;
         }
         else {
-            std::cout << "Right!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
             last_touchdown_front_right_foot_position_ = base_yaw_rot_t * (front_right_foot_position - virtual_right_foot_position);
             last_touchdown_hind_left_foot_position_ = base_yaw_rot_t * (hind_left_foot_position - virtual_right_foot_position);
             last_touchdown_front_right_foot_position_[2] = 0.0;
@@ -179,7 +174,6 @@ bool QuadrupedDcmReactiveStepper::run(
         }
     }
     else{
-        std::cout << "Both" << std::endl;
         last_touchdown_front_left_foot_position_ = base_yaw_rot_t * (front_left_foot_position - virtual_left_foot_position);
         last_touchdown_hind_right_foot_position_ = base_yaw_rot_t * (hind_right_foot_position - virtual_left_foot_position);
         last_touchdown_front_right_foot_position_ = base_yaw_rot_t * (front_right_foot_position - virtual_right_foot_position);
