@@ -72,7 +72,7 @@ robot.reset_state(q, qdot)
 print(q)
 total_mass = sum([i.mass for i in robot.pin_robot.model.inertias[1:]])
 warmup = 50
-kp = np.array(4 * [1000, 1000, 1000])
+kp = np.array(4 * [100000, 100000, 10000])
 kd = 12 * [15.0]#Lhum
 robot_config = Go1Config()
 config_file = robot_config.ctrl_path
@@ -112,9 +112,9 @@ hind_left_foot_position = robot.pin_robot.data.oMf[
 hind_right_foot_position = robot.pin_robot.data.oMf[
     go1_leg_ctrl.imp_ctrl_array[3].frame_end_idx].translation
 
-v_des = np.array([-0.0, -0.0, 0.0])
-# p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "Yaw=-0.5.mp4")
-y_des = -0.3 # Speed of the yaw angle #Lhum check to see these works correctly
+v_des = np.array([0.0, -0.0, 0.0])
+# p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "funny_turn.mp4")
+y_des = -0.5 # Speed of the yaw angle #Lhum check to see these works correctly
 
 quadruped_dcm_reactive_stepper = QuadrupedDcmReactiveStepper()
 quadruped_dcm_reactive_stepper.initialize(
@@ -153,7 +153,7 @@ dcm_force = np.array([0.0, 0.0, 0.0])
 offset = -0.02  # foot radius
 # quadruped_dcm_reactive_stepper.start()
 
-traj_q = np.zeros((2000 + warmup, 19))
+traj_q = np.zeros((20000 + warmup, 19))
 
 
 plt_timer = []
@@ -165,6 +165,8 @@ plt_des_front_left_foot_position = []
 plt_des_front_right_foot_position = []
 plt_des_hind_left_foot_position = []
 plt_des_hind_right_foot_position = []
+plt_biped_right_foot_position = []
+plt_biped_left_foot_position = []
 plt_x_com = []
 plt_com_des = []
 
@@ -326,6 +328,10 @@ for i in range(traj_q.shape[0]):
         quadruped_dcm_reactive_stepper.get_hind_left_foot_position())
     plt_des_hind_right_foot_position.append(
         quadruped_dcm_reactive_stepper.get_hind_right_foot_position())
+    plt_biped_right_foot_position.append(
+        quadruped_dcm_reactive_stepper.get_biped_right_foot_position())
+    plt_biped_left_foot_position.append(
+        quadruped_dcm_reactive_stepper.get_biped_left_foot_position())
 
 quadruped_dcm_reactive_stepper.stop()
 
@@ -391,6 +397,16 @@ plt.plot(
 )
 plt.plot(
     plt_timer[:],
+    np.array(plt_biped_left_foot_position)[:, 0],
+    label="biped_left_pos",
+)
+plt.plot(
+    plt_timer[:],
+    np.array(plt_biped_right_foot_position)[:, 0],
+    label="biped_right_pos",
+)
+plt.plot(
+    plt_timer[:],
     np.array(plt_x_com)[:, 0],
     label="com_x",
 )
@@ -443,6 +459,16 @@ plt.plot(
     plt_timer[:],
     np.array(plt_des_hind_right_foot_position)[:, 1],
     label="des_hind_right_y",
+)
+plt.plot(
+    plt_timer[:],
+    np.array(plt_biped_left_foot_position)[:, 1],
+    label="biped_left_pos",
+)
+plt.plot(
+    plt_timer[:],
+    np.array(plt_biped_right_foot_position)[:, 1],
+    label="biped_right_pos",
 )
 plt.plot(
     plt_timer[:],

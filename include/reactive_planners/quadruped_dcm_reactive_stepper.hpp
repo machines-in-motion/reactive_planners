@@ -330,8 +330,14 @@ public:
         return hind_right_foot_acceleration_;
     }
 
-    /* hind right foot */
-
+    const Eigen::Vector3d &get_biped_left_foot_position()
+    {
+        return biped_stepper_.get_left_foot_position();
+    }
+    const Eigen::Vector3d &get_biped_right_foot_position()
+    {
+        return biped_stepper_.get_right_foot_position();
+    }
     /**
      * @brief Get the feasible velocity computed from the foot stride
      * length.
@@ -431,17 +437,29 @@ private:
     /** @brief Initial foot height during support. */
     double foot_height_offset_;
 
-    /** @brief Last position of front left foot before the flight phase start. */
+    /** @brief Last position of front left foot before the flight phase start in virtual foot frame. */
     Eigen::Vector3d last_touchdown_front_left_foot_position_;
 
-    /** @brief Last position of hind right foot before the flight phase start. */
+    /** @brief Last position of hind right foot before the flight phase start in virtual foot frame. */
     Eigen::Vector3d last_touchdown_hind_right_foot_position_;
 
-    /** @brief Last position of front right foot before the flight phase start. */
+    /** @brief Last position of front right foot before the flight phase start in virtual foot frame. */
     Eigen::Vector3d last_touchdown_front_right_foot_position_;
 
-    /** @brief Last position of hind left foot before the flight phase start. */
+    /** @brief Last position of hind left foot before the flight phase start in virtual foot frame. */
     Eigen::Vector3d last_touchdown_hind_left_foot_position_;
+
+    /** @brief Last position of front left foot before the flight phase start in com frame. */
+    Eigen::Vector3d last_touchdown_front_left_foot_position_com_;
+
+    /** @brief Last position of hind right foot before the flight phase start in com frame. */
+    Eigen::Vector3d last_touchdown_hind_right_foot_position_com_;
+
+    /** @brief Last position of front right foot before the flight phase start in com frame. */
+    Eigen::Vector3d last_touchdown_front_right_foot_position_com_;
+
+    /** @brief Last position of hind left foot before the flight phase start in com frame. */
+    Eigen::Vector3d last_touchdown_hind_left_foot_position_com_;
 
     /** @brief Last base yaw before the flight phase of left virtual foot start. */
     double last_touchdown_base_yaw_left_;

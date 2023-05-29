@@ -116,6 +116,10 @@ void bind_quadruped_dcm_reactive_stepper(pybind11::module &module)
              &QuadrupedDcmReactiveStepper::get_hind_right_foot_velocity)
         .def("get_feasible_com_velocity",
              &QuadrupedDcmReactiveStepper::get_feasible_com_velocity)
+        .def("get_biped_right_foot_position",
+             &QuadrupedDcmReactiveStepper::get_biped_right_foot_position)
+        .def("get_biped_left_foot_position",
+             &QuadrupedDcmReactiveStepper::get_biped_left_foot_position)
         .def("get_contact_array",
              &QuadrupedDcmReactiveStepper::get_contact_array)
         .def("get_forces",
