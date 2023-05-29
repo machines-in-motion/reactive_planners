@@ -11,11 +11,12 @@ from robot_properties_go1.config import Go1Config
 from robot_properties_go1.go1wrapper import Go1Robot
 from mim_control.robot_centroidal_controller import RobotCentroidalController
 from mim_control.robot_impedance_controller import RobotImpedanceController
-from reactive_planners.lipm_simulator import LipmSimpulator
 from reactive_planners_cpp import QuadrupedDcmReactiveStepper
 import pinocchio as pin
 from scipy.spatial.transform import Rotation
 from bullet_utils.env import BulletEnvWithGround
+from reactive_planners.reactive_planner_go1_step_adjustment import go1_reactive_planner
+from colorama import Fore
 
 np.set_printoptions(suppress=True, precision=2)
 pin.switchToNumpyArray()
@@ -33,13 +34,6 @@ def yaw(q):
         Rotation.from_quat([np.array(q)[3:7]]).as_euler("xyz", degrees=False)
     )[0, 2]
 
-data_collector = None
-
-# from RAI.data_collector import DataCollector
-
-# data_collector = DataCollector()
-
-
 # Create a robot instance. This initializes the simulator as well.
 env = BulletEnvWithGround()
 robot = Go1Robot()
@@ -54,19 +48,8 @@ plan_freq = 1000
 p.resetDebugVisualizerCamera(1.6, 50, -35, (0.0, 0.0, 0.0))
 p.setTimeStep(1.0 / sim_freq)
 p.setRealTimeSimulation(0)
-# for ji in range(12):
-#     p.changeDynamics(
-#         robot.robotId,
-#         ji,
-#         linearDamping=0.04,
-#         angularDamping=0.04,
-#         restitution=0.0,
-#         lateralFriction=40.0,
-#         spinningFriction=0.04,
-#     )
 q = np.array(Go1Config.initial_configuration)
-q[0] = 0.
-# q[3:7] = pin.Quaternion(pin.rpy.rpyToMatrix(0., 0., np.pi/4)).coeffs() #
+# q[0] = 0.
 qdot = np.matrix(Go1Config.initial_velocity).T
 robot.reset_state(q, qdot)
 print(q)
@@ -112,7 +95,7 @@ hind_left_foot_position = robot.pin_robot.data.oMf[
 hind_right_foot_position = robot.pin_robot.data.oMf[
     go1_leg_ctrl.imp_ctrl_array[3].frame_end_idx].translation
 
-v_des = np.array([0.0, -0.0, 0.0])
+v_des = np.array([0.5, -0.0, 0.0])
 # p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "funny_turn.mp4")
 y_des = -0.5 # Speed of the yaw angle #Lhum check to see these works correctly
 
@@ -153,7 +136,7 @@ dcm_force = np.array([0.0, 0.0, 0.0])
 offset = -0.02  # foot radius
 # quadruped_dcm_reactive_stepper.start()
 
-traj_q = np.zeros((20000 + warmup, 19))
+traj_q = np.zeros((1000 + warmup, 19))
 
 
 plt_timer = []
@@ -170,6 +153,7 @@ plt_biped_left_foot_position = []
 plt_x_com = []
 plt_com_des = []
 
+test_go1 = go1_reactive_planner()
 
 for i in range(traj_q.shape[0]):
     if i > warmup:
@@ -195,58 +179,72 @@ for i in range(traj_q.shape[0]):
 
     if i == warmup:
         quadruped_dcm_reactive_stepper.start()
+        test_go1.start()
     #     elif i > warmup :
-    else:
-        FL = go1_leg_ctrl.imp_ctrl_array[0]
-        FR = go1_leg_ctrl.imp_ctrl_array[1]
-        HL = go1_leg_ctrl.imp_ctrl_array[2]
-        HR = go1_leg_ctrl.imp_ctrl_array[3]
-        # print("FL", FL.frame_end_idx)
-        # print("FR", FR.frame_end_idx)
-        # print("HL", HL.frame_end_idx)
-        # print("HR", HR.frame_end_idx)
-        # Define left as front left and back right leg
-        front_left_foot_position = robot.pin_robot.data.oMf[FL.frame_end_idx].translation
-        front_right_foot_position = robot.pin_robot.data.oMf[FR.frame_end_idx].translation
-        hind_left_foot_position = robot.pin_robot.data.oMf[HL.frame_end_idx].translation
-        hind_right_foot_position = robot.pin_robot.data.oMf[HR.frame_end_idx].translation
-        front_left_foot_velocity = pin.getFrameVelocity(
-            robot.pin_robot.model, robot.pin_robot.data, FL.frame_end_idx, pin.LOCAL_WORLD_ALIGNED).linear
-        front_right_foot_velocity = pin.getFrameVelocity(
-            robot.pin_robot.model, robot.pin_robot.data, FR.frame_end_idx, pin.LOCAL_WORLD_ALIGNED).linear
-        hind_left_foot_velocity = pin.getFrameVelocity(
-            robot.pin_robot.model, robot.pin_robot.data, HL.frame_end_idx, pin.LOCAL_WORLD_ALIGNED).linear
-        hind_right_foot_velocity = pin.getFrameVelocity(
-            robot.pin_robot.model, robot.pin_robot.data, HR.frame_end_idx, pin.LOCAL_WORLD_ALIGNED).linear
 
-        quadruped_dcm_reactive_stepper.run(
-            control_time,
-            front_left_foot_position,
-            front_right_foot_position,
-            hind_left_foot_position,
-            hind_right_foot_position,
-            front_left_foot_velocity,
-            front_right_foot_velocity,
-            hind_left_foot_velocity,
-            hind_right_foot_velocity,
-            x_com,
-            xd_com,
-            yaw(q),
-            not open_loop,
-        )
+    FL = go1_leg_ctrl.imp_ctrl_array[0]
+    FR = go1_leg_ctrl.imp_ctrl_array[1]
+    HL = go1_leg_ctrl.imp_ctrl_array[2]
+    HR = go1_leg_ctrl.imp_ctrl_array[3]
+    # print("FL", FL.frame_end_idx)
+    # print("FR", FR.frame_end_idx)
+    # print("HL", HL.frame_end_idx)
+    # print("HR", HR.frame_end_idx)
+    # Define left as front left and back right leg
+    front_left_foot_position = robot.pin_robot.data.oMf[FL.frame_end_idx].translation
+    front_right_foot_position = robot.pin_robot.data.oMf[FR.frame_end_idx].translation
+    hind_left_foot_position = robot.pin_robot.data.oMf[HL.frame_end_idx].translation
+    hind_right_foot_position = robot.pin_robot.data.oMf[HR.frame_end_idx].translation
+    front_left_foot_velocity = pin.getFrameVelocity(
+        robot.pin_robot.model, robot.pin_robot.data, FL.frame_end_idx, pin.LOCAL_WORLD_ALIGNED).linear
+    front_right_foot_velocity = pin.getFrameVelocity(
+        robot.pin_robot.model, robot.pin_robot.data, FR.frame_end_idx, pin.LOCAL_WORLD_ALIGNED).linear
+    hind_left_foot_velocity = pin.getFrameVelocity(
+        robot.pin_robot.model, robot.pin_robot.data, HL.frame_end_idx, pin.LOCAL_WORLD_ALIGNED).linear
+    hind_right_foot_velocity = pin.getFrameVelocity(
+        robot.pin_robot.model, robot.pin_robot.data, HR.frame_end_idx, pin.LOCAL_WORLD_ALIGNED).linear
 
-        x_des_local = []
-        x_des_local.extend(quadruped_dcm_reactive_stepper.get_front_left_foot_position())
-        x_des_local.extend(quadruped_dcm_reactive_stepper.get_front_right_foot_position())
-        x_des_local.extend(quadruped_dcm_reactive_stepper.get_hind_left_foot_position())
-        x_des_local.extend(quadruped_dcm_reactive_stepper.get_hind_right_foot_position())
+    # print(Fore.WHITE + "class control_time", control_time)
+    # print(Fore.WHITE + "class front_left_foot_position", front_left_foot_position)
+    # print(Fore.WHITE + "class front_right_foot_position", front_right_foot_position)
+    # print(Fore.WHITE + "class hind_left_foot_position", hind_left_foot_position)
+    # print(Fore.WHITE + "class hind_right_foot_position", hind_right_foot_position)
+    # print(Fore.WHITE + "class front_left_foot_velocity", front_left_foot_velocity)
+    # print(Fore.WHITE + "class front_right_foot_velocity", front_right_foot_velocity)
+    # print(Fore.WHITE + "class hind_left_foot_velocity", hind_left_foot_velocity)
+    # print(Fore.WHITE + "class hind_right_foot_velocity", hind_right_foot_velocity)
+    # print(Fore.WHITE + "class x_com", x_com)
+    # print(Fore.WHITE + "class xd_com", xd_com)
+    # print(Fore.WHITE + "class yaw(q)", yaw(q))
 
-        x_des_local[2] -= offset
-        x_des_local[5] -= offset
-        x_des_local[8] -= offset
-        x_des_local[11] -= offset
+    quadruped_dcm_reactive_stepper.run(
+        control_time,
+        front_left_foot_position,
+        front_right_foot_position,
+        hind_left_foot_position,
+        hind_right_foot_position,
+        front_left_foot_velocity,
+        front_right_foot_velocity,
+        hind_left_foot_velocity,
+        hind_right_foot_velocity,
+        x_com,
+        xd_com,
+        yaw(q),
+        not open_loop,
+    )
 
-        cnt_array = quadruped_dcm_reactive_stepper.get_contact_array()
+    x_des_local = []
+    x_des_local.extend(quadruped_dcm_reactive_stepper.get_front_left_foot_position())
+    x_des_local.extend(quadruped_dcm_reactive_stepper.get_front_right_foot_position())
+    x_des_local.extend(quadruped_dcm_reactive_stepper.get_hind_left_foot_position())
+    x_des_local.extend(quadruped_dcm_reactive_stepper.get_hind_right_foot_position())
+
+    x_des_local[2] -= offset
+    x_des_local[5] -= offset
+    x_des_local[8] -= offset
+    x_des_local[11] -= offset
+
+    cnt_array = quadruped_dcm_reactive_stepper.get_contact_array()
     #     else:
     #         cnt_array = [1, 1, 1, 1]
     #         x_des_local = np.array([
@@ -255,6 +253,7 @@ for i in range(traj_q.shape[0]):
     #             -0.195,  0.147, 0.015,
     #             -0.195, -0.147, 0.015
     #         ])
+    # print(Fore.RED + "Actual x_des_local after offset", x_des_local)
 
     for j in range(4):
         imp = go1_leg_ctrl.imp_ctrl_array[j]
@@ -298,8 +297,29 @@ for i in range(traj_q.shape[0]):
         des_vel,
         F,
     )
-    control_time += 0.001
 
+    # if i > warmup:
+    control_time += 0.001
+    # print(Fore.WHITE + "Actual q", q)
+    # print("Actual qdot", qdot)
+    # print("Actual [self.com_des[0], self.com_des[1], self.com_height]", [com_des[0], com_des[1], com_height])
+    # print("Actual v_des", v_des)
+    # print("Actual yaw_des", yaw_des)
+    # print("Actual pin.Quaternion(pin.rpy.rpyToMatrix(0., 0., self.yaw_des)).coeffs()", pin.Quaternion(pin.rpy.rpyToMatrix(0., 0., yaw_des)).coeffs())
+    # print("Actual [0.0, 0.0, y_des]", [0.0, 0.0, y_des])
+    # print("Actual w_com: ", w_com)
+    # print("Actual cnt_array: ", cnt_array)
+    # print("Actual q", q)
+    # print("Actual qdot", qdot)
+    # print("Actual zero_cnt_gain(self.kp, self.cnt_array)", zero_cnt_gain(kp, cnt_array))
+    # print("Actual zero_cnt_gain(self.kd, self.cnt_array)", zero_cnt_gain(kd, cnt_array))
+    # print(Fore.RED + "Actual x_des_local", x_des_local)
+    # print(Fore.WHITE + "Actual des_vel", des_vel)
+    # print("Actual F", F)
+    print(Fore.BLUE + "Actual tau: ", tau)
+    print("                  ==                  ")
+    print(Fore.BLUE + "Class tau: ", test_go1.step(q, qdot, yaw_des, v_des, y_des))
+    print("___________________________________")
     robot.send_joint_command(tau)
     p.stepSimulation()
 

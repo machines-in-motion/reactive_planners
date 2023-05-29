@@ -449,18 +449,6 @@ private:
     /** @brief Last position of hind left foot before the flight phase start in virtual foot frame. */
     Eigen::Vector3d last_touchdown_hind_left_foot_position_;
 
-    /** @brief Last position of front left foot before the flight phase start in com frame. */
-    Eigen::Vector3d last_touchdown_front_left_foot_position_com_;
-
-    /** @brief Last position of hind right foot before the flight phase start in com frame. */
-    Eigen::Vector3d last_touchdown_hind_right_foot_position_com_;
-
-    /** @brief Last position of front right foot before the flight phase start in com frame. */
-    Eigen::Vector3d last_touchdown_front_right_foot_position_com_;
-
-    /** @brief Last position of hind left foot before the flight phase start in com frame. */
-    Eigen::Vector3d last_touchdown_hind_left_foot_position_com_;
-
     /** @brief Last base yaw before the flight phase of left virtual foot start. */
     double last_touchdown_base_yaw_left_;
 
