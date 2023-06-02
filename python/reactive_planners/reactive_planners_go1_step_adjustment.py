@@ -14,6 +14,10 @@ from reactive_planners_cpp import QuadrupedDcmReactiveStepper
 import pinocchio as pin
 from scipy.spatial.transform import Rotation
 from colorama import Fore
+from pinocchio.utils import zero
+import time
+import tracemalloc
+import memory_profiler
 
 def zero_cnt_gain(kp, cnt_array):
     gain = np.array(kp).copy()
@@ -22,14 +26,13 @@ def zero_cnt_gain(kp, cnt_array):
             gain[3 * i : 3 * (i + 1)] = 0.0
     return gain
 
-
 def yaw(q):
     return np.array(
         Rotation.from_quat([np.array(q)[3:7]]).as_euler("xyz", degrees=False)
     )[0, 2]
 
 
-class go1_reactive_planner():
+class go1_reactive_planners():
     def __init__(self,
                  initial_configuration=Go1Config.initial_configuration,
                  initial_velocity=Go1Config.initial_velocity,
@@ -50,7 +53,6 @@ class go1_reactive_planner():
         self.robot = Go1RobotWithoutPybullet()
 
         q = np.array(initial_configuration)
-        qdot = np.matrix(initial_velocity).T
         self.robot_config = Go1Config()
         config_file = self.robot_config.ctrl_path
         self.go1_leg_ctrl = RobotImpedanceController(self.robot, config_file)
@@ -139,6 +141,86 @@ class go1_reactive_planner():
         """
         self.quadruped_dcm_reactive_stepper.start()
 
+    def reset(self,
+              initial_configuration=Go1Config.initial_configuration,
+              initial_velocity=Go1Config.initial_velocity,
+              ):
+        # Create a robot instance.
+        self.robot = Go1RobotWithoutPybullet()
+
+        q = np.array(initial_configuration)
+        qdot = np.matrix(initial_velocity).T
+        self.robot_config = Go1Config()
+        config_file = self.robot_config.ctrl_path
+        self.go1_leg_ctrl = RobotImpedanceController(self.robot, config_file)
+        self.robot.pin_robot.framesForwardKinematics(q)
+
+        ########## Parameters you can tune
+        l_min = -0.4
+        l_max = 0.4
+        w_min = -0.08
+        w_max = 0.4
+        t_min = 0.1
+        t_max = 2.0
+        self.com_height = 0.35
+        weight = [1, 1, 5, 1000, 1000, 100000, 100000, 100000, 100000]
+        mid_air_foot_height = 0.05
+
+        #########################
+
+        is_left_leg_in_contact = True
+        l_p = 0.00  # Pelvis width
+        control_period = 0.001
+        planner_loop = 0.010
+        v_des = np.array([0.0, -0.0, 0.0])
+        base_pose = q[:7]
+
+        front_left_foot_position = self.robot.pin_robot.data.oMf[
+            self.go1_leg_ctrl.imp_ctrl_array[0].frame_end_idx].translation
+        front_right_foot_position = self.robot.pin_robot.data.oMf[
+            self.go1_leg_ctrl.imp_ctrl_array[1].frame_end_idx].translation
+        hind_left_foot_position = self.robot.pin_robot.data.oMf[
+            self.go1_leg_ctrl.imp_ctrl_array[2].frame_end_idx].translation
+        hind_right_foot_position = self.robot.pin_robot.data.oMf[
+            self.go1_leg_ctrl.imp_ctrl_array[3].frame_end_idx].translation
+
+        self.quadruped_dcm_reactive_stepper = QuadrupedDcmReactiveStepper()
+        self.quadruped_dcm_reactive_stepper.initialize(
+            is_left_leg_in_contact,
+            l_min,
+            l_max,
+            w_min,
+            w_max,
+            t_min,
+            t_max,
+            l_p,
+            self.com_height,
+            weight,
+            mid_air_foot_height,
+            control_period,
+            planner_loop,
+            base_pose,
+            front_left_foot_position,
+            front_right_foot_position,
+            hind_left_foot_position,
+            hind_right_foot_position,
+        )
+
+        self.quadruped_dcm_reactive_stepper.set_steptime_nominal(0.15)
+        self.quadruped_dcm_reactive_stepper.set_desired_com_velocity(v_des)
+        self.quadruped_dcm_reactive_stepper.set_polynomial_end_effector_trajectory()
+
+        # Do not change
+        # x_com = self.robot.pin_robot.com(q, qdot)[0]#Lhum update
+        x_com = [[0.0], [0.0], [self.com_height]]
+        self.com_des = np.array([x_com[0][0], x_com[1][0]])
+        self.yaw_des = yaw(q)
+        self.cnt_array = [1, 1]
+        self.control_time = 0
+        self.open_loop = True
+        self.offset = -0.02  # foot radius
+
+    @profile
     def step(self, q, qdot,
              yaw_des,
              v_des=np.array([0.0, -0.0, 0.0]),
@@ -147,6 +229,16 @@ class go1_reactive_planner():
         """ Warning
         1) Calling this function means one timestep moving forward. You cannot undo it afterward.
         """
+        if type(q) is np.array or type(q) is list:
+            temp = zero(len(q))
+            temp[:] = q
+            q = temp.copy()
+
+        if type(qdot) is np.array or type(qdot) is list:
+            temp = zero(len(qdot))
+            temp[:] = qdot
+            qdot = temp.copy()
+
         # self.robot.reset_state(q, qdot)
         self.robot.pin_robot.com(q, qdot)
         self.robot.update_pinocchio(q, qdot)
@@ -282,5 +374,28 @@ class go1_reactive_planner():
 
         return tau
 
-def __main__():
-    go1_reactive_planner()
+if __name__ == "__main__":
+    tracemalloc.start()
+    num_simulation = 1
+    length_simulation = 1000
+    stepper = []
+    start_time = time.time()
+
+    for i in range(num_simulation):
+        print(i)
+        stepper.append(go1_reactive_planners())
+        stepper[-1].start()
+
+    initialization_time = time.time()
+    print("Initialization time", initialization_time - start_time)
+
+    for i in range(length_simulation):
+        for j in range(num_simulation):
+            stepper[j].step(Go1Config.initial_configuration, Go1Config.initial_velocity, 0)
+
+    end_time = time.time()
+    print("Simulating steps time", end_time - initialization_time)
+    print(tracemalloc.get_tracemalloc_memory(), "bytes")
+    tracemalloc.stop()
+    import os, psutil
+    print(psutil.Process(os.getpid()).memory_info().r)

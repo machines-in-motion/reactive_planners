@@ -15,7 +15,7 @@ from reactive_planners_cpp import QuadrupedDcmReactiveStepper
 import pinocchio as pin
 from scipy.spatial.transform import Rotation
 from bullet_utils.env import BulletEnvWithGround
-from reactive_planners.reactive_planner_go1_step_adjustment import go1_reactive_planner
+from reactive_planners.reactive_planners_go1_step_adjustment import go1_reactive_planners
 from colorama import Fore
 
 np.set_printoptions(suppress=True, precision=2)
@@ -153,7 +153,7 @@ plt_biped_left_foot_position = []
 plt_x_com = []
 plt_com_des = []
 
-test_go1 = go1_reactive_planner()
+test_go1 = go1_reactive_planners()
 
 for i in range(traj_q.shape[0]):
     if i > warmup:
@@ -318,7 +318,7 @@ for i in range(traj_q.shape[0]):
     # print("Actual F", F)
     print(Fore.BLUE + "Actual tau: ", tau)
     print("                  ==                  ")
-    print(Fore.BLUE + "Class tau: ", test_go1.step(q, qdot, yaw_des, v_des, y_des))
+    print(Fore.BLUE + "Class tau: ", test_go1.step(list(Go1Config.initial_configuration), qdot, yaw_des, v_des, y_des))
     print("___________________________________")
     robot.send_joint_command(tau)
     p.stepSimulation()
