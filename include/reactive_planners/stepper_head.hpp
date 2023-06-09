@@ -27,6 +27,8 @@ public:
      * parameters. Please call init() in order to setup this class properly. */
     StepperHead();
 
+    void initialization();
+
     void set_support_feet_pos(
         const Eigen::Ref<const Eigen::Vector3d> &previous_support_location,
         const Eigen::Ref<const Eigen::Vector3d> &current_support_location)

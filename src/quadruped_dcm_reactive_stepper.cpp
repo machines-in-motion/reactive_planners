@@ -104,6 +104,21 @@ void QuadrupedDcmReactiveStepper::initialize(
         (front_right_foot_position + hind_left_foot_position) * 0.5;
     virtual_right_foot_position[2] = 0.0;
 
+    front_left_foot_position_.setZero();
+    front_left_foot_velocity_.setZero();
+    front_left_foot_acceleration_.setZero();
+    front_right_foot_position_.setZero();
+    front_right_foot_velocity_.setZero();
+    front_right_foot_acceleration_.setZero();
+    hind_left_foot_position_.setZero();
+    hind_left_foot_velocity_.setZero();
+    hind_left_foot_acceleration_.setZero();
+    hind_right_foot_position_.setZero();
+    hind_right_foot_velocity_.setZero();
+    hind_right_foot_acceleration_.setZero();
+    forces_.setZero();
+    contact_array_.fill(1);
+
     // Initialize the dcm vrp planner and initialize it.
     biped_stepper_.initialize(is_left_leg_in_contact,
                               l_min,

@@ -34,27 +34,28 @@ def yaw(q):
         Rotation.from_quat([np.array(q)[3:7]]).as_euler("xyz", degrees=False)
     )[0, 2]
 
+original_dt = 0.001
+dt = 0.002
 # Create a robot instance. This initializes the simulator as well.
-env = BulletEnvWithGround()
+env = BulletEnvWithGround(dt=dt)
 robot = Go1Robot()
 env.add_robot(robot)
 tau = np.zeros(12)
 
 time = 0
-sim_freq = 1000  # Hz
-ctrl_freq = 1000
-plan_freq = 1000
 
 p.resetDebugVisualizerCamera(1.6, 50, -35, (0.0, 0.0, 0.0))
-p.setTimeStep(1.0 / sim_freq)
-p.setRealTimeSimulation(0)
+p.setTimeStep(dt)
+# p.setRealTimeSimulation(0)
 q = np.array(Go1Config.initial_configuration)
-# q[0] = 0.
+q[0] = 0.2
+q[3:7] = pin.Quaternion(pin.rpy.rpyToMatrix(0., 0., np.pi/4)).coeffs() #
+
 qdot = np.matrix(Go1Config.initial_velocity).T
 robot.reset_state(q, qdot)
 print(q)
 total_mass = sum([i.mass for i in robot.pin_robot.model.inertias[1:]])
-warmup = 50
+warmup = 60
 kp = np.array(4 * [100000, 100000, 10000])
 kd = 12 * [15.0]#Lhum
 robot_config = Go1Config()
@@ -81,7 +82,7 @@ l_p = 0.00  # Pelvis width
 com_height = 0.35
 weight = [1, 1, 5, 1000, 1000, 100000, 100000, 100000, 100000]
 mid_air_foot_height = 0.05
-control_period = 0.001
+control_period = dt
 planner_loop = 0.010
 # init poses
 robot.pin_robot.framesForwardKinematics(q)
@@ -95,9 +96,9 @@ hind_left_foot_position = robot.pin_robot.data.oMf[
 hind_right_foot_position = robot.pin_robot.data.oMf[
     go1_leg_ctrl.imp_ctrl_array[3].frame_end_idx].translation
 
-v_des = np.array([0.5, -0.0, 0.0])
+v_des = np.array([0.2, -0.1, 0.0])
 # p.startStateLogging(p.STATE_LOGGING_VIDEO_MP4, "funny_turn.mp4")
-y_des = -0.5 # Speed of the yaw angle #Lhum check to see these works correctly
+y_des = -0.3 # Speed of the yaw angle #Lhum check to see these works correctly
 
 quadruped_dcm_reactive_stepper = QuadrupedDcmReactiveStepper()
 quadruped_dcm_reactive_stepper.initialize(
@@ -136,8 +137,8 @@ dcm_force = np.array([0.0, 0.0, 0.0])
 offset = -0.02  # foot radius
 # quadruped_dcm_reactive_stepper.start()
 
-traj_q = np.zeros((1000 + warmup, 19))
-
+traj_q = np.zeros((int((1000 + warmup) * original_dt / dt), 19))
+warmup = warmup * original_dt / dt
 
 plt_timer = []
 plt_front_left_foot_position = []
@@ -153,12 +154,14 @@ plt_biped_left_foot_position = []
 plt_x_com = []
 plt_com_des = []
 
-test_go1 = go1_reactive_planners()
+test_go1 = go1_reactive_planners(q)
+p.setTimeStep(dt)
 
 for i in range(traj_q.shape[0]):
-    if i > warmup:
-        import time as ti
-        ti.sleep(0.001)
+    # print(i)
+    # if i > warmup:
+    #     import time as ti
+    #     ti.sleep(0.001)
     # if i == 1000:
     #     v_des = np.array([0.0, 0.0, 0.])
 
@@ -174,8 +177,8 @@ for i in range(traj_q.shape[0]):
     xd_com = robot.pin_robot.com(q, qdot)[1]
     traj_q[i] = q
 
-    com_des += v_des[:2] * 0.001
-    yaw_des += y_des * 0.001
+    com_des += v_des[:2] * dt
+    yaw_des += y_des * dt
 
     if i == warmup:
         quadruped_dcm_reactive_stepper.start()
@@ -238,7 +241,6 @@ for i in range(traj_q.shape[0]):
     x_des_local.extend(quadruped_dcm_reactive_stepper.get_front_right_foot_position())
     x_des_local.extend(quadruped_dcm_reactive_stepper.get_hind_left_foot_position())
     x_des_local.extend(quadruped_dcm_reactive_stepper.get_hind_right_foot_position())
-
     x_des_local[2] -= offset
     x_des_local[5] -= offset
     x_des_local[8] -= offset
@@ -280,12 +282,13 @@ for i in range(traj_q.shape[0]):
             quadruped_dcm_reactive_stepper.get_hind_right_foot_velocity(),
         )
     )
-
-    if cnt_array[0] == 1:
+    if cnt_array[1] == 0:
         F[3:6] = -dcm_force[:3]
+    elif cnt_array[2] == 0:
         F[6:9] = -dcm_force[:3]
-    else:
+    elif cnt_array[0] == 0:
         F[0:3] = -dcm_force[:3]
+    elif cnt_array[3] == 0:
         F[9:12] = -dcm_force[:3]
 
     tau = go1_leg_ctrl.return_joint_torques(
@@ -299,7 +302,7 @@ for i in range(traj_q.shape[0]):
     )
 
     # if i > warmup:
-    control_time += 0.001
+    control_time += dt
     # print(Fore.WHITE + "Actual q", q)
     # print("Actual qdot", qdot)
     # print("Actual [self.com_des[0], self.com_des[1], self.com_height]", [com_des[0], com_des[1], com_height])
@@ -316,9 +319,10 @@ for i in range(traj_q.shape[0]):
     # print(Fore.RED + "Actual x_des_local", x_des_local)
     # print(Fore.WHITE + "Actual des_vel", des_vel)
     # print("Actual F", F)
+    # print(Fore.WHITE + "cnt_array", cnt_array)
     print(Fore.BLUE + "Actual tau: ", tau)
     print("                  ==                  ")
-    print(Fore.BLUE + "Class tau: ", test_go1.step(list(Go1Config.initial_configuration), qdot, yaw_des, v_des, y_des))
+    print(Fore.BLUE + "Class tau: ", test_go1.step(q, qdot, v_des, y_des))
     print("___________________________________")
     robot.send_joint_command(tau)
     p.stepSimulation()
@@ -543,4 +547,25 @@ plt.plot(
 )
 
 plt.legend()
-plt.show()
+# plt.show()
+
+#Test reset function
+q = Go1Config.initial_configuration
+q[0] = 0.4
+q[3:7] = pin.Quaternion(pin.rpy.rpyToMatrix(0., 0., np.pi/8)).coeffs() #
+print("HERE")
+robot.reset_state(np.array(q), np.array(qdot) * 0)
+test_go1.stop()
+print("BEFORE TEST")
+test_go1.reset(q)
+print("AFTER TEST")
+
+for i in range(traj_q.shape[0]):
+    last_qdot = qdot
+    q, qdot = robot.get_state()
+    if i == warmup:
+        test_go1.start()
+    control_time += dt
+    tau = test_go1.step(q, qdot, v_des, y_des)
+    robot.send_joint_command(tau)
+    p.stepSimulation()

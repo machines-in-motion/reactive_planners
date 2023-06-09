@@ -28,6 +28,23 @@ StepperHead::StepperHead()
     time_support_switch_ = 0.0;
 }
 
+void StepperHead::initialization()
+    {
+        // inputs
+        duration_before_foot_landing_ = 0.0;
+        next_support_location_.setZero();
+        current_time_ = 0.0;
+
+        // outputs
+        time_from_last_step_touchdown_ = 0.0;
+        is_left_leg_in_contact_ = true;
+        previous_support_location_.setZero();
+        current_support_location_.setZero();
+
+        // internals
+        time_support_switch_ = 0.0;
+    }
+
 void StepperHead::run(const double& duration_before_foot_landing,
                       const Eigen::Vector3d& next_support_location,
                       const double& current_time)

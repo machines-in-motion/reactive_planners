@@ -96,6 +96,7 @@ void DcmReactiveStepper::initialize(
 
     polynomial_end_eff_trajectory_.set_mid_air_height(mid_air_foot_height);
 
+    stepper_head_.initialization();
     if (is_left_leg_in_contact_)
     {
         stepper_head_.set_support_feet_pos(right_foot_position,
@@ -112,6 +113,10 @@ void DcmReactiveStepper::initialize(
     }
     forces_.resize(ceil(t_max * 1000) * 3);
     running_ = false;
+
+    nb_force_ = 0;
+    nb_usage_of_force_ = 0.;
+    new_ = true;
 }
 
 bool DcmReactiveStepper::run(
