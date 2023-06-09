@@ -552,7 +552,7 @@ plt.show()
 #Test reset function
 robot.reset_state(np.array(q), np.array(qdot) * 0)
 test_go1.stop()
-test_go1.reset(q)
+test_go1.reset(np.array(q))
 v_des = 0 * v_des
 quadruped_dcm_reactive_stepper.set_desired_com_velocity(v_des)
 y_des = 0
