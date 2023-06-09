@@ -151,20 +151,11 @@ class go1_reactive_planners():
     def reset(self,
               initial_configuration=Go1Config.initial_configuration,
               ):
-        print("1")
-
-        if type(initial_configuration) is np.array or type(initial_configuration) is list or \
-                type(initial_configuration) is np.ndarray:
-            print("HERE!!!!!!!!")
-            temp = zero(len(initial_configuration))
-            temp[:] = initial_configuration
-            initial_configuration = temp.copy()
         # Create a robot instance.
-
         q = np.array(initial_configuration)
+        q[3:7] = pin.Quaternion(pin.rpy.rpyToMatrix(0., 0., yaw(q))).coeffs()
         self.robot.pin_robot.framesForwardKinematics(q)
 
-        print("2")
         ########## Parameters you can tune
         l_min = -0.4
         l_max = 0.4
@@ -177,19 +168,13 @@ class go1_reactive_planners():
         mid_air_foot_height = 0.05
 
         #########################
-
         is_left_leg_in_contact = True
         l_p = 0.00  # Pelvis width
         control_period = self.dt
         planner_loop = 0.010
         v_des = np.array([0.0, -0.0, 0.0])
-        print(list(q[:7]))
-        print("Go1Config.initial_configuration[:7]", Go1Config.initial_configuration[:7])
-        print(type(q[:7]))
-        print("Go1Config.initial_configuration[:7]", type(Go1Config.initial_configuration[:7]))
-        print(Go1Config.initial_configuration[:7] * 0 == list(q[:7]) * 0)
-        base_pose = zero(7)
-        base_pose[:] = q[:7]
+        base_pose = q[:7]
+
 
         front_left_foot_position = self.robot.pin_robot.data.oMf[
             self.go1_leg_ctrl.imp_ctrl_array[0].frame_end_idx].translation
@@ -200,9 +185,6 @@ class go1_reactive_planners():
         hind_right_foot_position = self.robot.pin_robot.data.oMf[
             self.go1_leg_ctrl.imp_ctrl_array[3].frame_end_idx].translation
 
-        print("3")
-        # self.quadruped_dcm_reactive_stepper = QuadrupedDcmReactiveStepper()
-        print("3.5")
         self.quadruped_dcm_reactive_stepper.initialize(
             is_left_leg_in_contact,
             l_min,
@@ -223,7 +205,6 @@ class go1_reactive_planners():
             hind_left_foot_position,
             hind_right_foot_position,
         )
-        print("4")
 
         self.quadruped_dcm_reactive_stepper.set_steptime_nominal(0.15)
         self.quadruped_dcm_reactive_stepper.set_desired_com_velocity(v_des)
@@ -236,7 +217,6 @@ class go1_reactive_planners():
         self.yaw_des = yaw(q)
         self.cnt_array = [1, 1]
         self.control_time = 0
-        print("5")
 
     def step(self, q, qdot,
              v_des=np.array([0.0, -0.0, 0.0]),
@@ -400,7 +380,6 @@ if __name__ == "__main__":
     start_time = time.time()
 
     for i in range(num_simulation):
-        print(i)
         stepper.append(go1_reactive_planners())
         stepper[-1].start()
 

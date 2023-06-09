@@ -547,25 +547,23 @@ plt.plot(
 )
 
 plt.legend()
-# plt.show()
+plt.show()
 
 #Test reset function
-q = Go1Config.initial_configuration
-q[0] = 0.4
-q[3:7] = pin.Quaternion(pin.rpy.rpyToMatrix(0., 0., np.pi/8)).coeffs() #
-print("HERE")
 robot.reset_state(np.array(q), np.array(qdot) * 0)
 test_go1.stop()
-print("BEFORE TEST")
 test_go1.reset(q)
-print("AFTER TEST")
+v_des = 0 * v_des
+quadruped_dcm_reactive_stepper.set_desired_com_velocity(v_des)
+y_des = 0
 
-for i in range(traj_q.shape[0]):
+
+for i in range(traj_q.shape[0] * 10):
     last_qdot = qdot
     q, qdot = robot.get_state()
     if i == warmup:
         test_go1.start()
     control_time += dt
-    tau = test_go1.step(q, qdot, v_des, y_des)
+    tau = test_go1.step(q, qdot, v_des , y_des)
     robot.send_joint_command(tau)
     p.stepSimulation()
